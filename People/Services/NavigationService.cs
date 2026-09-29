@@ -28,16 +28,25 @@ public class NavigationService : INavigationService
         }
     }
 
+    private object? _lastParameter;
+
     public bool NavigateTo(string pageKey, object? parameter = null, bool clearNavigation = false)
     {
         if (_frame == null) return false;
 
         if (_pages.TryGetValue(pageKey, out var pageType))
         {
+            if (_frame.SourcePageType == pageType && Equals(parameter, _lastParameter))
+            {
+                return false;
+            }
+
             if (clearNavigation)
             {
                 _frame.BackStack.Clear();
             }
+            
+            _lastParameter = parameter;
             return _frame.Navigate(pageType, parameter);
         }
         
