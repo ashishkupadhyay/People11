@@ -39,9 +39,11 @@ public class TrayIconService : ITrayIconService
         var menu = new Microsoft.UI.Xaml.Controls.MenuFlyout();
 
         var openAppItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Open Main App" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(openAppItem, "TrayOpenAppMenuBtn");
         openAppItem.Click += (s, e) => App.Current.MainWindow?.Activate();
         
         var settingsItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Settings" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(settingsItem, "TraySettingsMenuBtn");
         settingsItem.Click += (s, e) => {
             App.Current.MainWindow?.Activate();
             var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
@@ -49,6 +51,7 @@ public class TrayIconService : ITrayIconService
         };
 
         var quitItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Quit" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(quitItem, "TrayQuitMenuBtn");
         quitItem.Click += (s, e) => {
             _taskbarIcon?.Dispose();
             Microsoft.UI.Xaml.Application.Current.Exit();

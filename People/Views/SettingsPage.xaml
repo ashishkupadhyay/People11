@@ -52,7 +52,7 @@
                     
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
-                            <Button Content="Re-authenticate" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
+                            <Button Content="Re-authenticate" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>

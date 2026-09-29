@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using People.Core.Models;
 using System.Collections.ObjectModel;
 
@@ -9,8 +10,7 @@ public partial class ConversationViewModel : ViewModelBase
     [ObservableProperty]
     public partial Chat? CurrentChat { get; set; }
 
-    [ObservableProperty]
-    public partial ObservableCollection<Message> Messages { get; set; } = new();
+    public ObservableCollection<Message> Messages { get; } = new();
 
     [ObservableProperty]
     public partial string MessageText { get; set; } = string.Empty;
@@ -20,6 +20,22 @@ public partial class ConversationViewModel : ViewModelBase
         CurrentChat = chat;
         Messages.Clear();
         LoadMockMessages();
+    }
+
+    [RelayCommand]
+    private void SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(MessageText)) return;
+
+        Messages.Add(new Message 
+        { 
+            Id = System.Guid.NewGuid().ToString(), 
+            IsOutgoing = true, 
+            Content = new MessageContent { Text = MessageText }, 
+            Timestamp = System.DateTimeOffset.Now 
+        });
+
+        MessageText = string.Empty;
     }
 
     private void LoadMockMessages()

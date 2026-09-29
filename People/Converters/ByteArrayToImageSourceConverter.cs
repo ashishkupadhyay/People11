@@ -7,7 +7,7 @@ namespace People.Converters;
 
 public class ByteArrayToImageSourceConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, string language)
+    public object? Convert(object? value, Type targetType, object? parameter, string language)
     {
         if (value is byte[] bytes && bytes.Length > 0)
         {
@@ -21,7 +21,7 @@ public class ByteArrayToImageSourceConverter : IValueConverter
         return null;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, string language)
     {
         throw new NotImplementedException();
     }

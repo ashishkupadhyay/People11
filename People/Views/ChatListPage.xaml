@@ -126,7 +126,7 @@
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneTime}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
                             </StackPanel>
                         </Grid>
                     </DataTemplate>

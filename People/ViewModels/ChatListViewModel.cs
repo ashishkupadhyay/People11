@@ -7,8 +7,7 @@ namespace People.ViewModels;
 
 public partial class ChatListViewModel : ViewModelBase
 {
-    [ObservableProperty]
-    public partial ObservableCollection<Chat> Chats { get; set; } = new();
+    public ObservableCollection<Chat> Chats { get; } = new();
 
     [ObservableProperty]
     public partial byte[]? QrCodeBytes { get; set; }

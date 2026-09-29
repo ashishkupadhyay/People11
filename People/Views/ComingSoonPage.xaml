@@ -15,9 +15,9 @@
         </Grid.Background>
         
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-            <FontIcon x:Name="AppIcon" FontSize="64" Foreground="White" />
-            <TextBlock x:Name="TitleTextBlock" Text="Coming Soon" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="White" HorizontalAlignment="Center" />
-            <TextBlock x:Name="SubtitleTextBlock" Text="We are working on bringing this platform to People." Style="{ThemeResource BodyTextBlockStyle}" Foreground="#DDDDDD" HorizontalAlignment="Center" />
+            <FontIcon x:Name="AppIcon" FontSize="64" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+            <TextBlock x:Name="TitleTextBlock" Text="Coming Soon" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" HorizontalAlignment="Center" />
+            <TextBlock x:Name="SubtitleTextBlock" Text="We are working on bringing this platform to People." Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}" HorizontalAlignment="Center" />
         </StackPanel>
     </Grid>
 </Page>

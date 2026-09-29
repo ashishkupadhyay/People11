@@ -56,4 +56,11 @@ public sealed partial class FlyoutWindow : Window
         args.Handled = true;
         this.Close();
     }
+
+    private void WhatsAppBtn_Click(object sender, RoutedEventArgs e)
+    {
+        // For now, just bring the main app window to the foreground
+        App.Current.MainWindow?.Activate();
+        this.Close();
+    }
 }

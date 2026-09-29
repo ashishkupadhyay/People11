@@ -36,6 +36,12 @@ public partial class SettingsViewModel : ViewModelBase
         trayService.ShowNotification("New Message", "Hello from People App!");
     }
 
+    [RelayCommand]
+    private void Reauthenticate()
+    {
+        // TODO: Trigger re-authentication flow
+    }
+
     public SettingsViewModel(ISettingsService settingsService, IThemeService themeService)
     {
         _settingsService = settingsService;
@@ -44,7 +50,7 @@ public partial class SettingsViewModel : ViewModelBase
         LoadSettings();
     }
 
-    private async void LoadSettings()
+    private void LoadSettings()
     {
         SelectedTheme = _settingsService.GetValue<string>("AppTheme") ?? "Default";
         SelectedBackdrop = _settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
