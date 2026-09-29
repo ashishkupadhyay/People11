@@ -22,12 +22,13 @@
         </Grid.RowDefinitions>
 
         <TitleBar x:Name="AppTitleBar" Grid.Row="0" Grid.ColumnSpan="2" Canvas.ZIndex="10" Background="Transparent"
+                  HorizontalContentAlignment="Stretch"
                   IsBackButtonVisible="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}"
                   BackRequested="AppTitleBar_BackRequested"
                   IsPaneToggleButtonVisible="True"
                   PaneToggleRequested="AppTitleBar_PaneToggleRequested">
             <TitleBar.Content>
-                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="0,0,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0">
                     <FontIcon Glyph="&#xE716;" FontSize="16" />
                     <TextBlock Text="People" Style="{ThemeResource CaptionTextBlockStyle}" />
                 </StackPanel>
