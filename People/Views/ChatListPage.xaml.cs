@@ -13,10 +13,11 @@ public sealed partial class ChatListPage : Page
         ViewModel = App.Current.Services.GetRequiredService<ChatListViewModel>();
         InitializeComponent();
         
+        DetailFrame.Navigated += DetailFrame_Navigated;
+        
         // Initialize with a blank page so there is something to go back to.
         DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
         
-        DetailFrame.Navigated += DetailFrame_Navigated;
         this.SizeChanged += ChatListPage_SizeChanged;
     }
 

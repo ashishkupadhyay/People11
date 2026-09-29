@@ -11,6 +11,11 @@ public sealed partial class MainWindow : Window
 {
     public MainWindowViewModel ViewModel { get; }
 
+    public Microsoft.UI.Xaml.Visibility ConvertBoolToVisibility(bool isVisible)
+    {
+        return isVisible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    }
+
     public MainWindow()
     {
         ViewModel = App.Current.Services.GetRequiredService<MainWindowViewModel>();
@@ -34,6 +39,20 @@ public sealed partial class MainWindow : Window
             NavView.SelectedItem = NavView.MenuItems[0];
             navServiceCore.NavigateTo("Chats");
         };
+
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+        
+        if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
+        {
+            var titleBar = appWindow.TitleBar;
+            titleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+            titleBar.ButtonHoverBackgroundColor = Microsoft.UI.Colors.Transparent;
+            titleBar.ButtonPressedBackgroundColor = Microsoft.UI.Colors.Transparent;
+            titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+        }
+
         NavView.SizeChanged += NavView_SizeChanged;
     }
 
@@ -102,6 +121,26 @@ public sealed partial class MainWindow : Window
     private void CustomBackButton_Click(object sender, RoutedEventArgs e)
     {
         HandleBackRequest();
+    }
+
+    private void CustomBackButton_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "PointerOver");
+    }
+
+    private void CustomBackButton_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "Normal");
+    }
+
+    private void CustomBackButton_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "Pressed");
+    }
+
+    private void CustomBackButton_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "PointerOver");
     }
 
     private void HandleBackRequest()

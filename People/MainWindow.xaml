@@ -7,6 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls.AnimatedVisuals"
+    xmlns:converters="using:People.Converters"
     mc:Ignorable="d"
     Title="People">
 
@@ -28,10 +29,16 @@
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0" Width="48" Height="48">
-                <Button x:Name="CustomBackButton" Style="{ThemeResource NavigationBackButtonNormalStyle}" 
-                        VerticalAlignment="Center" Margin="0,0,0,0" Width="48" Height="40" Visibility="Visible"
-                        Click="CustomBackButton_Click" IsEnabled="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}">
-                    <AnimatedIcon>
+                <Button x:Name="CustomBackButton" 
+                        Background="Transparent" BorderBrush="Transparent"
+                        VerticalAlignment="Center" HorizontalAlignment="Center" Width="48" Height="48"
+                        Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.IsBackEnabled), Mode=OneWay}"
+                        Click="CustomBackButton_Click"
+                        PointerEntered="CustomBackButton_PointerEntered" 
+                        PointerExited="CustomBackButton_PointerExited"
+                        PointerPressed="CustomBackButton_PointerPressed"
+                        PointerReleased="CustomBackButton_PointerReleased">
+                    <AnimatedIcon x:Name="BackAnimatedIcon">
                         <AnimatedIcon.Source>
                             <animatedvisuals:AnimatedBackVisualSource/>
                         </AnimatedIcon.Source>
