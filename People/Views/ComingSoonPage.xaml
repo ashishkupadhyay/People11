@@ -1,0 +1,23 @@
+<Page
+    x:Class="People.Views.ComingSoonPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid">
+        <Grid.Background>
+            <LinearGradientBrush x:Name="BackgroundGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop x:Name="ColorStop1" Offset="0.0" Color="#FF333333" />
+                <GradientStop x:Name="ColorStop2" Offset="1.0" Color="#FF000000" />
+            </LinearGradientBrush>
+        </Grid.Background>
+        
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+            <FontIcon x:Name="AppIcon" FontSize="64" Foreground="White" />
+            <TextBlock x:Name="TitleTextBlock" Text="Coming Soon" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="White" HorizontalAlignment="Center" />
+            <TextBlock x:Name="SubtitleTextBlock" Text="We are working on bringing this platform to People." Style="{ThemeResource BodyTextBlockStyle}" Foreground="#DDDDDD" HorizontalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</Page>

@@ -1,0 +1,17 @@
+<Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="People/People.csproj">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+    <Deploy />
+  </Project>
+  <Project Path="People.Core/People.Core.csproj" />
+  <Project Path="People.Data/People.Data.csproj" />
+  <Project Path="People.Providers/People.Providers.csproj" />
+  <Project Path="People.Interop/People.Interop.csproj" />
+</Solution>

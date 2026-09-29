@@ -1,0 +1,119 @@
+<Page
+    x:Class="People.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="using:CommunityToolkit.WinUI.Controls"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <ScrollViewer Padding="16,16,16,16" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="24" MaxWidth="1000">
+            <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" Margin="0,0,0,8" />
+
+            <!-- Appearance Section -->
+            <StackPanel Spacing="2">
+                <TextBlock Text="Appearance" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                
+                <ui:SettingsExpander Header="Theme &amp; Backdrop" Description="Change the visual appearance of the app">
+                    <ui:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE790;" />
+                    </ui:SettingsExpander.HeaderIcon>
+                    
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="App Theme">
+                            <ComboBox ItemsSource="{x:Bind ViewModel.Themes}" SelectedItem="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="App theme" AutomationProperties.AutomationId="ThemeComboBox" />
+                        </ui:SettingsCard>
+                        <ui:SettingsCard Header="Window Backdrop">
+                            <ComboBox ItemsSource="{x:Bind ViewModel.Backdrops}" SelectedItem="{x:Bind ViewModel.SelectedBackdrop, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Window backdrop" AutomationProperties.AutomationId="BackdropComboBox" />
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
+            </StackPanel>
+
+            <!-- Platforms Section -->
+            <StackPanel Spacing="2">
+                <TextBlock Text="Platforms" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                
+                <!-- WhatsApp -->
+                <ui:SettingsExpander Header="WhatsApp" Description="Configure WhatsApp integration">
+                    <ui:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE815;" />
+                    </ui:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsWhatsAppEnabled, Mode=TwoWay}" AutomationProperties.Name="WhatsApp enabled" AutomationProperties.AutomationId="WhatsAppToggle" />
+                    
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
+                            <Button Content="Re-authenticate" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
+
+                <!-- SMS -->
+                <ui:SettingsCard Header="SMS via Android Companion" Description="Coming Soon (v2.0)" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8BD;" />
+                    </ui:SettingsCard.HeaderIcon>
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    </Border>
+                </ui:SettingsCard>
+
+                <!-- Telegram -->
+                <ui:SettingsCard Header="Telegram" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8F1;" />
+                    </ui:SettingsCard.HeaderIcon>
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    </Border>
+                </ui:SettingsCard>
+
+                <!-- Discord -->
+                <ui:SettingsCard Header="Discord" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE90A;" />
+                    </ui:SettingsCard.HeaderIcon>
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    </Border>
+                </ui:SettingsCard>
+            </StackPanel>
+
+            <!-- Taskbar & Notifications -->
+            <StackPanel Spacing="2">
+                <TextBlock Text="Taskbar &amp; Notifications" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                
+                <ui:SettingsExpander Header="Tray Icon &amp; Flyout" Description="Configure system tray behavior">
+                    <ui:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE8A1;" />
+                    </ui:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.IsFlyoutEnabled, Mode=TwoWay}" AutomationProperties.Name="Tray icon enabled" AutomationProperties.AutomationId="TrayToggle" />
+                    
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="Unread Badge" Description="Show unread message count in tray">
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.ShowUnreadBadge, Mode=TwoWay}" AutomationProperties.Name="Show unread badge" AutomationProperties.AutomationId="BadgeToggle" />
+                        </ui:SettingsCard>
+                        <ui:SettingsCard Header="Test Notifications" Description="Send a sample notification">
+                            <Button Content="Test" Command="{x:Bind ViewModel.TestNotificationCommand}" AutomationProperties.Name="Test notifications" AutomationProperties.AutomationId="TestNotifBtn" />
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
+            </StackPanel>
+
+            <!-- About -->
+            <StackPanel Spacing="2">
+                <TextBlock Text="About" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                
+                <ui:SettingsCard Header="People App" Description="Version 1.0 (Alpha)">
+                    <ui:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE946;" />
+                    </ui:SettingsCard.HeaderIcon>
+                    <HyperlinkButton Content="Check for Updates" AutomationProperties.Name="Check for updates" AutomationProperties.AutomationId="UpdateBtn" />
+                </ui:SettingsCard>
+            </StackPanel>
+            
+        </StackPanel>
+    </ScrollViewer>
+</Page>
