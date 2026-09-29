@@ -27,9 +27,9 @@
                   BackRequested="AppTitleBar_BackRequested"
                   IsPaneToggleButtonVisible="True"
                   PaneToggleRequested="AppTitleBar_PaneToggleRequested">
-            <TitleBar.IconSource>
-                <FontIconSource Glyph="&#xE716;" />
-            </TitleBar.IconSource>
+            <TitleBar.LeftHeader>
+                <FontIcon Glyph="&#xE716;" FontSize="16" IsHitTestVisible="False" Margin="12,0,12,0" VerticalAlignment="Center" />
+            </TitleBar.LeftHeader>
         </TitleBar>
 
         <NavigationView x:Name="NavView" Grid.Row="1" Grid.RowSpan="1"

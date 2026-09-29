@@ -22,6 +22,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         
         ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
         var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
         if (navServiceCore is People.Services.NavigationService navService)
         {
@@ -50,6 +51,7 @@ public sealed partial class MainWindow : Window
             titleBar.ButtonHoverBackgroundColor = Microsoft.UI.Colors.Transparent;
             titleBar.ButtonPressedBackgroundColor = Microsoft.UI.Colors.Transparent;
             titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+            titleBar.IconShowOptions = Microsoft.UI.Windowing.IconShowOptions.HideIconAndSystemMenu;
         }
 
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
