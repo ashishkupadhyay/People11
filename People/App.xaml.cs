@@ -66,7 +66,7 @@ public partial class App : Application
         services.AddSingleton<ProviderManager>();
 
         // ViewModels
-        services.AddTransient<MainWindowViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
         services.AddTransient<ChatListViewModel>();
         services.AddTransient<ConversationViewModel>();
         services.AddTransient<SettingsViewModel>();

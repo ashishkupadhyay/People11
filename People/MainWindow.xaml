@@ -21,42 +21,20 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Grid.ColumnSpan="2" Canvas.ZIndex="10" Background="Transparent" IsHitTestVisible="True">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/> <!-- Back Button -->
-                <ColumnDefinition Width="Auto"/> <!-- Title -->
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Grid Grid.Column="0" Width="48" Height="48">
-                <Button x:Name="CustomBackButton" 
-                        Background="Transparent" BorderBrush="Transparent"
-                        VerticalAlignment="Center" HorizontalAlignment="Center" Width="48" Height="48"
-                        Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.IsBackEnabled), Mode=OneWay}"
-                        Click="CustomBackButton_Click"
-                        PointerEntered="CustomBackButton_PointerEntered" 
-                        PointerExited="CustomBackButton_PointerExited"
-                        PointerPressed="CustomBackButton_PointerPressed"
-                        PointerReleased="CustomBackButton_PointerReleased">
-                    <AnimatedIcon x:Name="BackAnimatedIcon">
-                        <AnimatedIcon.Source>
-                            <animatedvisuals:AnimatedBackVisualSource/>
-                        </AnimatedIcon.Source>
-                        <AnimatedIcon.FallbackIconSource>
-                            <SymbolIconSource Symbol="Back"/>
-                        </AnimatedIcon.FallbackIconSource>
-                    </AnimatedIcon>
-                </Button>
-            </Grid>
-
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="12,0,0,0" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE716;" FontSize="16"/>
-                <TextBlock Text="People" Style="{ThemeResource CaptionTextBlockStyle}" />
-            </StackPanel>
-        </Grid>
+        <TitleBar x:Name="AppTitleBar" Grid.Row="0" Grid.ColumnSpan="2" Canvas.ZIndex="10" Background="Transparent"
+                  Title="People"
+                  IsBackButtonVisible="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}"
+                  BackRequested="AppTitleBar_BackRequested"
+                  IsPaneToggleButtonVisible="True"
+                  PaneToggleRequested="AppTitleBar_PaneToggleRequested">
+            <TitleBar.IconSource>
+                <FontIconSource Glyph="&#xE716;" />
+            </TitleBar.IconSource>
+        </TitleBar>
 
         <NavigationView x:Name="NavView" Grid.Row="1" Grid.RowSpan="1"
                         IsBackButtonVisible="Collapsed"
+                        IsPaneToggleButtonVisible="False"
                         ItemInvoked="NavView_ItemInvoked"
                         DisplayModeChanged="NavView_DisplayModeChanged"
                         PaneDisplayMode="LeftCompact"

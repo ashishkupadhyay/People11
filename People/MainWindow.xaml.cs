@@ -22,7 +22,6 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
         var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
         if (navServiceCore is People.Services.NavigationService navService)
         {
@@ -68,24 +67,6 @@ public sealed partial class MainWindow : Window
         {
             NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftCompact;
         }
-
-        // Layout switching:
-        // Wide: NavView in Row 1 (hamburger is below title bar).
-        // Medium/Narrow: NavView in Row 0 (hamburger is in title bar).
-        if (width >= 1007)
-        {
-            Grid.SetRow(NavView, 1);
-            Grid.SetRowSpan(NavView, 1);
-            AppTitleBar.Margin = new Thickness(0, 0, 0, 0);
-            ContentFrame.Margin = new Thickness(0, 0, 0, 0);
-        }
-        else
-        {
-            Grid.SetRow(NavView, 0);
-            Grid.SetRowSpan(NavView, 2);
-            AppTitleBar.Margin = new Thickness(48, 0, 0, 0); // Leave space for Hamburger
-            ContentFrame.Margin = new Thickness(0, 48, 0, 0);
-        }
     }
 
     private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
@@ -118,29 +99,14 @@ public sealed partial class MainWindow : Window
         HandleBackRequest();
     }
 
-    private void CustomBackButton_Click(object sender, RoutedEventArgs e)
+    private void AppTitleBar_BackRequested(TitleBar sender, object args)
     {
         HandleBackRequest();
     }
 
-    private void CustomBackButton_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args)
     {
-        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "PointerOver");
-    }
-
-    private void CustomBackButton_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "Normal");
-    }
-
-    private void CustomBackButton_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "Pressed");
-    }
-
-    private void CustomBackButton_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        Microsoft.UI.Xaml.Controls.AnimatedIcon.SetState(BackAnimatedIcon, "PointerOver");
+        NavView.IsPaneOpen = !NavView.IsPaneOpen;
     }
 
     private void HandleBackRequest()
