@@ -7,7 +7,7 @@
     xmlns:converters="using:People.Converters"
     xmlns:models="using:People.Core.Models"
     mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    Background="{ThemeResource LayerFillColorDefaultBrush}">
 
     <Page.Resources>
         <converters:OutgoingAlignmentConverter x:Key="OutgoingAlignmentConverter" />
@@ -22,7 +22,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Padding="16" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <PersonPicture DisplayName="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" Width="40" Height="40" />
                 <TextBlock Text="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="16" />
@@ -51,7 +51,7 @@
         </ListView>
 
         <!-- Input Area -->
-        <Grid Grid.Row="2" Padding="16" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+        <Grid Grid.Row="2" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

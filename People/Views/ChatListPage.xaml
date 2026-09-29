@@ -55,7 +55,7 @@
             <ColumnDefinition x:Name="DetailColumn" Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Grid x:Name="ListGrid" Grid.Column="0" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid x:Name="ListGrid" Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -133,7 +133,7 @@
         </Grid>
 
         <!-- Placeholder behind DetailFrame -->
-        <Grid x:Name="PlaceholderGrid" Grid.Column="1" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid x:Name="PlaceholderGrid" Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}">
             <TextBlock Text="Click on a contact or group to view the chats or start a new one" 
                        HorizontalAlignment="Center" VerticalAlignment="Center" 
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

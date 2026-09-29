@@ -39,12 +39,7 @@ public sealed partial class MainWindow : Window
 
     private void NavView_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var width = e.NewSize.Width;
-        if (width < 640)
-        {
-            NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.Top;
-        }
-        else if (width < 1007)
+        if (e.NewSize.Width < 640)
         {
             NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftMinimal;
         }
