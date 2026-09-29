@@ -23,6 +23,10 @@ public sealed partial class MainWindow : Window
         
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        
+        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+        themeService.Initialize();
+        themeService.ApplyToWindow(this);
         var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
         if (navServiceCore is People.Services.NavigationService navService)
         {

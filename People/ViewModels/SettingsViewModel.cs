@@ -67,7 +67,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     partial void OnSelectedBackdropChanged(string value)
     {
-        // Currently handled by the UI/Theme logic, we would just save it.
+        _themeService.SetBackdrop(value);
         _settingsService.SetValue("AppBackdrop", value);
     }
 

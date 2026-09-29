@@ -25,18 +25,32 @@ public class ThemeService : IThemeService
         _currentTheme = theme;
         _settingsService.SetValue(ThemeKey, theme);
         
-        // Apply to current window
-        if (App.Current is App app)
+        if (App.Current is App app && app.MainWindow != null)
         {
-            // The actual theme change logic requires accessing the FrameworkElement of the Window content
-            // and setting RequestedTheme. We will handle this at the Window level or via the root visual.
+            if (app.MainWindow.Content is FrameworkElement rootElement)
+            {
+                rootElement.RequestedTheme = _currentTheme switch
+                {
+                    "Light" => ElementTheme.Light,
+                    "Dark" => ElementTheme.Dark,
+                    _ => ElementTheme.Default
+                };
+            }
         }
     }
 
     public void SetBackdrop(string backdrop)
     {
-        // For WinUI 3, setting backdrop (Mica / Desktop Acrylic) is usually done on the Window instance.
-        // This will be invoked by the views/windows directly.
+        if (App.Current is App app && app.MainWindow != null)
+        {
+            app.MainWindow.SystemBackdrop = backdrop switch
+            {
+                "Mica" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
+                "Mica Alt" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt },
+                "Desktop Acrylic" => new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
+                _ => null
+            };
+        }
     }
 
     public void ApplyToWindow(object windowObj)
@@ -53,11 +67,14 @@ public class ThemeService : IThemeService
                 };
             }
             
-            // Enable Mica if on Windows 11
-            if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+            var backdrop = _settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
+            window.SystemBackdrop = backdrop switch
             {
-                window.SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
-            }
+                "Mica" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
+                "Mica Alt" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt },
+                "Desktop Acrylic" => new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
+                _ => null
+            };
         }
     }
 }
