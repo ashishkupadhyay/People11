@@ -41,7 +41,7 @@ public sealed partial class MainWindow : Window
     {
         var width = e.NewSize.Width;
 
-        if (width < 640)
+        if (width < 1007)
         {
             NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftMinimal;
         }
@@ -58,12 +58,14 @@ public sealed partial class MainWindow : Window
             Grid.SetRow(NavView, 1);
             Grid.SetRowSpan(NavView, 1);
             HamburgerSpace.Visibility = Visibility.Collapsed;
+            ContentFrame.Margin = new Thickness(0, 0, 0, 0);
         }
         else
         {
             Grid.SetRow(NavView, 0);
             Grid.SetRowSpan(NavView, 2);
             HamburgerSpace.Visibility = Visibility.Visible;
+            ContentFrame.Margin = new Thickness(0, 48, 0, 0);
         }
     }
 
