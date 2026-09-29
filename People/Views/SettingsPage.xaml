@@ -60,6 +60,12 @@
                         <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
                             <Button Content="Re-authenticate" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
                         </ui:SettingsCard>
+                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for WhatsApp">
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <RadioButton Content="Follow accent color" IsChecked="{x:Bind ViewModel.IsWhatsAppAccentColor, Mode=TwoWay}" />
+                                <RadioButton Content="Use brand color" IsChecked="{x:Bind ViewModel.IsWhatsAppBrandColor, Mode=TwoWay}" />
+                            </StackPanel>
+                        </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
@@ -74,14 +80,20 @@
                 </ui:SettingsCard>
 
                 <!-- Telegram -->
-                <ui:SettingsCard Header="Telegram" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
-                    <ui:SettingsCard.HeaderIcon>
+                <ui:SettingsExpander Header="Telegram" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8F1;" />
-                    </ui:SettingsCard.HeaderIcon>
-                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
-                    </Border>
-                </ui:SettingsCard>
+                    </ui:SettingsExpander.HeaderIcon>
+                    
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for Telegram">
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <RadioButton Content="Follow accent color" IsChecked="{x:Bind ViewModel.IsTelegramAccentColor, Mode=TwoWay}" />
+                                <RadioButton Content="Use brand color" IsChecked="{x:Bind ViewModel.IsTelegramBrandColor, Mode=TwoWay}" />
+                            </StackPanel>
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
 
                 <!-- Discord -->
                 <ui:SettingsCard Header="Discord" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">

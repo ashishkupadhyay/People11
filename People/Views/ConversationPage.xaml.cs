@@ -21,8 +21,17 @@ public sealed partial class ConversationPage : Page
         if (e.Parameter is Chat chat)
         {
             ViewModel.LoadChat(chat);
+            
+            var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+            themeService.ApplyBrandColorIfActive(chat.PlatformId);
         }
         base.OnNavigatedTo(e);
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+        themeService.RestoreSystemAccentColor();
+        base.OnNavigatedFrom(e);
+    }
 }

@@ -19,7 +19,41 @@ public partial class SettingsViewModel : ViewModelBase
     
     [ObservableProperty]
     public partial bool IsWhatsAppEnabled { get; set; } = true;
+
+    public bool IsWhatsAppBrandColor
+    {
+        get => _settingsService.GetValue<bool>("BrandColor_WhatsApp", false);
+        set 
+        { 
+            _settingsService.SetValue("BrandColor_WhatsApp", value);
+            OnPropertyChanged(nameof(IsWhatsAppBrandColor));
+            OnPropertyChanged(nameof(IsWhatsAppAccentColor));
+        }
+    }
     
+    public bool IsWhatsAppAccentColor
+    {
+        get => !IsWhatsAppBrandColor;
+        set { if (value) IsWhatsAppBrandColor = false; }
+    }
+
+    public bool IsTelegramBrandColor
+    {
+        get => _settingsService.GetValue<bool>("BrandColor_Telegram", false);
+        set 
+        { 
+            _settingsService.SetValue("BrandColor_Telegram", value);
+            OnPropertyChanged(nameof(IsTelegramBrandColor));
+            OnPropertyChanged(nameof(IsTelegramAccentColor));
+        }
+    }
+    
+    public bool IsTelegramAccentColor
+    {
+        get => !IsTelegramBrandColor;
+        set { if (value) IsTelegramBrandColor = false; }
+    }
+
     [ObservableProperty]
     public partial bool IsFlyoutEnabled { get; set; } = true;
 

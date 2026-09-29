@@ -6,4 +6,6 @@ public interface IThemeService
     void SetTheme(string theme);
     void SetBackdrop(string backdrop);
     void ApplyToWindow(object window);
+    void ApplyBrandColorIfActive(string platformId);
+    void RestoreSystemAccentColor();
 }

@@ -42,7 +42,7 @@
                     <Grid Margin="0,4">
                         <Border Padding="12,8" CornerRadius="8" 
                                 HorizontalAlignment="{x:Bind IsOutgoing, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                Background="{x:Bind IsOutgoing, Converter={StaticResource OutgoingBackgroundConverter}}">
+                                Background="{Binding Converter={StaticResource OutgoingBackgroundConverter}}">
                             <TextBlock Text="{x:Bind Content.Text}" TextWrapping="Wrap" />
                         </Border>
                     </Grid>

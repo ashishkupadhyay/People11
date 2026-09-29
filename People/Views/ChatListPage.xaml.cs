@@ -66,6 +66,10 @@ public sealed partial class ChatListPage : Page
     {
         if (e.ClickedItem is People.Core.Models.Chat chat)
         {
+            if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat?.Id == chat.Id)
+            {
+                return;
+            }
             DetailFrame.Navigate(typeof(ConversationPage), chat);
         }
     }
