@@ -52,8 +52,19 @@ public sealed partial class MainWindow : Window
             titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
         }
 
+        if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            uint dpi = GetDpiForWindow(hwnd);
+            float scalingFactor = dpi / 96f;
+            presenter.PreferredMinimumWidth = (int)(480 * scalingFactor);
+            presenter.PreferredMinimumHeight = (int)(480 * scalingFactor);
+        }
+
         NavView.SizeChanged += NavView_SizeChanged;
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     private void NavView_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -132,4 +143,5 @@ public sealed partial class MainWindow : Window
     {
         ViewModel.IsBackEnabled = ContentFrame.CanGoBack;
     }
+
 }
