@@ -13,7 +13,7 @@ namespace People.Providers.WhatsApp;
 
 public class WhatsAppProvider : IWhatsAppProvider
 {
-    public string PlatformId => "whatsapp";
+    public string PlatformId => "WhatsApp";
     public string DisplayName => "WhatsApp";
     public ConnectionState ConnectionState { get; private set; } = ConnectionState.Disconnected;
 

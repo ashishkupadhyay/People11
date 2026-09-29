@@ -20,7 +20,14 @@ public class TrayIconService : ITrayIconService
                 _taskbarIcon = new TaskbarIcon
                 {
                     ToolTipText = "People Messaging",
-                    ContextFlyout = CreateContextMenu()
+                    ContextFlyout = CreateContextMenu(),
+                    IconSource = new H.NotifyIcon.GeneratedIconSource
+                    {
+                        Text = "\xE716",
+                        FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.CornflowerBlue),
+                        FontSize = 38
+                    }
                 };
 
                 _taskbarIcon.LeftClickCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ToggleFlyout);

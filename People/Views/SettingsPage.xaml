@@ -61,10 +61,7 @@
                             <Button Content="Re-authenticate" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
                         </ui:SettingsCard>
                         <ui:SettingsCard Header="App Color" Description="Choose the accent color for WhatsApp">
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <RadioButton Content="Follow accent color" IsChecked="{x:Bind ViewModel.IsWhatsAppAccentColor, Mode=TwoWay}" />
-                                <RadioButton Content="Use brand color" IsChecked="{x:Bind ViewModel.IsWhatsAppBrandColor, Mode=TwoWay}" />
-                            </StackPanel>
+                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.WhatsAppBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="WhatsApp app color" AutomationProperties.AutomationId="WaBubbleComboBox" />
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
@@ -87,10 +84,7 @@
                     
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard Header="App Color" Description="Choose the accent color for Telegram">
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <RadioButton Content="Follow accent color" IsChecked="{x:Bind ViewModel.IsTelegramAccentColor, Mode=TwoWay}" />
-                                <RadioButton Content="Use brand color" IsChecked="{x:Bind ViewModel.IsTelegramBrandColor, Mode=TwoWay}" />
-                            </StackPanel>
+                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.TelegramBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Telegram app color" AutomationProperties.AutomationId="TgBubbleComboBox" />
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>

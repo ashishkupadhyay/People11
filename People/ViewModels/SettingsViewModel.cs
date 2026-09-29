@@ -20,39 +20,11 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsWhatsAppEnabled { get; set; } = true;
 
-    public bool IsWhatsAppBrandColor
-    {
-        get => _settingsService.GetValue<bool>("BrandColor_WhatsApp", false);
-        set 
-        { 
-            _settingsService.SetValue("BrandColor_WhatsApp", value);
-            OnPropertyChanged(nameof(IsWhatsAppBrandColor));
-            OnPropertyChanged(nameof(IsWhatsAppAccentColor));
-        }
-    }
-    
-    public bool IsWhatsAppAccentColor
-    {
-        get => !IsWhatsAppBrandColor;
-        set { if (value) IsWhatsAppBrandColor = false; }
-    }
+    [ObservableProperty]
+    public partial string WhatsAppBubbleColorOption { get; set; } = "Accent";
 
-    public bool IsTelegramBrandColor
-    {
-        get => _settingsService.GetValue<bool>("BrandColor_Telegram", false);
-        set 
-        { 
-            _settingsService.SetValue("BrandColor_Telegram", value);
-            OnPropertyChanged(nameof(IsTelegramBrandColor));
-            OnPropertyChanged(nameof(IsTelegramAccentColor));
-        }
-    }
-    
-    public bool IsTelegramAccentColor
-    {
-        get => !IsTelegramBrandColor;
-        set { if (value) IsTelegramBrandColor = false; }
-    }
+    [ObservableProperty]
+    public partial string TelegramBubbleColorOption { get; set; } = "Accent";
 
     [ObservableProperty]
     public partial bool IsFlyoutEnabled { get; set; } = true;
@@ -62,6 +34,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     public ObservableCollection<string> Themes { get; } = new() { "Light", "Dark", "Default" };
     public ObservableCollection<string> Backdrops { get; } = new() { "Mica", "Desktop Acrylic", "Mica Alt", "None" };
+    public ObservableCollection<string> ColorOptions { get; } = new() { "Accent", "Brand" };
 
     [RelayCommand]
     private void TestNotification()
@@ -91,6 +64,8 @@ public partial class SettingsViewModel : ViewModelBase
         IsWhatsAppEnabled = _settingsService.GetValue<bool>("WhatsAppEnabled", true);
         IsFlyoutEnabled = _settingsService.GetValue<bool>("FlyoutEnabled", true);
         ShowUnreadBadge = _settingsService.GetValue<bool>("ShowUnreadBadge", true);
+        WhatsAppBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_WhatsApp", false) ? "Brand" : "Accent";
+        TelegramBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Telegram", false) ? "Brand" : "Accent";
     }
 
     partial void OnSelectedThemeChanged(string value)
@@ -118,5 +93,15 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnShowUnreadBadgeChanged(bool value)
     {
         _settingsService.SetValue("ShowUnreadBadge", value);
+    }
+
+    partial void OnWhatsAppBubbleColorOptionChanged(string value)
+    {
+        _settingsService.SetValue("BrandColor_WhatsApp", value == "Brand");
+    }
+
+    partial void OnTelegramBubbleColorOptionChanged(string value)
+    {
+        _settingsService.SetValue("BrandColor_Telegram", value == "Brand");
     }
 }
