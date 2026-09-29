@@ -7,7 +7,7 @@
     xmlns:converters="using:People.Converters"
     xmlns:models="using:People.Core.Models"
     mc:Ignorable="d"
-    Background="{ThemeResource LayerFillColorDefaultBrush}">
+    Background="Transparent">
 
     <Page.Resources>
         <converters:OutgoingAlignmentConverter x:Key="OutgoingAlignmentConverter" />

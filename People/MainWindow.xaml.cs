@@ -39,13 +39,31 @@ public sealed partial class MainWindow : Window
 
     private void NavView_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (e.NewSize.Width < 640)
+        var width = e.NewSize.Width;
+
+        if (width < 640)
         {
             NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftMinimal;
         }
         else
         {
             NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftCompact;
+        }
+
+        // Layout switching:
+        // Wide: NavView in Row 1 (hamburger is below title bar).
+        // Medium/Narrow: NavView in Row 0 (hamburger is in title bar).
+        if (width >= 1007)
+        {
+            Grid.SetRow(NavView, 1);
+            Grid.SetRowSpan(NavView, 1);
+            HamburgerSpace.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            Grid.SetRow(NavView, 0);
+            Grid.SetRowSpan(NavView, 2);
+            HamburgerSpace.Visibility = Visibility.Visible;
         }
     }
 
@@ -75,6 +93,16 @@ public sealed partial class MainWindow : Window
     }
 
     private void NavView_BackRequested(NavigationView sender, NavigationViewBackRequestedEventArgs args)
+    {
+        HandleBackRequest();
+    }
+
+    private void CustomBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        HandleBackRequest();
+    }
+
+    private void HandleBackRequest()
     {
         if (ContentFrame.Content is Views.ChatListPage chatList && chatList.IsDetailVisibleInNarrowMode())
         {

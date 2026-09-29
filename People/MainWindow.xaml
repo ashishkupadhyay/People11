@@ -13,11 +13,35 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid>
-        <NavigationView x:Name="NavView" 
-                        IsBackButtonVisible="Visible"
-                        IsBackEnabled="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}"
-                        BackRequested="NavView_BackRequested"
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Grid.ColumnSpan="2" Canvas.ZIndex="10" Background="Transparent" IsHitTestVisible="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- Hamburger Space -->
+                <ColumnDefinition Width="Auto"/> <!-- Back Button -->
+                <ColumnDefinition Width="Auto"/> <!-- Title -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- This empty border reserves space for the Hamburger button when NavView is in Row 0 -->
+            <Border x:Name="HamburgerSpace" Grid.Column="0" Width="48" Visibility="Collapsed" />
+
+            <Button x:Name="CustomBackButton" Grid.Column="1" Style="{ThemeResource NavigationBackButtonNormalStyle}" 
+                    VerticalAlignment="Center" Margin="0,0,0,0" Width="48" Height="40"
+                    Click="CustomBackButton_Click" IsEnabled="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}" />
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" Margin="12,0,0,0" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE716;" FontSize="16"/>
+                <TextBlock Text="People" Style="{ThemeResource CaptionTextBlockStyle}" />
+            </StackPanel>
+        </Grid>
+
+        <NavigationView x:Name="NavView" Grid.Row="1" Grid.RowSpan="1"
+                        IsBackButtonVisible="Collapsed"
                         ItemInvoked="NavView_ItemInvoked"
                         DisplayModeChanged="NavView_DisplayModeChanged"
                         PaneDisplayMode="LeftCompact"
@@ -50,7 +74,7 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
             
-            <Frame x:Name="ContentFrame" Margin="0,48,0,0" Padding="0,0,0,0">
+            <Frame x:Name="ContentFrame" Margin="0,0,0,0" Padding="0,0,0,0">
                 <Frame.ContentTransitions>
                     <TransitionCollection>
                         <NavigationThemeTransition />
@@ -58,9 +82,5 @@
                 </Frame.ContentTransitions>
             </Frame>
         </NavigationView>
-
-        <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top" Background="Transparent" Margin="96,0,0,0">
-            <TextBlock Text="People" VerticalAlignment="Center" Margin="12,0,0,0" Style="{ThemeResource CaptionTextBlockStyle}" />
-        </Grid>
     </Grid>
 </Window>
