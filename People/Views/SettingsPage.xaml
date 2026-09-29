@@ -20,7 +20,7 @@
             <StackPanel Spacing="24">
                 <StackPanel.ChildrenTransitions>
                     <TransitionCollection>
-                        <EntranceThemeTransition FromVerticalOffset="16" IsStaggeringEnabled="True" />
+                        <EntranceThemeTransition IsStaggeringEnabled="True" />
                     </TransitionCollection>
                 </StackPanel.ChildrenTransitions>
 
