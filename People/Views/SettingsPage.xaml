@@ -8,9 +8,16 @@
     mc:Ignorable="d"
     Background="Transparent">
 
-    <ScrollViewer Padding="16,16,16,16" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="24">
-            <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" Margin="0,0,0,8" />
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" Margin="16,16,16,16" />
+
+        <ScrollViewer Grid.Row="1" Padding="16,0,16,16" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="24">
 
             <!-- Appearance Section -->
             <StackPanel Spacing="2">
@@ -116,4 +123,5 @@
             
         </StackPanel>
     </ScrollViewer>
+    </Grid>
 </Page>
