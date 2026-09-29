@@ -81,6 +81,11 @@
                                     <AutoSuggestBox PlaceholderText="Search contacts..." QueryIcon="Find" />
                                     <!-- Placeholder for contacts list -->
                                     <ListView x:Name="NewChatList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="NewChatList_ItemClick" AutomationProperties.Name="New chat list" AutomationProperties.AutomationId="NewChatList">
+                                        <ListView.ItemContainerTransitions>
+                                            <TransitionCollection>
+                                                <EntranceThemeTransition FromVerticalOffset="16" IsStaggeringEnabled="True" />
+                                            </TransitionCollection>
+                                        </ListView.ItemContainerTransitions>
                                         <ListViewItem>
                                             <StackPanel Orientation="Horizontal" Spacing="12">
                                                 <PersonPicture DisplayName="Alice" Width="32" Height="32"/>
@@ -110,6 +115,7 @@
                       AutomationProperties.AutomationId="ChatsListView">
                 <ListView.ItemContainerTransitions>
                     <TransitionCollection>
+                        <EntranceThemeTransition FromVerticalOffset="16" IsStaggeringEnabled="True" />
                         <AddDeleteThemeTransition />
                         <ReorderThemeTransition />
                     </TransitionCollection>
