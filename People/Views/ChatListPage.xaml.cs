@@ -38,6 +38,33 @@ public sealed partial class ChatListPage : Page
         }
 
         UpdateAdaptiveLayout(this.ActualWidth);
+        UpdateAccentColor();
+    }
+    
+    private void UpdateAccentColor()
+    {
+        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+        if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat != null)
+        {
+            string platformId = convPage.ViewModel.CurrentChat.PlatformId;
+            if (string.IsNullOrEmpty(platformId))
+            {
+                if (convPage.ViewModel.CurrentChat.Id?.StartsWith("wa_") == true) platformId = "WhatsApp";
+                else if (convPage.ViewModel.CurrentChat.Id?.StartsWith("tg_") == true) platformId = "Telegram";
+                else platformId = "WhatsApp";
+            }
+            themeService.ApplyBrandColorIfActive(platformId);
+        }
+        else
+        {
+            themeService.RestoreSystemAccentColor();
+        }
+    }
+    
+    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        UpdateAccentColor();
     }
 
     private void UpdateAdaptiveLayout(double width)

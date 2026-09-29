@@ -80,14 +80,22 @@ public class ThemeService : IThemeService
 
     public void ApplyBrandColorIfActive(string platformId)
     {
-        bool isBrandColor = _settingsService.GetValue<bool>("BrandColor_" + platformId, false);
+        string normalizedPlatformId = platformId;
+        if (string.IsNullOrEmpty(normalizedPlatformId))
+        {
+            normalizedPlatformId = "WhatsApp"; // Default fallback
+        }
+        else if (string.Equals(platformId, "whatsapp", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "WhatsApp";
+        else if (string.Equals(platformId, "telegram", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Telegram";
+
+        bool isBrandColor = _settingsService.GetValue<bool>("BrandColor_" + normalizedPlatformId, false);
         if (isBrandColor)
         {
             Windows.UI.Color color = Microsoft.UI.Colors.Transparent;
-            if (platformId == "WhatsApp") color = Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102);
-            else if (platformId == "Telegram") color = Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222);
-            else if (platformId == "Discord") color = Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242);
-            else if (platformId == "Signal") color = Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240);
+            if (normalizedPlatformId == "WhatsApp") color = Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102);
+            else if (normalizedPlatformId == "Telegram") color = Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222);
+            else if (string.Equals(platformId, "discord", StringComparison.OrdinalIgnoreCase)) color = Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242);
+            else if (string.Equals(platformId, "signal", StringComparison.OrdinalIgnoreCase)) color = Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240);
             
             if (color != Microsoft.UI.Colors.Transparent)
             {
@@ -116,23 +124,49 @@ public class ThemeService : IThemeService
 
     private void SetAppAccentColor(Windows.UI.Color color)
     {
-        Application.Current.Resources["SystemAccentColor"] = color;
-        Application.Current.Resources["SystemAccentColorLight1"] = color;
-        Application.Current.Resources["SystemAccentColorLight2"] = color;
-        Application.Current.Resources["SystemAccentColorLight3"] = color;
-        Application.Current.Resources["SystemAccentColorDark1"] = color;
-        Application.Current.Resources["SystemAccentColorDark2"] = color;
-        Application.Current.Resources["SystemAccentColorDark3"] = color;
+        var palette = new Microsoft.UI.Xaml.ColorPaletteResources();
+        palette.Accent = color;
+        
+        var appResources = Application.Current.Resources;
+        
+        for (int i = appResources.MergedDictionaries.Count - 1; i >= 0; i--)
+        {
+            if (appResources.MergedDictionaries[i] is Microsoft.UI.Xaml.ColorPaletteResources)
+            {
+                appResources.MergedDictionaries.RemoveAt(i);
+            }
+        }
+        
+        appResources.MergedDictionaries.Add(palette);
+
+        appResources["SystemAccentColor"] = color;
+        appResources["SystemAccentColorLight1"] = color;
+        appResources["SystemAccentColorLight2"] = color;
+        appResources["SystemAccentColorLight3"] = color;
+        appResources["SystemAccentColorDark1"] = color;
+        appResources["SystemAccentColorDark2"] = color;
+        appResources["SystemAccentColorDark3"] = color;
         
         // Update the fallback brushes used in our custom converter
-        Application.Current.Resources["AccentFillColorDefaultBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+        appResources["AccentFillColorDefaultBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
 
         // Force UI refresh
         if (App.Current is App app && app.MainWindow?.Content is FrameworkElement rootElement)
         {
-            var currentTheme = rootElement.RequestedTheme;
-            rootElement.RequestedTheme = currentTheme == ElementTheme.Dark ? ElementTheme.Light : ElementTheme.Dark;
-            rootElement.RequestedTheme = currentTheme;
+            var originalTheme = rootElement.RequestedTheme;
+            
+            // If it's Default, we toggle to Dark or Light and back to Default
+            if (originalTheme == ElementTheme.Default)
+            {
+                rootElement.RequestedTheme = ElementTheme.Dark;
+                rootElement.RequestedTheme = ElementTheme.Light;
+                rootElement.RequestedTheme = ElementTheme.Default;
+            }
+            else
+            {
+                rootElement.RequestedTheme = originalTheme == ElementTheme.Dark ? ElementTheme.Light : ElementTheme.Dark;
+                rootElement.RequestedTheme = originalTheme;
+            }
         }
     }
 }

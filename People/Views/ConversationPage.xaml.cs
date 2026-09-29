@@ -22,8 +22,16 @@ public sealed partial class ConversationPage : Page
         {
             ViewModel.LoadChat(chat);
             
+            string platformId = chat.PlatformId;
+            if (string.IsNullOrEmpty(platformId))
+            {
+                if (chat.Id?.StartsWith("wa_") == true) platformId = "WhatsApp";
+                else if (chat.Id?.StartsWith("tg_") == true) platformId = "Telegram";
+                else platformId = "WhatsApp";
+            }
+            
             var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
-            themeService.ApplyBrandColorIfActive(chat.PlatformId);
+            themeService.ApplyBrandColorIfActive(platformId);
         }
         base.OnNavigatedTo(e);
     }

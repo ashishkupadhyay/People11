@@ -40,15 +40,28 @@ public class OutgoingBackgroundConverter : IValueConverter
         if (isOutgoing)
         {
             var settings = (Microsoft.UI.Xaml.Application.Current as App)?.Services.GetService(typeof(People.Core.Interfaces.ISettingsService)) as People.Core.Interfaces.ISettingsService;
-            bool isBrandColor = settings?.GetValue<bool>("BrandColor_" + platformId, false) ?? false;
+            
+            // Normalize platformId for setting key (handles old database entries or missing data)
+            if (string.IsNullOrEmpty(platformId) && value is People.Core.Models.Message m)
+            {
+                if (m.ChatId?.StartsWith("wa_") == true) platformId = "whatsapp";
+                else if (m.ChatId?.StartsWith("tg_") == true) platformId = "telegram";
+                else platformId = "whatsapp";
+            }
+            
+            string normalizedPlatformId = platformId;
+            if (string.Equals(platformId, "whatsapp", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "WhatsApp";
+            else if (string.Equals(platformId, "telegram", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Telegram";
+            
+            bool isBrandColor = settings?.GetValue<bool>("BrandColor_" + normalizedPlatformId, false) ?? false;
 
             if (isBrandColor)
             {
-                if (platformId == "WhatsApp") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
-                if (platformId == "Telegram") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
-                if (platformId == "Discord") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
-                if (platformId == "Matrix") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0)); // Or Matrix green
-                if (platformId == "Signal") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
+                if (normalizedPlatformId == "WhatsApp") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
+                if (normalizedPlatformId == "Telegram") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
+                if (string.Equals(platformId, "discord", StringComparison.OrdinalIgnoreCase)) return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
+                if (string.Equals(platformId, "matrix", StringComparison.OrdinalIgnoreCase)) return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0)); // Or Matrix green
+                if (string.Equals(platformId, "signal", StringComparison.OrdinalIgnoreCase)) return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
             }
 
             return App.Current.Resources["AccentFillColorDefaultBrush"] as SolidColorBrush ?? new SolidColorBrush(Microsoft.UI.Colors.Blue);
