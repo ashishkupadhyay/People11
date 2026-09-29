@@ -22,29 +22,27 @@
 
         <Grid x:Name="AppTitleBar" Grid.Row="0" Grid.ColumnSpan="2" Canvas.ZIndex="10" Background="Transparent" IsHitTestVisible="True">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/> <!-- Hamburger Space -->
                 <ColumnDefinition Width="Auto"/> <!-- Back Button -->
                 <ColumnDefinition Width="Auto"/> <!-- Title -->
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- This empty border reserves space for the Hamburger button when NavView is in Row 0 -->
-            <Border x:Name="HamburgerSpace" Grid.Column="0" Width="48" Visibility="Collapsed" />
+            <Grid Grid.Column="0" Width="48" Height="48">
+                <Button x:Name="CustomBackButton" Style="{ThemeResource NavigationBackButtonNormalStyle}" 
+                        VerticalAlignment="Center" Margin="0,0,0,0" Width="48" Height="40" Visibility="Visible"
+                        Click="CustomBackButton_Click" IsEnabled="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}">
+                    <AnimatedIcon>
+                        <AnimatedIcon.Source>
+                            <animatedvisuals:AnimatedBackVisualSource/>
+                        </AnimatedIcon.Source>
+                        <AnimatedIcon.FallbackIconSource>
+                            <SymbolIconSource Symbol="Back"/>
+                        </AnimatedIcon.FallbackIconSource>
+                    </AnimatedIcon>
+                </Button>
+            </Grid>
 
-            <Button x:Name="CustomBackButton" Grid.Column="1" Style="{ThemeResource NavigationBackButtonNormalStyle}" 
-                    VerticalAlignment="Center" Margin="0,0,0,0" Width="48" Height="40"
-                    Click="CustomBackButton_Click" IsEnabled="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}">
-                <AnimatedIcon>
-                    <AnimatedIcon.Source>
-                        <animatedvisuals:AnimatedBackVisualSource/>
-                    </AnimatedIcon.Source>
-                    <AnimatedIcon.FallbackIconSource>
-                        <SymbolIconSource Symbol="Back"/>
-                    </AnimatedIcon.FallbackIconSource>
-                </AnimatedIcon>
-            </Button>
-
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" Margin="12,0,0,0" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="12,0,0,0" VerticalAlignment="Center">
                 <FontIcon Glyph="&#xE716;" FontSize="16"/>
                 <TextBlock Text="People" Style="{ThemeResource CaptionTextBlockStyle}" />
             </StackPanel>

@@ -26,11 +26,11 @@
                         <Setter Target="DetailColumn.Width" Value="*" />
                         <Setter Target="ListGrid.(Grid.Column)" Value="0" />
                         <Setter Target="ListGrid.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="DetailContainer.(Grid.Column)" Value="1" />
-                        <Setter Target="DetailContainer.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="DetailContainer.CornerRadius" Value="8,0,0,0" />
+                        <Setter Target="DetailFrame.(Grid.Column)" Value="1" />
+                        <Setter Target="DetailFrame.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="DetailFrame.CornerRadius" Value="8,0,0,0" />
                         <Setter Target="ListGrid.Visibility" Value="Visible" />
-                        <Setter Target="DetailContainer.Visibility" Value="Visible" />
+                        <Setter Target="DetailFrame.Visibility" Value="Visible" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="NarrowState">
@@ -42,9 +42,9 @@
                         <Setter Target="DetailColumn.Width" Value="*" />
                         <Setter Target="ListGrid.(Grid.Column)" Value="0" />
                         <Setter Target="ListGrid.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="DetailContainer.(Grid.Column)" Value="0" />
-                        <Setter Target="DetailContainer.(Grid.ColumnSpan)" Value="2" />
-                        <Setter Target="DetailContainer.CornerRadius" Value="0" />
+                        <Setter Target="DetailFrame.(Grid.Column)" Value="0" />
+                        <Setter Target="DetailFrame.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="DetailFrame.CornerRadius" Value="0" />
                         <!-- Visibility handled by code-behind based on selection -->
                         <Setter Target="PlaceholderGrid.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
@@ -134,32 +134,29 @@
             </ListView>
         </Grid>
 
-        <!-- Detail Container -->
-        <Border x:Name="DetailContainer" Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" 
-                CornerRadius="8,0,0,0" 
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
-            <Grid>
-                <!-- Placeholder behind DetailFrame -->
-                <Grid x:Name="PlaceholderGrid" Background="Transparent">
-                    <TextBlock Text="Click on a contact or group to view the chats or start a new one" 
-                               HorizontalAlignment="Center" VerticalAlignment="Center" 
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                </Grid>
+        <!-- Placeholder behind DetailFrame -->
+        <Grid x:Name="PlaceholderGrid" Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" 
+              CornerRadius="8,0,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
+              Padding="24">
+            <TextBlock Text="Click on a contact or group to view the chats or start a new one" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center" 
+                       TextAlignment="Center" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
 
-                <!-- Pane 3: Detail View -->
-                <Frame x:Name="DetailFrame" Background="Transparent">
-                    <Frame.ContentTransitions>
-                        <TransitionCollection>
-                            <NavigationThemeTransition>
-                                <NavigationThemeTransition.DefaultNavigationTransitionInfo>
-                                    <SlideNavigationTransitionInfo Effect="FromRight"/>
-                                </NavigationThemeTransition.DefaultNavigationTransitionInfo>
-                            </NavigationThemeTransition>
-                        </TransitionCollection>
-                    </Frame.ContentTransitions>
-                </Frame>
-            </Grid>
-        </Border>
+        <!-- Pane 3: Detail View -->
+        <Frame x:Name="DetailFrame" Grid.Column="1" Background="Transparent" CornerRadius="8,0,0,0"
+               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
+            <Frame.ContentTransitions>
+                <TransitionCollection>
+                    <NavigationThemeTransition>
+                        <NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                            <SlideNavigationTransitionInfo Effect="FromRight"/>
+                        </NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                    </NavigationThemeTransition>
+                </TransitionCollection>
+            </Frame.ContentTransitions>
+        </Frame>
 
         <!-- Auth Overlay -->
         <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.ShowQrCode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">

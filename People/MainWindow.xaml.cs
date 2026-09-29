@@ -57,14 +57,14 @@ public sealed partial class MainWindow : Window
         {
             Grid.SetRow(NavView, 1);
             Grid.SetRowSpan(NavView, 1);
-            HamburgerSpace.Visibility = Visibility.Collapsed;
+            AppTitleBar.Margin = new Thickness(0, 0, 0, 0);
             ContentFrame.Margin = new Thickness(0, 0, 0, 0);
         }
         else
         {
             Grid.SetRow(NavView, 0);
             Grid.SetRowSpan(NavView, 2);
-            HamburgerSpace.Visibility = Visibility.Visible;
+            AppTitleBar.Margin = new Thickness(48, 0, 0, 0); // Leave space for Hamburger
             ContentFrame.Margin = new Thickness(0, 48, 0, 0);
         }
     }
