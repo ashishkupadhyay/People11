@@ -67,14 +67,19 @@
                 </ui:SettingsExpander>
 
                 <!-- SMS -->
-                <ui:SettingsCard Header="SMS via Android Companion" Description="Coming Soon (v2.0)" IsEnabled="False" Margin="0,2,0,0">
-                    <ui:SettingsCard.HeaderIcon>
+                <ui:SettingsExpander Header="SMS via Android Companion" Description="Coming Soon (v2.0)" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8BD;" />
-                    </ui:SettingsCard.HeaderIcon>
+                    </ui:SettingsExpander.HeaderIcon>
                     <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
                         <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
                     </Border>
-                </ui:SettingsCard>
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for SMS">
+                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.SmsBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="SMS app color" AutomationProperties.AutomationId="SmsBubbleComboBox" />
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
 
                 <!-- Telegram -->
                 <ui:SettingsExpander Header="Telegram" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
@@ -90,14 +95,34 @@
                 </ui:SettingsExpander>
 
                 <!-- Discord -->
-                <ui:SettingsCard Header="Discord" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
-                    <ui:SettingsCard.HeaderIcon>
+                <ui:SettingsExpander Header="Discord" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE90A;" />
-                    </ui:SettingsCard.HeaderIcon>
+                    </ui:SettingsExpander.HeaderIcon>
                     <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
                         <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
                     </Border>
-                </ui:SettingsCard>
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for Discord">
+                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.DiscordBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Discord app color" AutomationProperties.AutomationId="DiscordBubbleComboBox" />
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
+
+                <!-- Signal -->
+                <ui:SettingsExpander Header="Signal" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                    <ui:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE8F1;" />
+                    </ui:SettingsExpander.HeaderIcon>
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    </Border>
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for Signal">
+                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.SignalBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Signal app color" AutomationProperties.AutomationId="SignalBubbleComboBox" />
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
             </StackPanel>
 
             <!-- Taskbar & Notifications -->

@@ -38,7 +38,7 @@ public sealed partial class FlyoutWindow : Window
             presenter.SetBorderAndTitleBar(true, false);
         }
 
-        ContentFrame.Navigate(typeof(ChatListPage));
+        ContentFrame.Navigate(typeof(ChatListPage), "Flyout");
         
         this.Activated += OnActivated;
     }

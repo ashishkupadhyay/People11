@@ -124,20 +124,10 @@ public class ThemeService : IThemeService
 
     private void SetAppAccentColor(Windows.UI.Color color)
     {
-        var palette = new Microsoft.UI.Xaml.ColorPaletteResources();
-        palette.Accent = color;
-        
         var appResources = Application.Current.Resources;
         
-        for (int i = appResources.MergedDictionaries.Count - 1; i >= 0; i--)
-        {
-            if (appResources.MergedDictionaries[i] is Microsoft.UI.Xaml.ColorPaletteResources)
-            {
-                appResources.MergedDictionaries.RemoveAt(i);
-            }
-        }
-        
-        appResources.MergedDictionaries.Add(palette);
+        UpdateThemeDictionary("Light", color);
+        UpdateThemeDictionary("Dark", color);
 
         appResources["SystemAccentColor"] = color;
         appResources["SystemAccentColorLight1"] = color;
@@ -168,5 +158,25 @@ public class ThemeService : IThemeService
                 rootElement.RequestedTheme = originalTheme;
             }
         }
+    }
+
+    private void UpdateThemeDictionary(string themeName, Windows.UI.Color color)
+    {
+        var appResources = Application.Current.Resources;
+        
+        if (!appResources.ThemeDictionaries.TryGetValue(themeName, out var themeObj) || !(themeObj is Microsoft.UI.Xaml.ColorPaletteResources palette))
+        {
+            palette = new Microsoft.UI.Xaml.ColorPaletteResources();
+            if (themeObj is ResourceDictionary existingDict)
+            {
+                foreach (var item in existingDict)
+                {
+                    palette[item.Key] = item.Value;
+                }
+            }
+            appResources.ThemeDictionaries[themeName] = palette;
+        }
+        
+        palette.Accent = color;
     }
 }

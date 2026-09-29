@@ -99,9 +99,9 @@ public sealed partial class MainWindow : Window
             var tag = args.InvokedItemContainer?.Tag?.ToString();
             if (tag != null)
             {
-                if (tag == "WhatsApp") 
+                if (tag == "WhatsApp" || tag == "Telegram" || tag == "Discord" || tag == "Signal" || tag == "SMS" || tag == "Matrix") 
                 {
-                    navService.NavigateTo("Chats");
+                    navService.NavigateTo("Chats", tag);
                 }
                 else
                 {

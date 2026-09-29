@@ -26,6 +26,16 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial string TelegramBubbleColorOption { get; set; } = "Accent";
 
+
+    [ObservableProperty]
+    public partial string DiscordBubbleColorOption { get; set; } = "Accent";
+
+    [ObservableProperty]
+    public partial string SmsBubbleColorOption { get; set; } = "Accent";
+
+    [ObservableProperty]
+    public partial string SignalBubbleColorOption { get; set; } = "Accent";
+
     [ObservableProperty]
     public partial bool IsFlyoutEnabled { get; set; } = true;
 
@@ -66,6 +76,9 @@ public partial class SettingsViewModel : ViewModelBase
         ShowUnreadBadge = _settingsService.GetValue<bool>("ShowUnreadBadge", true);
         WhatsAppBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_WhatsApp", false) ? "Brand" : "Accent";
         TelegramBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Telegram", false) ? "Brand" : "Accent";
+        DiscordBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Discord", false) ? "Brand" : "Accent";
+        SignalBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Signal", false) ? "Brand" : "Accent";
+        SmsBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_SMS", false) ? "Brand" : "Accent";
     }
 
     partial void OnSelectedThemeChanged(string value)
@@ -103,5 +116,20 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnTelegramBubbleColorOptionChanged(string value)
     {
         _settingsService.SetValue("BrandColor_Telegram", value == "Brand");
+    }
+
+    partial void OnDiscordBubbleColorOptionChanged(string value)
+    {
+        _settingsService.SetValue("BrandColor_Discord", value == "Brand");
+    }
+
+    partial void OnSignalBubbleColorOptionChanged(string value)
+    {
+        _settingsService.SetValue("BrandColor_Signal", value == "Brand");
+    }
+
+    partial void OnSmsBubbleColorOptionChanged(string value)
+    {
+        _settingsService.SetValue("BrandColor_SMS", value == "Brand");
     }
 }

@@ -52,6 +52,10 @@ public class OutgoingBackgroundConverter : IValueConverter
             string normalizedPlatformId = platformId;
             if (string.Equals(platformId, "whatsapp", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "WhatsApp";
             else if (string.Equals(platformId, "telegram", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Telegram";
+            else if (string.Equals(platformId, "discord", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Discord";
+            else if (string.Equals(platformId, "signal", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Signal";
+            else if (string.Equals(platformId, "sms", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "SMS";
+            else if (string.Equals(platformId, "matrix", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Matrix";
             
             bool isBrandColor = settings?.GetValue<bool>("BrandColor_" + normalizedPlatformId, false) ?? false;
 
@@ -59,9 +63,10 @@ public class OutgoingBackgroundConverter : IValueConverter
             {
                 if (normalizedPlatformId == "WhatsApp") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
                 if (normalizedPlatformId == "Telegram") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
-                if (string.Equals(platformId, "discord", StringComparison.OrdinalIgnoreCase)) return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
-                if (string.Equals(platformId, "matrix", StringComparison.OrdinalIgnoreCase)) return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0)); // Or Matrix green
-                if (string.Equals(platformId, "signal", StringComparison.OrdinalIgnoreCase)) return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
+                if (normalizedPlatformId == "Discord") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
+                if (normalizedPlatformId == "Matrix") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0)); // Or Matrix green
+                if (normalizedPlatformId == "Signal") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
+                if (normalizedPlatformId == "SMS") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 120, 212));
             }
 
             return App.Current.Resources["AccentFillColorDefaultBrush"] as SolidColorBrush ?? new SolidColorBrush(Microsoft.UI.Colors.Blue);

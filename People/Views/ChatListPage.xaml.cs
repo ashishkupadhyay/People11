@@ -8,6 +8,8 @@ public sealed partial class ChatListPage : Page
 {
     public ChatListViewModel ViewModel { get; }
 
+    private bool _isFlyout = false;
+
     public ChatListPage()
     {
         ViewModel = App.Current.Services.GetRequiredService<ChatListViewModel>();
@@ -43,6 +45,8 @@ public sealed partial class ChatListPage : Page
     
     private void UpdateAccentColor()
     {
+        if (_isFlyout) return;
+
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
         if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat != null)
         {
@@ -64,6 +68,24 @@ public sealed partial class ChatListPage : Page
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        
+        if (e.Parameter is string param)
+        {
+            if (param == "Flyout")
+            {
+                _isFlyout = true;
+                return;
+            }
+            
+            // If the parameter is a platform ID (like "WhatsApp"), set it immediately.
+            if (!string.IsNullOrEmpty(param) && !_isFlyout)
+            {
+                var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+                themeService.ApplyBrandColorIfActive(param);
+                return;
+            }
+        }
+        
         UpdateAccentColor();
     }
 
