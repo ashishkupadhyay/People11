@@ -26,6 +26,18 @@ public sealed partial class MainWindow : Window
         
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
         themeService.Initialize();
+        
+        // Establish initial platform before applying to window
+        var initialPlatform = (NavView.MenuItems.Count > 0 ? NavView.MenuItems[0] as NavigationViewItem : null)?.Tag?.ToString();
+        if (!string.IsNullOrEmpty(initialPlatform))
+        {
+            themeService.SetActivePlatform(initialPlatform);
+        }
+        else
+        {
+            themeService.ClearActivePlatform();
+        }
+        
         themeService.ApplyToWindow(this);
         var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
         if (navServiceCore is People.Services.NavigationService navService)

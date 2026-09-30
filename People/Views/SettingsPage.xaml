@@ -14,7 +14,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" Margin="16,16,16,16" />
+        <TextBlock Grid.Row="0" x:Uid="SettingsTitle" Style="{ThemeResource TitleTextBlockStyle}" Margin="16,16,16,16" />
 
         <ScrollViewer Grid.Row="1" Padding="16,0,16,16" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="24">
@@ -27,30 +27,45 @@
 
             <!-- Appearance Section -->
             <StackPanel Spacing="2">
-                <TextBlock Text="Appearance" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                <TextBlock x:Uid="AppearanceHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
-                <ui:SettingsExpander Header="Theme &amp; Backdrop" Description="Change the visual appearance of the app">
+                <ui:SettingsExpander x:Uid="AppThemeExpander" Header="App theme">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE790;" />
                     </ui:SettingsExpander.HeaderIcon>
-                    
+                    <ui:SettingsExpander.Content>
+                        <TextBlock Text="{x:Bind ViewModel.SelectedThemeDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </ui:SettingsExpander.Content>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard Header="App Theme">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.Themes}" SelectedItem="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="App theme" AutomationProperties.AutomationId="ThemeComboBox" />
-                        </ui:SettingsCard>
-                        <ui:SettingsCard Header="Window Backdrop">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.Backdrops}" SelectedItem="{x:Bind ViewModel.SelectedBackdrop, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Window backdrop" AutomationProperties.AutomationId="BackdropComboBox" />
-                        </ui:SettingsCard>
+                        <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                            <RadioButton x:Uid="ThemeLightRadio" Content="Light" Tag="Light" />
+                            <RadioButton x:Uid="ThemeDarkRadio" Content="Dark" Tag="Dark" />
+                            <RadioButton x:Uid="UseSystemSettingRadio" Content="Use system setting" Tag="Default" />
+                        </RadioButtons>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
+
+                <ui:SettingsExpander x:Uid="WindowBackdropExpander" Header="Window Backdrop" Margin="0,2,0,0">
+                    <ui:SettingsExpander.Content>
+                        <TextBlock Text="{x:Bind ViewModel.SelectedBackdropDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </ui:SettingsExpander.Content>
+                    <ui:SettingsExpander.Items>
+                        <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedBackdropIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                            <RadioButton x:Uid="BackdropMicaRadio" Content="Mica" />
+                            <RadioButton x:Uid="BackdropAcrylicRadio" Content="Acrylic" />
+                            <RadioButton x:Uid="BackdropMicaAltRadio" Content="Mica Alt" />
+                            <RadioButton x:Uid="BackdropNoneRadio" Content="None" />
+                        </RadioButtons>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
             </StackPanel>
 
             <!-- Platforms Section -->
             <StackPanel Spacing="2">
-                <TextBlock Text="Platforms" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                <TextBlock x:Uid="PlatformsHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
                 <!-- WhatsApp -->
-                <ui:SettingsExpander Header="WhatsApp" Description="Configure WhatsApp integration">
+                <ui:SettingsExpander x:Uid="WhatsAppExpander">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE815;" />
                     </ui:SettingsExpander.HeaderIcon>
@@ -58,78 +73,133 @@
                     
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
-                            <Button Content="Re-authenticate" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
+                            <Button x:Uid="ReauthBtn" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
                         </ui:SettingsCard>
-                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for WhatsApp">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.WhatsAppBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="WhatsApp app color" AutomationProperties.AutomationId="WaBubbleComboBox" />
-                        </ui:SettingsCard>
+                        <ui:SettingsExpander x:Uid="WhatsAppAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.WhatsAppBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.WhatsAppBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="WhatsAppBrandRadio" Content="WhatsApp (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
                 <!-- SMS -->
-                <ui:SettingsExpander Header="SMS via Android Companion" Description="Coming Soon (v2.0)" IsEnabled="False" Margin="0,2,0,0">
+                <ui:SettingsExpander x:Uid="SmsExpander" IsEnabled="False" Margin="0,2,0,0">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8BD;" />
                     </ui:SettingsExpander.HeaderIcon>
-                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="4,4">
+                        <TextBlock x:Uid="ComingSoonBadge" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for SMS">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.SmsBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="SMS app color" AutomationProperties.AutomationId="SmsBubbleComboBox" />
-                        </ui:SettingsCard>
+                        <ui:SettingsExpander x:Uid="SmsAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.SmsBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.SmsBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="SmsBrandRadio" Content="SMS (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
                 <!-- Telegram -->
-                <ui:SettingsExpander Header="Telegram" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                <ui:SettingsExpander x:Uid="TelegramExpander" IsEnabled="False" Margin="0,2,0,0">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8F1;" />
                     </ui:SettingsExpander.HeaderIcon>
                     
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for Telegram">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.TelegramBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Telegram app color" AutomationProperties.AutomationId="TgBubbleComboBox" />
-                        </ui:SettingsCard>
+                        <ui:SettingsExpander x:Uid="TelegramAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.TelegramBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.TelegramBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="TelegramBrandRadio" Content="Telegram (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
                 <!-- Discord -->
-                <ui:SettingsExpander Header="Discord" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                <ui:SettingsExpander x:Uid="DiscordExpander" IsEnabled="False" Margin="0,2,0,0">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE90A;" />
                     </ui:SettingsExpander.HeaderIcon>
-                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="4,4">
+                        <TextBlock x:Uid="ComingSoonBadge" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for Discord">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.DiscordBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Discord app color" AutomationProperties.AutomationId="DiscordBubbleComboBox" />
-                        </ui:SettingsCard>
+                        <ui:SettingsExpander x:Uid="DiscordAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.DiscordBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.DiscordBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="DiscordBrandRadio" Content="Discord (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
                 <!-- Signal -->
-                <ui:SettingsExpander Header="Signal" Description="Coming Soon" IsEnabled="False" Margin="0,2,0,0">
+                <ui:SettingsExpander x:Uid="SignalExpander" IsEnabled="False" Margin="0,2,0,0">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8F1;" />
                     </ui:SettingsExpander.HeaderIcon>
-                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2">
-                        <TextBlock Text="Coming Soon" FontSize="12" Foreground="Black" />
+                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="4,4">
+                        <TextBlock x:Uid="ComingSoonBadge" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard Header="App Color" Description="Choose the accent color for Signal">
-                            <ComboBox ItemsSource="{x:Bind ViewModel.ColorOptions}" SelectedItem="{x:Bind ViewModel.SignalBubbleColorOption, Mode=TwoWay}" MinWidth="150" AutomationProperties.Name="Signal app color" AutomationProperties.AutomationId="SignalBubbleComboBox" />
-                        </ui:SettingsCard>
+                        <ui:SettingsExpander x:Uid="SignalAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.SignalBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.SignalBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="SignalBrandRadio" Content="Signal (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
             </StackPanel>
 
             <!-- Taskbar & Notifications -->
             <StackPanel Spacing="2">
-                <TextBlock Text="Taskbar &amp; Notifications" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                <TextBlock x:Uid="TaskbarHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
-                <ui:SettingsExpander Header="Tray Icon &amp; Flyout" Description="Configure system tray behavior">
+                <ui:SettingsExpander x:Uid="TrayExpander">
                     <ui:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8A1;" />
                     </ui:SettingsExpander.HeaderIcon>
@@ -140,7 +210,7 @@
                             <ToggleSwitch IsOn="{x:Bind ViewModel.ShowUnreadBadge, Mode=TwoWay}" AutomationProperties.Name="Show unread badge" AutomationProperties.AutomationId="BadgeToggle" />
                         </ui:SettingsCard>
                         <ui:SettingsCard Header="Test Notifications" Description="Send a sample notification">
-                            <Button Content="Test" Command="{x:Bind ViewModel.TestNotificationCommand}" AutomationProperties.Name="Test notifications" AutomationProperties.AutomationId="TestNotifBtn" />
+                            <Button x:Uid="TestBtn" Command="{x:Bind ViewModel.TestNotificationCommand}" AutomationProperties.Name="Test notifications" AutomationProperties.AutomationId="TestNotifBtn" />
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
@@ -148,9 +218,9 @@
 
             <!-- About -->
             <StackPanel Spacing="2">
-                <TextBlock Text="About" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="1,0,0,8" />
+                <TextBlock x:Uid="AboutHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
-                <ui:SettingsCard Header="People App" Description="Version 1.0 (Alpha)">
+                <ui:SettingsCard x:Uid="AboutCard">
                     <ui:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE946;" />
                     </ui:SettingsCard.HeaderIcon>
@@ -162,3 +232,5 @@
     </ScrollViewer>
     </Grid>
 </Page>
+
+

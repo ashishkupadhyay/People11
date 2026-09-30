@@ -25,7 +25,7 @@
         <Border Grid.Row="0" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <PersonPicture DisplayName="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" Width="40" Height="40" />
-                <TextBlock Text="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Text="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}" />
             </StackPanel>
         </Border>
 
@@ -40,9 +40,9 @@
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Message">
                     <Grid Margin="0,4">
-                        <Border Padding="12,8" CornerRadius="8" 
+                        <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
                                 HorizontalAlignment="{x:Bind IsOutgoing, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                Background="{Binding Converter={StaticResource OutgoingBackgroundConverter}}">
+                                Background="{x:Bind IsOutgoing, Converter={StaticResource OutgoingBackgroundConverter}}">
                             <TextBlock Text="{x:Bind Content.Text}" TextWrapping="Wrap" />
                         </Border>
                     </Grid>
@@ -57,10 +57,11 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             
-            <TextBox Grid.Column="0" Text="{x:Bind ViewModel.MessageText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Type a message..." AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100" AutomationProperties.Name="Message input box" AutomationProperties.AutomationId="MessageInputBox" />
-            <Button Grid.Column="1" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Bottom" AutomationProperties.Name="Send message" AutomationProperties.AutomationId="SendBtn">
+            <TextBox Grid.Column="0" Text="{x:Bind ViewModel.MessageText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" x:Uid="TypeMessageInput" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100" AutomationProperties.Name="Message input box" AutomationProperties.AutomationId="MessageInputBox" />
+            <Button Grid.Column="1" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Bottom" x:Uid="SendMessageBtn" AutomationProperties.AutomationId="SendBtn">
                 <FontIcon Glyph="&#xE122;" />
             </Button>
         </Grid>
     </Grid>
 </Page>
+

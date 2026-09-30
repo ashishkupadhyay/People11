@@ -41,6 +41,54 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool ShowUnreadBadge { get; set; } = true;
+    public int SelectedThemeIndex
+    {
+        get => SelectedTheme switch { "Light" => 0, "Dark" => 1, _ => 2 };
+        set => SelectedTheme = value switch { 0 => "Light", 1 => "Dark", _ => "Default" };
+    }
+    public string SelectedThemeDisplay => SelectedTheme switch { "Light" => "Light", "Dark" => "Dark", _ => "Use system setting" };
+
+    public int SelectedBackdropIndex
+    {
+        get => SelectedBackdrop switch { "Mica" => 0, "Acrylic" => 1, "Mica Alt" => 2, _ => 3 };
+        set => SelectedBackdrop = value switch { 0 => "Mica", 1 => "Acrylic", 2 => "Mica Alt", _ => "None" };
+    }
+    public string SelectedBackdropDisplay => SelectedBackdrop switch { "Acrylic" => "Acrylic", "Mica Alt" => "Mica Alt", "None" => "None", _ => "Mica" };
+
+    public int WhatsAppBubbleColorIndex
+    {
+        get => WhatsAppBubbleColorOption == "Brand" ? 0 : 1;
+        set => WhatsAppBubbleColorOption = value == 0 ? "Brand" : "Accent";
+    }
+    public string WhatsAppBubbleColorDisplay => WhatsAppBubbleColorOption == "Brand" ? "WhatsApp (default colour scheme)" : "Use system setting";
+
+    public int TelegramBubbleColorIndex
+    {
+        get => TelegramBubbleColorOption == "Brand" ? 0 : 1;
+        set => TelegramBubbleColorOption = value == 0 ? "Brand" : "Accent";
+    }
+    public string TelegramBubbleColorDisplay => TelegramBubbleColorOption == "Brand" ? "Telegram (default colour scheme)" : "Use system setting";
+
+    public int DiscordBubbleColorIndex
+    {
+        get => DiscordBubbleColorOption == "Brand" ? 0 : 1;
+        set => DiscordBubbleColorOption = value == 0 ? "Brand" : "Accent";
+    }
+    public string DiscordBubbleColorDisplay => DiscordBubbleColorOption == "Brand" ? "Discord (default colour scheme)" : "Use system setting";
+
+    public int SmsBubbleColorIndex
+    {
+        get => SmsBubbleColorOption == "Brand" ? 0 : 1;
+        set => SmsBubbleColorOption = value == 0 ? "Brand" : "Accent";
+    }
+    public string SmsBubbleColorDisplay => SmsBubbleColorOption == "Brand" ? "SMS (default colour scheme)" : "Use system setting";
+
+    public int SignalBubbleColorIndex
+    {
+        get => SignalBubbleColorOption == "Brand" ? 0 : 1;
+        set => SignalBubbleColorOption = value == 0 ? "Brand" : "Accent";
+    }
+    public string SignalBubbleColorDisplay => SignalBubbleColorOption == "Brand" ? "Signal (default colour scheme)" : "Use system setting";
 
     public ObservableCollection<string> Themes { get; } = new() { "Light", "Dark", "Default" };
     public ObservableCollection<string> Backdrops { get; } = new() { "Mica", "Desktop Acrylic", "Mica Alt", "None" };
@@ -81,17 +129,9 @@ public partial class SettingsViewModel : ViewModelBase
         SmsBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_SMS", false) ? "Brand" : "Accent";
     }
 
-    partial void OnSelectedThemeChanged(string value)
-    {
-        _themeService.SetTheme(value);
-        _settingsService.SetValue("AppTheme", value);
-    }
+    partial void OnSelectedThemeChanged(string value) { _themeService.SetTheme(value); _settingsService.SetValue("AppTheme", value); OnPropertyChanged(nameof(SelectedThemeIndex)); OnPropertyChanged(nameof(SelectedThemeDisplay)); }
 
-    partial void OnSelectedBackdropChanged(string value)
-    {
-        _themeService.SetBackdrop(value);
-        _settingsService.SetValue("AppBackdrop", value);
-    }
+    partial void OnSelectedBackdropChanged(string value) { _themeService.SetBackdrop(value); _settingsService.SetValue("AppBackdrop", value); OnPropertyChanged(nameof(SelectedBackdropIndex)); OnPropertyChanged(nameof(SelectedBackdropDisplay)); }
 
     partial void OnIsWhatsAppEnabledChanged(bool value)
     {
@@ -133,3 +173,4 @@ public partial class SettingsViewModel : ViewModelBase
         _settingsService.SetValue("BrandColor_SMS", value == "Brand");
     }
 }
+

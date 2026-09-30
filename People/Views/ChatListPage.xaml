@@ -64,21 +64,21 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Padding="16" Spacing="12">
-                <TextBlock Text="Chats" Style="{ThemeResource TitleTextBlockStyle}" />
+                <TextBlock x:Uid="ChatsTitle" Style="{ThemeResource TitleTextBlockStyle}" />
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <AutoSuggestBox Grid.Column="0" PlaceholderText="Search chats..." QueryIcon="Find" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox" />
+                    <AutoSuggestBox Grid.Column="0" x:Uid="SearchChatsBox" QueryIcon="Find" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox" />
                     
                     <!-- New Chat Button -->
-                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="New chat" AutomationProperties.AutomationId="NewChatBtn">
+                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
                         <Button.Flyout>
                             <Flyout>
                                 <StackPanel Width="280" Spacing="12">
                                     <TextBlock Text="New Chat" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <AutoSuggestBox PlaceholderText="Search contacts..." QueryIcon="Find" />
+                                    <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find" />
                                     <!-- Placeholder for contacts list -->
                                     <ListView x:Name="NewChatList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="NewChatList_ItemClick" AutomationProperties.Name="New chat list" AutomationProperties.AutomationId="NewChatList">
                                         <ListView.ItemContainerTransitions>
@@ -132,7 +132,7 @@
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneTime}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneTime, FallbackValue=''}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
                             </StackPanel>
                         </Grid>
                     </DataTemplate>
@@ -144,7 +144,7 @@
         <Grid x:Name="PlaceholderGrid" Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" 
               CornerRadius="8,0,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
               Padding="24">
-            <TextBlock Text="Click on a contact or group to view the chats or start a new one" 
+            <TextBlock x:Uid="NoChatSelectedText" 
                        HorizontalAlignment="Center" VerticalAlignment="Center" 
                        TextAlignment="Center" TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -167,8 +167,8 @@
         <!-- Auth Overlay -->
         <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.ShowQrCode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-                <TextBlock Text="Connect to WhatsApp" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
-                <TextBlock Text="Scan the QR code with your phone to login" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
+                <TextBlock x:Uid="ConnectWhatsAppTitle" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+                <TextBlock x:Uid="ScanQrText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
                 
                 <Border Background="White" Padding="16" CornerRadius="8" HorizontalAlignment="Center">
                     <Image Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}" Width="256" Height="256" />
@@ -179,8 +179,9 @@
         <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.IsConnecting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
                 <ProgressRing IsActive="{x:Bind ViewModel.IsConnecting, Mode=OneWay}" Width="64" Height="64" />
-                <TextBlock Text="Connecting to WhatsApp..." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Uid="ConnectingWhatsAppText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
         </Grid>
     </Grid>
 </Page>
+

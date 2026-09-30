@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="AppearanceHeader.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="ThemeAndBackdropExpander.Header" xml:space="preserve"><value>Theme &amp; Backdrop</value></data>
+  <data name="ThemeAndBackdropExpander.Description" xml:space="preserve"><value>Change the visual appearance of the app</value></data>
+  <data name="AppThemeCard.Header" xml:space="preserve"><value>App Theme</value></data>
+  <data name="AppThemeCard.Description" xml:space="preserve"><value>Choose between Light, Dark, or System default</value></data>
+  <data name="WindowBackdropCard.Header" xml:space="preserve"><value>Window Backdrop</value></data>
+  <data name="WindowBackdropCard.Description" xml:space="preserve"><value>Choose the window material (e.g. Mica or Acrylic)</value></data>
+  
+  <data name="PlatformsHeader.Text" xml:space="preserve"><value>Platforms</value></data>
+  <data name="WhatsAppExpander.Header" xml:space="preserve"><value>WhatsApp</value></data>
+  <data name="WhatsAppExpander.Description" xml:space="preserve"><value>Configure WhatsApp integration</value></data>
+  <data name="EnableWhatsAppCard.Header" xml:space="preserve"><value>Enable WhatsApp</value></data>
+  <data name="ReauthBtn.Content" xml:space="preserve"><value>Re-authenticate</value></data>
+  <data name="WhatsAppColorCard.Header" xml:space="preserve"><value>App Color</value></data>
+  <data name="WhatsAppColorCard.Description" xml:space="preserve"><value>Choose the accent color for WhatsApp</value></data>
+
+  <data name="SmsExpander.Header" xml:space="preserve"><value>SMS via Android Companion</value></data>
+  <data name="SmsExpander.Description" xml:space="preserve"><value>Coming Soon (v2.0)</value></data>
+  <data name="SmsColorCard.Header" xml:space="preserve"><value>App Color</value></data>
+  <data name="SmsColorCard.Description" xml:space="preserve"><value>Choose the accent color for SMS</value></data>
+  
+  <data name="TelegramExpander.Header" xml:space="preserve"><value>Telegram</value></data>
+  <data name="TelegramExpander.Description" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="TelegramColorCard.Header" xml:space="preserve"><value>App Color</value></data>
+  <data name="TelegramColorCard.Description" xml:space="preserve"><value>Choose the accent color for Telegram</value></data>
+  
+  <data name="DiscordExpander.Header" xml:space="preserve"><value>Discord</value></data>
+  <data name="DiscordExpander.Description" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="DiscordColorCard.Header" xml:space="preserve"><value>App Color</value></data>
+  <data name="DiscordColorCard.Description" xml:space="preserve"><value>Choose the accent color for Discord</value></data>
+
+  <data name="SignalExpander.Header" xml:space="preserve"><value>Signal</value></data>
+  <data name="SignalExpander.Description" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="SignalColorCard.Header" xml:space="preserve"><value>App Color</value></data>
+  <data name="SignalColorCard.Description" xml:space="preserve"><value>Choose the accent color for Signal</value></data>
+
+  <data name="ComingSoonBadge.Text" xml:space="preserve"><value>Coming Soon</value></data>
+
+  <data name="TaskbarHeader.Text" xml:space="preserve"><value>Taskbar &amp; Notifications</value></data>
+  <data name="TrayExpander.Header" xml:space="preserve"><value>Tray Icon &amp; Flyout</value></data>
+  <data name="TrayExpander.Description" xml:space="preserve"><value>Configure system tray behavior</value></data>
+  <data name="TrayIconCard.Header" xml:space="preserve"><value>Show in System Tray</value></data>
+  <data name="BadgeCard.Header" xml:space="preserve"><value>Unread Badge</value></data>
+  <data name="BadgeCard.Description" xml:space="preserve"><value>Show unread message count on the tray icon</value></data>
+  <data name="TestNotifCard.Header" xml:space="preserve"><value>Test Notification</value></data>
+  <data name="TestNotifCard.Description" xml:space="preserve"><value>Send a test notification</value></data>
+  <data name="TestBtn.Content" xml:space="preserve"><value>Test</value></data>
+
+  <data name="AboutHeader.Text" xml:space="preserve"><value>About</value></data>
+  <data name="AboutCard.Header" xml:space="preserve"><value>People App</value></data>
+  <data name="AboutCard.Description" xml:space="preserve"><value>Version 1.0 (Alpha)</value></data>
+
+  <data name="ChatsTitle.Text" xml:space="preserve"><value>Chats</value></data>
+  <data name="SearchChatsBox.PlaceholderText" xml:space="preserve"><value>Search chats...</value></data>
+  <data name="NewChatBtn.AutomationProperties.Name" xml:space="preserve"><value>New chat</value></data>
+  <data name="NoChatSelectedText.Text" xml:space="preserve"><value>Click on a contact or group to view the chats or start a new one</value></data>
+  <data name="ConnectWhatsAppTitle.Text" xml:space="preserve"><value>Connect to WhatsApp</value></data>
+  <data name="ScanQrText.Text" xml:space="preserve"><value>Scan the QR code with your phone to login</value></data>
+  <data name="ConnectingWhatsAppText.Text" xml:space="preserve"><value>Connecting to WhatsApp...</value></data>
+  <data name="SearchContactsBox.PlaceholderText" xml:space="preserve"><value>Search contacts...</value></data>
+
+  <data name="TypeMessageInput.PlaceholderText" xml:space="preserve"><value>Type a message...</value></data>
+  <data name="SendMessageBtn.AutomationProperties.Name" xml:space="preserve"><value>Send message</value></data>
+
+  <data name="NavWhatsApp.Content" xml:space="preserve"><value>WhatsApp</value></data>
+  <data name="NavSMS.Content" xml:space="preserve"><value>SMS</value></data>
+  <data name="NavTelegram.Content" xml:space="preserve"><value>Telegram</value></data>
+  <data name="NavSignal.Content" xml:space="preserve"><value>Signal</value></data>
+  <data name="NavDiscord.Content" xml:space="preserve"><value>Discord</value></data>
+  <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
+
+  <data name="ComingSoonTitle.Text" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="ComingSoonDesc.Text" xml:space="preserve"><value>This feature is not yet available.</value></data>
+  <data name="UseSystemSettingRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="AppThemeExpander.Header" xml:space="preserve"><value>App theme</value></data>
+  <data name="ThemeLightRadio.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="ThemeDarkRadio.Content" xml:space="preserve"><value>Dark</value></data>
+
+  <data name="WindowBackdropExpander.Header" xml:space="preserve"><value>Window Backdrop</value></data>
+  <data name="BackdropMicaRadio.Content" xml:space="preserve"><value>Mica</value></data>
+  <data name="BackdropAcrylicRadio.Content" xml:space="preserve"><value>Acrylic</value></data>
+  <data name="BackdropMicaAltRadio.Content" xml:space="preserve"><value>Mica Alt</value></data>
+  <data name="BackdropNoneRadio.Content" xml:space="preserve"><value>None</value></data>
+
+  <data name="WhatsAppAccentColorExpander.Header" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="WhatsAppBrandRadio.Content" xml:space="preserve"><value>WhatsApp (default colour scheme)</value></data>
+
+  <data name="SmsAccentColorExpander.Header" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="SmsBrandRadio.Content" xml:space="preserve"><value>SMS (default colour scheme)</value></data>
+
+  <data name="TelegramAccentColorExpander.Header" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="TelegramBrandRadio.Content" xml:space="preserve"><value>Telegram (default colour scheme)</value></data>
+
+  <data name="DiscordAccentColorExpander.Header" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="DiscordBrandRadio.Content" xml:space="preserve"><value>Discord (default colour scheme)</value></data>
+
+  <data name="SignalAccentColorExpander.Header" xml:space="preserve"><value>Accent colour</value></data>
+  <data name="SignalBrandRadio.Content" xml:space="preserve"><value>Signal (default colour scheme)</value></data>
+</root>
+

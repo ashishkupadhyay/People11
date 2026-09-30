@@ -40,27 +40,27 @@
                         PaneDisplayMode="LeftCompact"
                         AlwaysShowHeader="False">
             <NavigationView.MenuItems>
-                <NavigationViewItem Tag="WhatsApp" Content="WhatsApp" AutomationProperties.AutomationId="NavWhatsApp">
+                <NavigationViewItem Tag="WhatsApp" x:Uid="NavWhatsApp" AutomationProperties.AutomationId="NavWhatsApp">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE815;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="SMS" Content="SMS" AutomationProperties.AutomationId="NavSMS">
+                <NavigationViewItem Tag="SMS" x:Uid="NavSMS" AutomationProperties.AutomationId="NavSMS">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8BD;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="Telegram" Content="Telegram" AutomationProperties.AutomationId="NavTelegram">
+                <NavigationViewItem Tag="Telegram" x:Uid="NavTelegram" AutomationProperties.AutomationId="NavTelegram">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="Signal" Content="Signal" AutomationProperties.AutomationId="NavSignal">
+                <NavigationViewItem Tag="Signal" x:Uid="NavSignal" AutomationProperties.AutomationId="NavSignal">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE119;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="Discord" Content="Discord" AutomationProperties.AutomationId="NavDiscord">
+                <NavigationViewItem Tag="Discord" x:Uid="NavDiscord" AutomationProperties.AutomationId="NavDiscord">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE90A;" />
                     </NavigationViewItem.Icon>
@@ -77,3 +77,4 @@
         </NavigationView>
     </Grid>
 </Window>
+

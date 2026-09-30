@@ -5,6 +5,16 @@ using People.Core.Interfaces;
 
 namespace People.Services;
 
+public sealed record AccentPalette(
+    Windows.UI.Color Accent,
+    Windows.UI.Color Light1,
+    Windows.UI.Color Light2,
+    Windows.UI.Color Light3,
+    Windows.UI.Color Dark1,
+    Windows.UI.Color Dark2,
+    Windows.UI.Color Dark3
+);
+
 public class ThemeService : IThemeService
 {
     private readonly ISettingsService _settingsService;
@@ -108,11 +118,11 @@ public class ThemeService : IThemeService
     {
         if (!string.IsNullOrEmpty(_activePlatform))
         {
-            var color = GetBrandColorIfEnabled(_activePlatform);
+            var palette = GetBrandPaletteIfEnabled(_activePlatform);
 
-            if (color.HasValue)
+            if (palette != null)
             {
-                SetAppAccentColor(color.Value);
+                SetAppAccentPalette(palette);
                 return;
             }
         }
@@ -120,22 +130,29 @@ public class ThemeService : IThemeService
         SetSystemAccentColor();
     }
 
-    private Windows.UI.Color? GetBrandColorIfEnabled(string platform)
+    private AccentPalette? GetBrandPaletteIfEnabled(string platform)
     {
         bool enabled = _settingsService.GetValue<bool>("BrandColor_" + platform, false);
 
         if (!enabled)
             return null;
 
-        return platform switch
+        var baseColor = platform switch
         {
             "WhatsApp" => ColorHelper.FromArgb(255, 37, 211, 102),
             "Telegram" => ColorHelper.FromArgb(255, 36, 161, 222),
             "Discord" => ColorHelper.FromArgb(255, 88, 101, 242),
             "Signal" => ColorHelper.FromArgb(255, 58, 118, 240),
             "SMS" => ColorHelper.FromArgb(255, 0, 120, 215),
-            _ => null
+            _ => (Windows.UI.Color?)null
         };
+
+        if (baseColor.HasValue)
+        {
+            return GeneratePalette(baseColor.Value);
+        }
+
+        return null;
     }
 
     private void SetSystemAccentColor()
@@ -143,54 +160,95 @@ public class ThemeService : IThemeService
         try
         {
             var uiSettings = new Windows.UI.ViewManagement.UISettings();
-            var color = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent);
-            SetAppAccentColor(color);
+            var palette = new AccentPalette(
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent),
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight1),
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight2),
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight3),
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark1),
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark2),
+                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark3)
+            );
+            SetAppAccentPalette(palette);
         }
         catch
         {
-            SetAppAccentColor(Microsoft.UI.Colors.Blue);
+            SetAppAccentPalette(GeneratePalette(Microsoft.UI.Colors.Blue));
         }
     }
 
-    private void SetAppAccentColor(Windows.UI.Color color)
+    private void SetAppAccentPalette(AccentPalette palette)
     {
-        var resources = Application.Current.Resources;
-
-        if (resources.ThemeDictionaries.TryGetValue("Light", out var lightObj))
-        {
-            if (lightObj is Microsoft.UI.Xaml.ColorPaletteResources light)
-                light.Accent = color;
-            else if (lightObj is ResourceDictionary lightDict)
-                EnsureColorPaletteResources("Light", lightDict, color);
-        }
-        else
-        {
-            EnsureColorPaletteResources("Light", new ResourceDictionary(), color);
-        }
-
-        if (resources.ThemeDictionaries.TryGetValue("Dark", out var darkObj))
-        {
-            if (darkObj is Microsoft.UI.Xaml.ColorPaletteResources dark)
-                dark.Accent = color;
-            else if (darkObj is ResourceDictionary darkDict)
-                EnsureColorPaletteResources("Dark", darkDict, color);
-        }
-        else
-        {
-            EnsureColorPaletteResources("Dark", new ResourceDictionary(), color);
-        }
+        SetAccentResource("Default", palette);
+        SetAccentResource("Light", palette);
+        SetAccentResource("Dark", palette);
+        RefreshThemeResources();
     }
 
-    private void EnsureColorPaletteResources(string theme, ResourceDictionary existingDict, Windows.UI.Color color)
+    private static void SetAccentResource(string theme, AccentPalette palette)
     {
-        var palette = new Microsoft.UI.Xaml.ColorPaletteResources();
-        foreach (var item in existingDict)
-        {
-            palette[item.Key] = item.Value;
-        }
-        palette.Accent = color;
-        Application.Current.Resources.ThemeDictionaries[theme] = palette;
+        if (Application.Current.Resources.ThemeDictionaries[theme] is not ResourceDictionary dictionary) return;
+        
+        dictionary["SystemAccentColor"] = palette.Accent;
+        dictionary["SystemAccentColorLight1"] = palette.Light1;
+        dictionary["SystemAccentColorLight2"] = palette.Light2;
+        dictionary["SystemAccentColorLight3"] = palette.Light3;
+        dictionary["SystemAccentColorDark1"] = palette.Dark1;
+        dictionary["SystemAccentColorDark2"] = palette.Dark2;
+        dictionary["SystemAccentColorDark3"] = palette.Dark3;
     }
+
+    private static AccentPalette GeneratePalette(Windows.UI.Color baseColor)
+    {
+        return new AccentPalette(
+            baseColor,
+            BlendWithWhite(baseColor, 0.15),
+            BlendWithWhite(baseColor, 0.30),
+            BlendWithWhite(baseColor, 0.45),
+            BlendWithBlack(baseColor, 0.15),
+            BlendWithBlack(baseColor, 0.30),
+            BlendWithBlack(baseColor, 0.45)
+        );
+    }
+
+    private static Windows.UI.Color BlendWithWhite(Windows.UI.Color color, double amount)
+    {
+        return Windows.UI.Color.FromArgb(
+            color.A,
+            (byte)(color.R + (255 - color.R) * amount),
+            (byte)(color.G + (255 - color.G) * amount),
+            (byte)(color.B + (255 - color.B) * amount));
+    }
+
+    private static Windows.UI.Color BlendWithBlack(Windows.UI.Color color, double amount)
+    {
+        return Windows.UI.Color.FromArgb(
+            color.A,
+            (byte)(color.R * (1.0 - amount)),
+            (byte)(color.G * (1.0 - amount)),
+            (byte)(color.B * (1.0 - amount)));
+    }
+
+    private void RefreshThemeResources()
+    {
+        if (App.Current.MainWindow?.Content is not FrameworkElement root) return;
+        
+        var originalTheme = root.RequestedTheme;
+        do
+        {
+            root.RequestedTheme = root.RequestedTheme switch
+            {
+                ElementTheme.Light => ElementTheme.Dark,
+                ElementTheme.Dark => ElementTheme.Default,
+                ElementTheme.Default => ElementTheme.Light,
+                _ => ElementTheme.Default
+            };
+        } while (root.RequestedTheme != originalTheme);
+    }
+
+
+
+
 
     private static string? NormalizePlatform(string? platformId)
     {
