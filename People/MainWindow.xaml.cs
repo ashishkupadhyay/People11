@@ -56,6 +56,12 @@ public sealed partial class MainWindow : Window
             titleBar.ButtonPressedBackgroundColor = Microsoft.UI.Colors.Transparent;
             titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
             titleBar.IconShowOptions = Microsoft.UI.Windowing.IconShowOptions.HideIconAndSystemMenu;
+            
+            if (this.Content is FrameworkElement rootElement)
+            {
+                UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
+                rootElement.ActualThemeChanged += (s, args) => UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
+            }
         }
 
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
@@ -68,6 +74,18 @@ public sealed partial class MainWindow : Window
 
         NavView.SizeChanged += NavView_SizeChanged;
     }
+
+    private void UpdateTitleBarColors(Microsoft.UI.Windowing.AppWindowTitleBar titleBar, ElementTheme theme)
+    {
+        bool isDark = theme == ElementTheme.Dark || (theme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        var foregroundColor = isDark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+        titleBar.ButtonForegroundColor = foregroundColor;
+        titleBar.ButtonHoverForegroundColor = foregroundColor;
+        titleBar.ButtonPressedForegroundColor = foregroundColor;
+        titleBar.ButtonInactiveForegroundColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150) : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
+    }
+
+
 
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
@@ -99,7 +117,7 @@ public sealed partial class MainWindow : Window
             var tag = args.InvokedItemContainer?.Tag?.ToString();
             if (tag != null)
             {
-                if (tag == "WhatsApp" || tag == "Telegram" || tag == "Discord" || tag == "Signal" || tag == "SMS" || tag == "Matrix") 
+                if (tag == "WhatsApp") 
                 {
                     navService.NavigateTo("Chats", tag);
                 }

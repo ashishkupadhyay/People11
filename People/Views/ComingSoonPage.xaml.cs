@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace People.Views;
 
@@ -22,20 +23,28 @@ public sealed partial class ComingSoonPage : Page
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
-        if (e.Parameter is string appName && AppStyles.TryGetValue(appName, out var style))
+        base.OnNavigatedTo(e);
+        
+        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+
+        if (e.Parameter is string appName)
         {
-            TitleTextBlock.Text = $"{appName} Support is Coming Soon";
-            AppIcon.Glyph = style.Glyph;
-            
-            ColorStop1.Color = GetColorFromHex(style.Hex1);
-            ColorStop2.Color = GetColorFromHex(style.Hex2);
+            themeService.SetActivePlatform(appName);
+
+            if (AppStyles.TryGetValue(appName, out var style))
+            {
+                TitleTextBlock.Text = $"{appName} Support is Coming Soon";
+                AppIcon.Glyph = style.Glyph;
+                
+                ColorStop1.Color = GetColorFromHex(style.Hex1);
+                ColorStop2.Color = GetColorFromHex(style.Hex2);
+            }
         }
         else
         {
+            themeService.ClearActivePlatform();
             TitleTextBlock.Text = "Coming Soon";
         }
-        
-        base.OnNavigatedTo(e);
     }
 
     private Windows.UI.Color GetColorFromHex(string hex)

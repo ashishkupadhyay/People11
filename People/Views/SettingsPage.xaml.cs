@@ -18,6 +18,6 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
-        themeService.RestoreSystemAccentColor();
+        themeService.ClearActivePlatform();
     }
 }

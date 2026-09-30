@@ -26,7 +26,7 @@ public class TrayIconService : ITrayIconService
                         Text = "\xE716",
                         FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
                         Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
-                        FontSize = 64
+                        FontSize = 16
                     }
                 };
 

@@ -17,9 +17,6 @@ public sealed partial class ChatListPage : Page
         
         DetailFrame.Navigated += DetailFrame_Navigated;
         
-        // Initialize with a blank page so there is something to go back to.
-        DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
-        
         this.SizeChanged += ChatListPage_SizeChanged;
     }
 
@@ -57,11 +54,7 @@ public sealed partial class ChatListPage : Page
                 else if (convPage.ViewModel.CurrentChat.Id?.StartsWith("tg_") == true) platformId = "Telegram";
                 else platformId = "WhatsApp";
             }
-            themeService.ApplyBrandColorIfActive(platformId);
-        }
-        else
-        {
-            themeService.RestoreSystemAccentColor();
+            themeService.SetActivePlatform(platformId);
         }
     }
     
@@ -69,6 +62,11 @@ public sealed partial class ChatListPage : Page
     {
         base.OnNavigatedTo(e);
         
+        if (DetailFrame.Content == null)
+        {
+            DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+        }
+
         if (e.Parameter is string param)
         {
             if (param == "Flyout")
@@ -81,7 +79,7 @@ public sealed partial class ChatListPage : Page
             if (!string.IsNullOrEmpty(param) && !_isFlyout)
             {
                 var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
-                themeService.ApplyBrandColorIfActive(param);
+                themeService.SetActivePlatform(param);
                 return;
             }
         }
