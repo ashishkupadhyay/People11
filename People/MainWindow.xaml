@@ -38,7 +38,7 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Tag="WhatsApp" x:Uid="NavWhatsApp" AutomationProperties.AutomationId="NavWhatsApp">
                     <NavigationViewItem.Icon>
-                        <ImageIcon Source="{ThemeResource WhatsAppIconSource}" />
+                        <ImageIcon x:Name="NavWhatsAppIcon" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="SMS" x:Uid="NavSMS" AutomationProperties.AutomationId="NavSMS">
@@ -48,17 +48,17 @@
                 </NavigationViewItem>
                 <NavigationViewItem Tag="Telegram" x:Uid="NavTelegram" AutomationProperties.AutomationId="NavTelegram">
                     <NavigationViewItem.Icon>
-                        <ImageIcon Source="{ThemeResource TelegramIconSource}" />
+                        <ImageIcon x:Name="NavTelegramIcon" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="Signal" x:Uid="NavSignal" AutomationProperties.AutomationId="NavSignal">
                     <NavigationViewItem.Icon>
-                        <ImageIcon Source="{ThemeResource SignalIconSource}" />
+                        <ImageIcon x:Name="NavSignalIcon" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="Discord" x:Uid="NavDiscord" AutomationProperties.AutomationId="NavDiscord">
                     <NavigationViewItem.Icon>
-                        <ImageIcon Source="{ThemeResource DiscordIconSource}" />
+                        <ImageIcon x:Name="NavDiscordIcon" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

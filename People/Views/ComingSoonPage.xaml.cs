@@ -81,6 +81,7 @@ public sealed partial class ComingSoonPage : Page
         if (!string.IsNullOrEmpty(fileName))
         {
             AppLottieSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+            _ = AppLottiePlayer.PlayAsync(0, 1, true);
         }
     }
 

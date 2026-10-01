@@ -94,6 +94,7 @@ public sealed partial class ChatListPage : Page
         if (!string.IsNullOrEmpty(fileName))
         {
             EmptyStateLottieSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+            _ = EmptyStatePlayer.PlayAsync(0, 1, true);
         }
     }
     

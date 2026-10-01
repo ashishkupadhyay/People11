@@ -71,7 +71,12 @@ public sealed partial class MainWindow : Window
             if (this.Content is FrameworkElement rootElement)
             {
                 UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
-                rootElement.ActualThemeChanged += (s, args) => UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
+                UpdateSidebarIcons(rootElement.ActualTheme);
+                rootElement.ActualThemeChanged += (s, args) => 
+                {
+                    UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
+                    UpdateSidebarIcons(rootElement.ActualTheme);
+                };
             }
         }
 
@@ -94,6 +99,17 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonHoverForegroundColor = foregroundColor;
         titleBar.ButtonPressedForegroundColor = foregroundColor;
         titleBar.ButtonInactiveForegroundColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150) : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
+    }
+
+    private void UpdateSidebarIcons(ElementTheme theme)
+    {
+        bool isDark = theme == ElementTheme.Dark || (theme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        string suffix = isDark ? "White" : "Black";
+        
+        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/WhatsApp-Logo-{suffix}.svg"));
+        if (NavTelegramIcon != null) NavTelegramIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Telegram-Logo-{suffix}.svg"));
+        if (NavSignalIcon != null) NavSignalIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Signal-Logo-{suffix}.svg"));
+        if (NavDiscordIcon != null) NavDiscordIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Discord-Logo-{suffix}.svg"));
     }
 
 
