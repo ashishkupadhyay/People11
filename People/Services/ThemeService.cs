@@ -26,12 +26,51 @@ public class ThemeService : IThemeService
     public ThemeService(ISettingsService settingsService)
     {
         _settingsService = settingsService;
+        _settingsService.SettingChanged += OnSettingChanged;
+    }
+
+    private void OnSettingChanged(object? sender, string key)
+    {
+        if (_activePlatform == null) return;
+
+        if (key == $"BrandColor_{_activePlatform}" || (_activePlatform == "WhatsApp" && key == "WhatsAppEnabled"))
+        {
+            var dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            if (dispatcherQueue != null)
+            {
+                dispatcherQueue.TryEnqueue(() => ApplyCurrentAccent());
+            }
+            else
+            {
+                ApplyCurrentAccent();
+            }
+        }
     }
 
     public void Initialize()
     {
         _currentTheme = _settingsService.GetValue(ThemeKey, "Default") ?? "Default";
         _activePlatform = null;
+    }
+
+        private string? _currentBackdrop;
+
+    private static void ApplyRootBackground(Window window, string backdrop)
+    {
+        if (window?.Content is not Microsoft.UI.Xaml.Controls.Panel root)
+            return;
+
+        if (backdrop == "None")
+        {
+            root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                root.ActualTheme == ElementTheme.Dark
+                    ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32)
+                    : Microsoft.UI.ColorHelper.FromArgb(255, 249, 249, 249));
+        }
+        else
+        {
+            root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
     }
 
     public void SetTheme(string theme)
@@ -49,6 +88,11 @@ public class ThemeService : IThemeService
             };
         }
 
+        if (App.Current.MainWindow != null && _currentBackdrop != null)
+        {
+            ApplyRootBackground(App.Current.MainWindow, _currentBackdrop);
+        }
+
         ApplyCurrentAccent();
     }
 
@@ -56,6 +100,9 @@ public class ThemeService : IThemeService
     {
         if (App.Current is App app && app.MainWindow != null)
         {
+            if (_currentBackdrop == backdrop) return;
+            _currentBackdrop = backdrop;
+
             app.MainWindow.SystemBackdrop = backdrop switch
             {
                 "Mica" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
@@ -63,6 +110,8 @@ public class ThemeService : IThemeService
                 "Desktop Acrylic" => new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
                 _ => null
             };
+
+            ApplyRootBackground(app.MainWindow, backdrop);
         }
     }
 
@@ -81,6 +130,7 @@ public class ThemeService : IThemeService
             }
             
             var backdrop = _settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
+            
             window.SystemBackdrop = backdrop switch
             {
                 "Mica" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
@@ -88,6 +138,10 @@ public class ThemeService : IThemeService
                 "Desktop Acrylic" => new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
                 _ => null
             };
+
+            _currentBackdrop = backdrop;
+
+            ApplyRootBackground(window, backdrop);
         }
     }
 
@@ -116,25 +170,47 @@ public class ThemeService : IThemeService
 
     private void ApplyCurrentAccent()
     {
+        System.Diagnostics.Debug.WriteLine($"[Accent] Platform={_activePlatform}");
+
         if (!string.IsNullOrEmpty(_activePlatform))
         {
             var palette = GetBrandPaletteIfEnabled(_activePlatform);
 
+            System.Diagnostics.Debug.WriteLine($"[Accent] Brand palette available={palette != null}");
+
             if (palette != null)
             {
+                System.Diagnostics.Debug.WriteLine($"[Accent] Applying brand={palette.Accent}");
                 SetAppAccentPalette(palette);
                 return;
             }
         }
 
+        System.Diagnostics.Debug.WriteLine("[Accent] Applying system accent");
         SetSystemAccentColor();
+    }
+
+    private bool IsBrandAccentEligible(string platform)
+    {
+        return platform switch
+        {
+            "WhatsApp" => _settingsService.GetValue<bool>("WhatsAppEnabled", true),
+            "Telegram" => false,
+            "Discord" => false,
+            "Signal" => false,
+            "SMS" => false,
+            _ => false
+        };
     }
 
     private AccentPalette? GetBrandPaletteIfEnabled(string platform)
     {
-        bool enabled = _settingsService.GetValue<bool>("BrandColor_" + platform, false);
+        if (!IsBrandAccentEligible(platform))
+            return null;
 
-        if (!enabled)
+        bool useBrandColor = _settingsService.GetValue<bool>("BrandColor_" + platform, false);
+
+        if (!useBrandColor)
             return null;
 
         var baseColor = platform switch
@@ -147,12 +223,9 @@ public class ThemeService : IThemeService
             _ => (Windows.UI.Color?)null
         };
 
-        if (baseColor.HasValue)
-        {
-            return GeneratePalette(baseColor.Value);
-        }
-
-        return null;
+        return baseColor.HasValue
+            ? GeneratePalette(baseColor.Value)
+            : null;
     }
 
     private void SetSystemAccentColor()
@@ -182,20 +255,34 @@ public class ThemeService : IThemeService
         SetAccentResource("Default", palette);
         SetAccentResource("Light", palette);
         SetAccentResource("Dark", palette);
-        RefreshThemeResources();
+        
+        // Trigger global {ThemeResource} re-evaluation safely without RequestedTheme flicker
+        // Done once after all theme dictionaries are updated.
+        var dummy = new Microsoft.UI.Xaml.ResourceDictionary();
+        Microsoft.UI.Xaml.Application.Current.Resources.MergedDictionaries.Add(dummy);
+        Microsoft.UI.Xaml.Application.Current.Resources.MergedDictionaries.Remove(dummy);
     }
 
     private static void SetAccentResource(string theme, AccentPalette palette)
     {
-        if (Application.Current.Resources.ThemeDictionaries[theme] is not ResourceDictionary dictionary) return;
-        
-        dictionary["SystemAccentColor"] = palette.Accent;
-        dictionary["SystemAccentColorLight1"] = palette.Light1;
-        dictionary["SystemAccentColorLight2"] = palette.Light2;
-        dictionary["SystemAccentColorLight3"] = palette.Light3;
-        dictionary["SystemAccentColorDark1"] = palette.Dark1;
-        dictionary["SystemAccentColorDark2"] = palette.Dark2;
-        dictionary["SystemAccentColorDark3"] = palette.Dark3;
+        if (Microsoft.UI.Xaml.Application.Current.Resources.ThemeDictionaries.TryGetValue(theme, out var resource) &&
+            resource is Microsoft.UI.Xaml.ResourceDictionary dict)
+        {
+            var cpr = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<Microsoft.UI.Xaml.ColorPaletteResources>(dict.MergedDictionaries));
+            if (cpr != null)
+            {
+                // Set the accent dependency property
+                cpr.Accent = palette.Accent;
+                
+                // Generate the rest of the palette properly (never setting to same color)
+                cpr["SystemAccentColorLight1"] = palette.Light1;
+                cpr["SystemAccentColorLight2"] = palette.Light2;
+                cpr["SystemAccentColorLight3"] = palette.Light3;
+                cpr["SystemAccentColorDark1"] = palette.Dark1;
+                cpr["SystemAccentColorDark2"] = palette.Dark2;
+                cpr["SystemAccentColorDark3"] = palette.Dark3;
+            }
+        }
     }
 
     private static AccentPalette GeneratePalette(Windows.UI.Color baseColor)
@@ -229,22 +316,7 @@ public class ThemeService : IThemeService
             (byte)(color.B * (1.0 - amount)));
     }
 
-    private void RefreshThemeResources()
-    {
-        if (App.Current.MainWindow?.Content is not FrameworkElement root) return;
-        
-        var originalTheme = root.RequestedTheme;
-        do
-        {
-            root.RequestedTheme = root.RequestedTheme switch
-            {
-                ElementTheme.Light => ElementTheme.Dark,
-                ElementTheme.Dark => ElementTheme.Default,
-                ElementTheme.Default => ElementTheme.Light,
-                _ => ElementTheme.Default
-            };
-        } while (root.RequestedTheme != originalTheme);
-    }
+    
 
 
 
@@ -266,3 +338,12 @@ public class ThemeService : IThemeService
         };
     }
 }
+
+
+
+
+
+
+
+
+

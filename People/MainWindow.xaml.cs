@@ -27,18 +27,7 @@ public sealed partial class MainWindow : Window
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
         themeService.Initialize();
         
-        // Establish initial platform before applying to window
-        var initialPlatform = (NavView.MenuItems.Count > 0 ? NavView.MenuItems[0] as NavigationViewItem : null)?.Tag?.ToString();
-        if (!string.IsNullOrEmpty(initialPlatform))
-        {
-            themeService.SetActivePlatform(initialPlatform);
-        }
-        else
-        {
-            themeService.ClearActivePlatform();
-        }
-        
-        themeService.ApplyToWindow(this);
+                themeService.ApplyToWindow(this);
         var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
         if (navServiceCore is People.Services.NavigationService navService)
         {
@@ -52,8 +41,18 @@ public sealed partial class MainWindow : Window
         ContentFrame.Navigated += ContentFrame_Navigated;
         
         ContentFrame.Loaded += (s, e) => {
-            NavView.SelectedItem = NavView.MenuItems[0];
-            navServiceCore.NavigateTo("Chats");
+            if (NavView.MenuItems.Count == 0)
+                return;
+
+            var initialItem = NavView.MenuItems[0] as NavigationViewItem;
+            NavView.SelectedItem = initialItem;
+
+            var platformId = initialItem?.Tag?.ToString();
+
+            if (!string.IsNullOrWhiteSpace(platformId))
+                navServiceCore.NavigateTo("Chats", platformId);
+            else
+                navServiceCore.NavigateTo("Chats");
         };
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -175,9 +174,29 @@ public sealed partial class MainWindow : Window
         // Handle UI updates based on display mode if necessary
     }
 
-    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
+        private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
         ViewModel.IsBackEnabled = ContentFrame.CanGoBack;
+
+        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+        if (ContentFrame.Content is Views.SettingsPage)
+        {
+            themeService.ClearActivePlatform();
+        }
+        else if (ContentFrame.Content is Views.ChatListPage chatList)
+        {
+            chatList.UpdateAccentColor();
+        }
+        else if (ContentFrame.Content is Views.ConversationPage convPage)
+        {
+            themeService.SetActivePlatform(convPage.ViewModel.CurrentChat?.PlatformId);
+        }
+        else
+        {
+            themeService.ClearActivePlatform();
+        }
     }
 
 }
+
+

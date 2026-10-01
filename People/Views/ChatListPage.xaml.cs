@@ -40,32 +40,33 @@ public sealed partial class ChatListPage : Page
         UpdateAccentColor();
     }
     
-    private void UpdateAccentColor()
+    private string? _platformId;
+    
+    public void UpdateAccentColor()
     {
         if (_isFlyout) return;
 
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+        string? activePlatform = _platformId;
+
         if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat != null)
         {
-            string platformId = convPage.ViewModel.CurrentChat.PlatformId;
-            if (string.IsNullOrEmpty(platformId))
-            {
-                if (convPage.ViewModel.CurrentChat.Id?.StartsWith("wa_") == true) platformId = "WhatsApp";
-                else if (convPage.ViewModel.CurrentChat.Id?.StartsWith("tg_") == true) platformId = "Telegram";
-                else platformId = "WhatsApp";
-            }
-            themeService.SetActivePlatform(platformId);
+            var chat = convPage.ViewModel.CurrentChat;
+            activePlatform = !string.IsNullOrWhiteSpace(chat.PlatformId)
+                ? chat.PlatformId
+                : chat.Id?.StartsWith("wa_") == true
+                    ? "WhatsApp"
+                    : chat.Id?.StartsWith("tg_") == true
+                        ? "Telegram"
+                        : _platformId;
         }
+
+        themeService.SetActivePlatform(activePlatform);
     }
     
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        
-        if (DetailFrame.Content == null)
-        {
-            DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
-        }
 
         if (e.Parameter is string param)
         {
@@ -75,15 +76,14 @@ public sealed partial class ChatListPage : Page
                 return;
             }
             
-            // If the parameter is a platform ID (like "WhatsApp"), set it immediately.
-            if (!string.IsNullOrEmpty(param) && !_isFlyout)
-            {
-                var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
-                themeService.SetActivePlatform(param);
-                return;
-            }
+            _platformId = param;
         }
         
+        if (DetailFrame.Content == null)
+        {
+            DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+        }
+
         UpdateAccentColor();
     }
 
@@ -157,3 +157,4 @@ public sealed partial class ChatListPage : Page
         }
     }
 }
+

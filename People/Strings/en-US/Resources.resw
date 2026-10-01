@@ -76,7 +76,9 @@
   <data name="SignalColorCard.Header" xml:space="preserve"><value>App Color</value></data>
   <data name="SignalColorCard.Description" xml:space="preserve"><value>Choose the accent color for Signal</value></data>
 
-  <data name="ComingSoonBadge.Text" xml:space="preserve"><value>Coming Soon</value></data>
+    <data name="ComingSoonBadgeSms.Text" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="ComingSoonBadgeDiscord.Text" xml:space="preserve"><value>Coming Soon</value></data>
+  <data name="ComingSoonBadgeSignal.Text" xml:space="preserve"><value>Coming Soon</value></data>
 
   <data name="TaskbarHeader.Text" xml:space="preserve"><value>Taskbar &amp; Notifications</value></data>
   <data name="TrayExpander.Header" xml:space="preserve"><value>Tray Icon &amp; Flyout</value></data>
@@ -113,7 +115,12 @@
 
   <data name="ComingSoonTitle.Text" xml:space="preserve"><value>Coming Soon</value></data>
   <data name="ComingSoonDesc.Text" xml:space="preserve"><value>This feature is not yet available.</value></data>
-  <data name="UseSystemSettingRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+    <data name="UseSystemSettingThemeRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="UseSystemSettingWhatsAppRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="UseSystemSettingSmsRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="UseSystemSettingTelegramRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="UseSystemSettingDiscordRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
+  <data name="UseSystemSettingSignalRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
   <data name="AppThemeExpander.Header" xml:space="preserve"><value>App theme</value></data>
   <data name="ThemeLightRadio.Content" xml:space="preserve"><value>Light</value></data>
   <data name="ThemeDarkRadio.Content" xml:space="preserve"><value>Dark</value></data>
@@ -139,4 +146,6 @@
   <data name="SignalAccentColorExpander.Header" xml:space="preserve"><value>Accent colour</value></data>
   <data name="SignalBrandRadio.Content" xml:space="preserve"><value>Signal (default colour scheme)</value></data>
 </root>
+
+
 

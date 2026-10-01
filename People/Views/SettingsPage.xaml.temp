@@ -20,20 +20,13 @@
             <StackPanel Spacing="24">
                 <StackPanel.ChildrenTransitions>
                     <TransitionCollection>
-                        <EntranceThemeTransition IsStaggeringEnabled="False" />
-                        <RepositionThemeTransition IsStaggeringEnabled="False" />
+                        <EntranceThemeTransition IsStaggeringEnabled="True" />
                     </TransitionCollection>
                 </StackPanel.ChildrenTransitions>
 
 
             <!-- Appearance Section -->
             <StackPanel Spacing="2">
-                <StackPanel.ChildrenTransitions>
-                    <TransitionCollection>
-                        <EntranceThemeTransition IsStaggeringEnabled="True" />
-                        <RepositionThemeTransition IsStaggeringEnabled="False" />
-                    </TransitionCollection>
-                </StackPanel.ChildrenTransitions>
                 <TextBlock x:Uid="AppearanceHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
                 <ui:SettingsExpander x:Uid="AppThemeExpander" Header="App theme">
@@ -44,13 +37,11 @@
                         <TextBlock Text="{x:Bind ViewModel.SelectedThemeDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </ui:SettingsExpander.Content>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard ContentAlignment="Left">
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="ThemeLightRadio" Content="Light" Tag="Light" />
-                                <RadioButton x:Uid="ThemeDarkRadio" Content="Dark" Tag="Dark" />
-                                <RadioButton x:Uid="UseSystemSettingThemeRadio" Content="Use system setting" Tag="Default" />
-                            </RadioButtons>
-                        </ui:SettingsCard>
+                        <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                            <RadioButton x:Uid="ThemeLightRadio" Content="Light" Tag="Light" />
+                            <RadioButton x:Uid="ThemeDarkRadio" Content="Dark" Tag="Dark" />
+                            <RadioButton x:Uid="UseSystemSettingThemeRadio" Content="Use system setting" Tag="Default" />
+                        </RadioButtons>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
@@ -59,26 +50,18 @@
                         <TextBlock Text="{x:Bind ViewModel.SelectedBackdropDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </ui:SettingsExpander.Content>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard ContentAlignment="Left">
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedBackdropIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="BackdropMicaRadio" Content="Mica" />
-                                <RadioButton x:Uid="BackdropAcrylicRadio" Content="Acrylic" />
-                                <RadioButton x:Uid="BackdropMicaAltRadio" Content="Mica Alt" />
-                                <RadioButton x:Uid="BackdropNoneRadio" Content="None" />
-                            </RadioButtons>
-                        </ui:SettingsCard>
+                        <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedBackdropIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                            <RadioButton x:Uid="BackdropMicaRadio" Content="Mica" />
+                            <RadioButton x:Uid="BackdropAcrylicRadio" Content="Acrylic" />
+                            <RadioButton x:Uid="BackdropMicaAltRadio" Content="Mica Alt" />
+                            <RadioButton x:Uid="BackdropNoneRadio" Content="None" />
+                        </RadioButtons>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
             </StackPanel>
 
             <!-- Platforms Section -->
             <StackPanel Spacing="2">
-                <StackPanel.ChildrenTransitions>
-                    <TransitionCollection>
-                        <EntranceThemeTransition IsStaggeringEnabled="True" />
-                        <RepositionThemeTransition IsStaggeringEnabled="False" />
-                    </TransitionCollection>
-                </StackPanel.ChildrenTransitions>
                 <TextBlock x:Uid="PlatformsHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
                 <!-- WhatsApp -->
@@ -92,14 +75,19 @@
                         <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
                             <Button x:Uid="ReauthBtn" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
                         </ui:SettingsCard>
-                        <ui:SettingsCard x:Uid="WhatsAppAccentColorCard" Header="Accent colour">
+                        <ui:SettingsCard Header="Accent colour">
                             <ui:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
                             </ui:SettingsCard.HeaderIcon>
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.WhatsAppBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="WhatsAppBrandRadio" Content="WhatsApp (default colour scheme)" />
-                                <RadioButton x:Uid="UseSystemSettingWhatsAppRadio" Content="Use system setting" />
-                            </RadioButtons>
+                            <Expander x:Uid="WhatsAppAccentColorExpander">
+                                <Expander.Header>
+                                    <TextBlock Text="{x:Bind ViewModel.WhatsAppBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Expander.Header>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.WhatsAppBubbleColorIndex, Mode=TwoWay}" Margin="0,8,0,0">
+                                    <RadioButton x:Uid="WhatsAppBrandRadio" Content="WhatsApp (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingWhatsAppRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </Expander>
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
@@ -110,18 +98,23 @@
                         <FontIcon Glyph="&#xE8BD;" />
                     </ui:SettingsExpander.HeaderIcon>
                     <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="4,4">
-                        <TextBlock x:Uid="ComingSoonBadgeSms" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock x:Uid="ComingSoonBadge" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard x:Uid="SmsAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
+                        <ui:SettingsExpander x:Uid="SmsAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.SmsBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="SmsBrandRadio" Content="SMS (default colour scheme)" />
-                                <RadioButton x:Uid="UseSystemSettingSmsRadio" Content="Use system setting" />
-                            </RadioButtons>
-                        </ui:SettingsCard>
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.SmsBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.SmsBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="SmsBrandRadio" Content="SMS (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingSmsRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
@@ -132,15 +125,20 @@
                     </ui:SettingsExpander.HeaderIcon>
                     
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard x:Uid="TelegramAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
+                        <ui:SettingsExpander x:Uid="TelegramAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.TelegramBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="TelegramBrandRadio" Content="Telegram (default colour scheme)" />
-                                <RadioButton x:Uid="UseSystemSettingTelegramRadio" Content="Use system setting" />
-                            </RadioButtons>
-                        </ui:SettingsCard>
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.TelegramBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.TelegramBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="TelegramBrandRadio" Content="Telegram (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingTelegramRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
@@ -150,18 +148,23 @@
                         <FontIcon Glyph="&#xE90A;" />
                     </ui:SettingsExpander.HeaderIcon>
                     <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="4,4">
-                        <TextBlock x:Uid="ComingSoonBadgeDiscord" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock x:Uid="ComingSoonBadge" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard x:Uid="DiscordAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
+                        <ui:SettingsExpander x:Uid="DiscordAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.DiscordBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="DiscordBrandRadio" Content="Discord (default colour scheme)" />
-                                <RadioButton x:Uid="UseSystemSettingDiscordRadio" Content="Use system setting" />
-                            </RadioButtons>
-                        </ui:SettingsCard>
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.DiscordBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.DiscordBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="DiscordBrandRadio" Content="Discord (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingDiscordRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 
@@ -171,18 +174,23 @@
                         <FontIcon Glyph="&#xE8F1;" />
                     </ui:SettingsExpander.HeaderIcon>
                     <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="4,4">
-                        <TextBlock x:Uid="ComingSoonBadgeSignal" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock x:Uid="ComingSoonBadge" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard x:Uid="SignalAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
+                        <ui:SettingsExpander x:Uid="SignalAccentColorExpander" Header="Accent colour">
+                            <ui:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
-                            <RadioButtons SelectedIndex="{x:Bind ViewModel.SignalBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
-                                <RadioButton x:Uid="SignalBrandRadio" Content="Signal (default colour scheme)" />
-                                <RadioButton x:Uid="UseSystemSettingSignalRadio" Content="Use system setting" />
-                            </RadioButtons>
-                        </ui:SettingsCard>
+                            </ui:SettingsExpander.HeaderIcon>
+                            <ui:SettingsExpander.Content>
+                                <TextBlock Text="{x:Bind ViewModel.SignalBubbleColorDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </ui:SettingsExpander.Content>
+                            <ui:SettingsExpander.Items>
+                                <RadioButtons SelectedIndex="{x:Bind ViewModel.SignalBubbleColorIndex, Mode=TwoWay}" Margin="16,16,16,16">
+                                    <RadioButton x:Uid="SignalBrandRadio" Content="Signal (default colour scheme)" />
+                                    <RadioButton x:Uid="UseSystemSettingSignalRadio" Content="Use system setting" />
+                                </RadioButtons>
+                            </ui:SettingsExpander.Items>
+                        </ui:SettingsExpander>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
             </StackPanel>
@@ -210,12 +218,6 @@
 
             <!-- About -->
             <StackPanel Spacing="2">
-                <StackPanel.ChildrenTransitions>
-                    <TransitionCollection>
-                        <EntranceThemeTransition IsStaggeringEnabled="True" />
-                        <RepositionThemeTransition IsStaggeringEnabled="False" />
-                    </TransitionCollection>
-                </StackPanel.ChildrenTransitions>
                 <TextBlock x:Uid="AboutHeader" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,0,0,8" />
                 
                 <ui:SettingsCard x:Uid="AboutCard">
@@ -230,8 +232,6 @@
     </ScrollViewer>
     </Grid>
 </Page>
-
-
 
 
 

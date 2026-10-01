@@ -17,7 +17,5 @@ public sealed partial class SettingsPage : Page
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
-        themeService.ClearActivePlatform();
     }
 }

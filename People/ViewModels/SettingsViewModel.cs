@@ -50,10 +50,10 @@ public partial class SettingsViewModel : ViewModelBase
 
     public int SelectedBackdropIndex
     {
-        get => SelectedBackdrop switch { "Mica" => 0, "Acrylic" => 1, "Mica Alt" => 2, _ => 3 };
-        set => SelectedBackdrop = value switch { 0 => "Mica", 1 => "Acrylic", 2 => "Mica Alt", _ => "None" };
+        get => SelectedBackdrop switch { "Mica" => 0, "Desktop Acrylic" => 1, "Mica Alt" => 2, _ => 3 };
+        set => SelectedBackdrop = value switch { 0 => "Mica", 1 => "Desktop Acrylic", 2 => "Mica Alt", _ => "None" };
     }
-    public string SelectedBackdropDisplay => SelectedBackdrop switch { "Acrylic" => "Acrylic", "Mica Alt" => "Mica Alt", "None" => "None", _ => "Mica" };
+    public string SelectedBackdropDisplay => SelectedBackdrop switch { "Desktop Acrylic" => "Acrylic", "Mica Alt" => "Mica Alt", "None" => "None", _ => "Mica" };
 
     public int WhatsAppBubbleColorIndex
     {
@@ -115,6 +115,8 @@ public partial class SettingsViewModel : ViewModelBase
         LoadSettings();
     }
 
+                private bool _isInitializing = true;
+
     private void LoadSettings()
     {
         SelectedTheme = _settingsService.GetValue<string>("AppTheme") ?? "Default";
@@ -127,50 +129,33 @@ public partial class SettingsViewModel : ViewModelBase
         DiscordBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Discord", false) ? "Brand" : "Accent";
         SignalBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Signal", false) ? "Brand" : "Accent";
         SmsBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_SMS", false) ? "Brand" : "Accent";
+        
+        _isInitializing = false;
     }
 
-    partial void OnSelectedThemeChanged(string value) { _themeService.SetTheme(value); _settingsService.SetValue("AppTheme", value); OnPropertyChanged(nameof(SelectedThemeIndex)); OnPropertyChanged(nameof(SelectedThemeDisplay)); }
+    partial void OnSelectedThemeChanged(string value) { if (!_isInitializing) { _themeService.SetTheme(value); _settingsService.SetValue("AppTheme", value); } OnPropertyChanged(nameof(SelectedThemeIndex)); OnPropertyChanged(nameof(SelectedThemeDisplay)); }
 
-    partial void OnSelectedBackdropChanged(string value) { _themeService.SetBackdrop(value); _settingsService.SetValue("AppBackdrop", value); OnPropertyChanged(nameof(SelectedBackdropIndex)); OnPropertyChanged(nameof(SelectedBackdropDisplay)); }
+    partial void OnSelectedBackdropChanged(string value) { if (!_isInitializing) { _themeService.SetBackdrop(value); _settingsService.SetValue("AppBackdrop", value); } OnPropertyChanged(nameof(SelectedBackdropIndex)); OnPropertyChanged(nameof(SelectedBackdropDisplay)); }
 
-    partial void OnIsWhatsAppEnabledChanged(bool value)
-    {
-        _settingsService.SetValue("WhatsAppEnabled", value);
-    }
+    partial void OnIsWhatsAppEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppEnabled", value); }
 
-    partial void OnIsFlyoutEnabledChanged(bool value)
-    {
-        _settingsService.SetValue("FlyoutEnabled", value);
-    }
+    partial void OnIsFlyoutEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("FlyoutEnabled", value); }
 
-    partial void OnShowUnreadBadgeChanged(bool value)
-    {
-        _settingsService.SetValue("ShowUnreadBadge", value);
-    }
+    partial void OnShowUnreadBadgeChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("ShowUnreadBadge", value); }
 
-    partial void OnWhatsAppBubbleColorOptionChanged(string value)
-    {
-        _settingsService.SetValue("BrandColor_WhatsApp", value == "Brand");
-    }
+    partial void OnWhatsAppBubbleColorOptionChanged(string value) { if (!_isInitializing) _settingsService.SetValue("BrandColor_WhatsApp", value == "Brand"); }
 
-    partial void OnTelegramBubbleColorOptionChanged(string value)
-    {
-        _settingsService.SetValue("BrandColor_Telegram", value == "Brand");
-    }
+    partial void OnTelegramBubbleColorOptionChanged(string value) { if (!_isInitializing) _settingsService.SetValue("BrandColor_Telegram", value == "Brand"); }
 
-    partial void OnDiscordBubbleColorOptionChanged(string value)
-    {
-        _settingsService.SetValue("BrandColor_Discord", value == "Brand");
-    }
+    partial void OnDiscordBubbleColorOptionChanged(string value) { if (!_isInitializing) _settingsService.SetValue("BrandColor_Discord", value == "Brand"); }
 
-    partial void OnSignalBubbleColorOptionChanged(string value)
-    {
-        _settingsService.SetValue("BrandColor_Signal", value == "Brand");
-    }
+    partial void OnSignalBubbleColorOptionChanged(string value) { if (!_isInitializing) _settingsService.SetValue("BrandColor_Signal", value == "Brand"); }
 
-    partial void OnSmsBubbleColorOptionChanged(string value)
-    {
-        _settingsService.SetValue("BrandColor_SMS", value == "Brand");
-    }
+    partial void OnSmsBubbleColorOptionChanged(string value) { if (!_isInitializing) _settingsService.SetValue("BrandColor_SMS", value == "Brand"); }
 }
+
+
+
+
+
 

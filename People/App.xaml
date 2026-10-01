@@ -11,39 +11,24 @@
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
-
                 <ResourceDictionary x:Key="Default">
-                    <Color x:Key="SystemAccentColor">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight1">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight2">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight3">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark1">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark2">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark3">#0078D4</Color>
+                    <ResourceDictionary.MergedDictionaries>
+                        <ColorPaletteResources Accent="#0078D4" />
+                    </ResourceDictionary.MergedDictionaries>
                 </ResourceDictionary>
-
                 <ResourceDictionary x:Key="Light">
-                    <Color x:Key="SystemAccentColor">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight1">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight2">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight3">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark1">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark2">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark3">#0078D4</Color>
+                    <ResourceDictionary.MergedDictionaries>
+                        <ColorPaletteResources Accent="#0078D4" />
+                    </ResourceDictionary.MergedDictionaries>
                 </ResourceDictionary>
-
                 <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="SystemAccentColor">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight1">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight2">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorLight3">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark1">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark2">#0078D4</Color>
-                    <Color x:Key="SystemAccentColorDark3">#0078D4</Color>
+                    <ResourceDictionary.MergedDictionaries>
+                        <ColorPaletteResources Accent="#0078D4" />
+                    </ResourceDictionary.MergedDictionaries>
                 </ResourceDictionary>
-
             </ResourceDictionary.ThemeDictionaries>
             <!-- Other app resources here -->
         </ResourceDictionary>
     </Application.Resources>
 </Application>
+
