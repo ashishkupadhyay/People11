@@ -19,6 +19,13 @@ public sealed partial class ComingSoonPage : Page
     public ComingSoonPage()
     {
         InitializeComponent();
+        this.ActualThemeChanged += (s, e) => {
+            if (TitleTextBlock.Text.Contains(" Support is Coming Soon"))
+            {
+                string appName = TitleTextBlock.Text.Replace(" Support is Coming Soon", "");
+                UpdateAnimation(appName);
+            }
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -34,16 +41,46 @@ public sealed partial class ComingSoonPage : Page
             if (AppStyles.TryGetValue(appName, out var style))
             {
                 TitleTextBlock.Text = $"{appName} Support is Coming Soon";
-                AppIcon.Glyph = style.Glyph;
                 
+                // Set background gradient
                 ColorStop1.Color = GetColorFromHex(style.Hex1);
                 ColorStop2.Color = GetColorFromHex(style.Hex2);
+                
+                UpdateAnimation(appName);
             }
         }
         else
         {
             themeService.ClearActivePlatform();
             TitleTextBlock.Text = "Coming Soon";
+        }
+    }
+    
+    private void UpdateAnimation(string appName)
+    {
+        if (AppLottieSource == null) return;
+        
+        bool isDark = App.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Dark;
+        if (this.ActualTheme != Microsoft.UI.Xaml.ElementTheme.Default)
+        {
+            isDark = this.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark;
+        }
+
+        string themeSuffix = isDark ? "white" : "black";
+        string prefix = appName.ToLower(); 
+        
+        string fileName = "";
+        switch(prefix)
+        {
+            case "telegram": fileName = $"telegram-animated-reveal-{themeSuffix}.json"; break;
+            case "signal": fileName = $"signal-animated-reveal-{themeSuffix}.json"; break;
+            case "discord": fileName = $"discord-animated-reveal-filled-{themeSuffix}.json"; break;
+            // Add fallback or other platforms if necessary
+        }
+        
+        if (!string.IsNullOrEmpty(fileName))
+        {
+            AppLottieSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
         }
     }
 

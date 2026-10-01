@@ -16,8 +16,8 @@ public sealed partial class ChatListPage : Page
         InitializeComponent();
         
         DetailFrame.Navigated += DetailFrame_Navigated;
-        
         this.SizeChanged += ChatListPage_SizeChanged;
+        this.ActualThemeChanged += (s, e) => UpdateEmptyStateAnimation(_platformId);
     }
 
     private void ChatListPage_SizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)
@@ -62,6 +62,39 @@ public sealed partial class ChatListPage : Page
         }
 
         themeService.SetActivePlatform(activePlatform);
+        
+        UpdateEmptyStateAnimation(activePlatform);
+    }
+    
+    private void UpdateEmptyStateAnimation(string? platformId)
+    {
+        if (EmptyStateLottieSource == null) return;
+        
+        // Use App.Current.RequestedTheme as baseline, or the element theme if overridden
+        bool isDark = App.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Dark;
+        if (this.ActualTheme != Microsoft.UI.Xaml.ElementTheme.Default)
+        {
+            isDark = this.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark;
+        }
+
+        string themeSuffix = isDark ? "white" : "black";
+        string prefix = (platformId ?? "sms").ToLower(); 
+        
+        string fileName = "";
+        switch(prefix)
+        {
+            case "whatsapp": fileName = $"whatsapp-animated-reveal-{themeSuffix}.json"; break;
+            case "sms": fileName = $"chat-animated-{themeSuffix}.json"; break;
+            case "telegram": fileName = $"telegram-animated-reveal-{themeSuffix}.json"; break;
+            case "signal": fileName = $"signal-animated-reveal-{themeSuffix}.json"; break;
+            case "discord": fileName = $"discord-animated-reveal-filled-{themeSuffix}.json"; break;
+            default: fileName = $"chat-animated-{themeSuffix}.json"; break; // Fallback to SMS
+        }
+        
+        if (!string.IsNullOrEmpty(fileName))
+        {
+            EmptyStateLottieSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+        }
     }
     
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)

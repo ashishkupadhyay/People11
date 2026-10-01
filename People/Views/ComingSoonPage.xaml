@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:lottie="using:CommunityToolkit.WinUI.Lottie"
     mc:Ignorable="d">
 
     <Grid x:Name="RootGrid">
@@ -15,7 +16,9 @@
         </Grid.Background>
         
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-            <FontIcon x:Name="AppIcon" FontSize="64" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+            <AnimatedVisualPlayer x:Name="AppLottiePlayer" AutoPlay="True" Width="200" Height="200">
+                <lottie:LottieVisualSource x:Name="AppLottieSource" />
+            </AnimatedVisualPlayer>
             <TextBlock x:Name="TitleTextBlock" x:Uid="ComingSoonTitle" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" HorizontalAlignment="Center" />
             <TextBlock x:Name="SubtitleTextBlock" Text="We are working on bringing this platform to People." Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}" HorizontalAlignment="Center" />
         </StackPanel>

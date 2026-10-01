@@ -105,18 +105,30 @@
                     <ResourceDictionary.MergedDictionaries>
                         <ColorPaletteResources />
                     </ResourceDictionary.MergedDictionaries>
+                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg" />
+                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" />
+                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" />
+                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
                 </ResourceDictionary>
                 
                 <ResourceDictionary x:Key="Light">
                     <ResourceDictionary.MergedDictionaries>
                         <ColorPaletteResources />
                     </ResourceDictionary.MergedDictionaries>
+                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg" />
+                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-Black.svg" />
+                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-Black.svg" />
+                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-Black.svg" />
                 </ResourceDictionary>
                 
                 <ResourceDictionary x:Key="Dark">
                     <ResourceDictionary.MergedDictionaries>
                         <ColorPaletteResources />
                     </ResourceDictionary.MergedDictionaries>
+                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg" />
+                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" />
+                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" />
+                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <!-- Other app resources here -->

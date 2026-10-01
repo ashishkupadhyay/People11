@@ -6,6 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:converters="using:People.Converters"
     xmlns:models="using:People.Core.Models"
+    xmlns:lottie="using:CommunityToolkit.WinUI.Lottie"
     mc:Ignorable="d"
     Background="Transparent">
 
@@ -152,10 +153,18 @@
         <Grid x:Name="PlaceholderGrid" Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" 
               CornerRadius="8,0,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
               Padding="24">
-            <TextBlock x:Uid="NoChatSelectedText" 
-                       HorizontalAlignment="Center" VerticalAlignment="Center" 
-                       TextAlignment="Center" TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+                <AnimatedVisualPlayer x:Name="EmptyStatePlayer" AutoPlay="True" Width="200" Height="200">
+                    <lottie:LottieVisualSource x:Name="EmptyStateLottieSource" />
+                </AnimatedVisualPlayer>
+                <TextBlock x:Uid="NoChatSelectedText" 
+                           Text="Select a chat to start messaging."
+                           Style="{ThemeResource SubtitleTextBlockStyle}"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" 
+                           TextAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
         </Grid>
 
         <!-- Pane 3: Detail View -->
