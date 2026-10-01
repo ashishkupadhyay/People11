@@ -47,10 +47,36 @@ public class ThemeService : IThemeService
         }
     }
 
+    private AccentPalette? _systemAccentPalette;
+
     public void Initialize()
     {
         _currentTheme = _settingsService.GetValue(ThemeKey, "Default") ?? "Default";
         _activePlatform = null;
+
+        try
+        {
+            _systemAccentPalette = ReadSystemAccentPalette();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] Initial system accent read failed: {ex.Message}");
+        }
+    }
+
+    private static AccentPalette ReadSystemAccentPalette()
+    {
+        var uiSettings = new Windows.UI.ViewManagement.UISettings();
+
+        return new AccentPalette(
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent),
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight1),
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight2),
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight3),
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark1),
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark2),
+            uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark3)
+        );
     }
 
         private string? _currentBackdrop;
@@ -170,24 +196,92 @@ public class ThemeService : IThemeService
 
     private void ApplyCurrentAccent()
     {
-        System.Diagnostics.Debug.WriteLine($"[Accent] Platform={_activePlatform}");
+        System.Diagnostics.Debug.WriteLine($"[ThemeService] ApplyCurrentAccent invoked. ActivePlatform: {_activePlatform}, CurrentTheme: {_currentTheme}");
 
+        // 1. Keep system accent independent
+        System.Diagnostics.Debug.WriteLine("[ThemeService] Applying Windows system accent fallback to system resources");
+        SetSystemAccentColor();
+
+        // 2. Resolve active app accent
+        AccentPalette? appPalette = null;
         if (!string.IsNullOrEmpty(_activePlatform))
         {
-            var palette = GetBrandPaletteIfEnabled(_activePlatform);
+            appPalette = GetBrandPaletteIfEnabled(_activePlatform);
+            bool useBrandColor = _settingsService.GetValue<bool>("BrandColor_" + _activePlatform, false);
 
-            System.Diagnostics.Debug.WriteLine($"[Accent] Brand palette available={palette != null}");
-
-            if (palette != null)
-            {
-                System.Diagnostics.Debug.WriteLine($"[Accent] Applying brand={palette.Accent}");
-                SetAppAccentPalette(palette);
-                return;
-            }
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] Brand color enabled setting for {_activePlatform}: {useBrandColor}");
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] Brand palette available: {appPalette != null}");
         }
 
-        System.Diagnostics.Debug.WriteLine("[Accent] Applying system accent");
-        SetSystemAccentColor();
+        // 3. Update app-specific brushes
+        appPalette ??= _systemAccentPalette;
+        if (appPalette != null)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] Setting AppAccentResources (Accent: {appPalette.Accent})");
+            SetAppAccentResources(appPalette);
+        }
+    }
+
+    private static void SetAppAccentResources(AccentPalette palette)
+    {
+        var appResources = Microsoft.UI.Xaml.Application.Current.Resources;
+        
+        var accentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(palette.Accent);
+        var hoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(palette.Light1);
+        var pressedBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(palette.Dark1);
+
+        // Output the Color itself so it can be used inside SolidColorBrush definitions in XAML if needed
+        appResources["AppAccentColor"] = palette.Accent;
+        
+        // Dynamically replace the color of the existing brushes to force UI re-evaluation
+        if (appResources["AppAccentBrush"] is Microsoft.UI.Xaml.Media.SolidColorBrush ab) ab.Color = palette.Accent;
+        if (appResources["AppAccentHoverBrush"] is Microsoft.UI.Xaml.Media.SolidColorBrush hb) hb.Color = palette.Light1;
+        if (appResources["AppAccentPressedBrush"] is Microsoft.UI.Xaml.Media.SolidColorBrush pb) pb.Color = palette.Dark1;
+
+        if (appResources["AppAccentElevationBorderFocusedBrush"] is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
+        {
+            lgb.GradientStops[0].Color = palette.Accent;
+        }
+
+        // Central Mapping: Update the Color property of existing brushes IN PLACE.
+        // This is strictly required because controls like NavigationView and AutoSuggestBox
+        // are already loaded and will not re-evaluate their ThemeResource bindings if we
+        // simply replace the dictionary object. By changing the Color property of the existing
+        // SolidColorBrush, the UI instantly receives a dependency property change notification.
+        
+        string[] brushKeysToUpdate = {
+            "AccentFillColorDefaultBrush",
+            "AccentFillColorSecondaryBrush",
+            "AccentFillColorTertiaryBrush",
+            "AccentTextFillColorPrimaryBrush",
+            "AccentTextFillColorSecondaryBrush",
+            "AccentTextFillColorTertiaryBrush",
+            "SystemControlHighlightAccentBrush",
+            "NavigationViewSelectionIndicatorForeground",
+            "ListViewItemSelectionIndicatorBrush",
+            "ListViewItemSelectionIndicatorPointerOverBrush",
+            "ListViewItemSelectionIndicatorPressedBrush"
+        };
+
+        foreach (var key in brushKeysToUpdate)
+        {
+            if (appResources.TryGetValue(key, out var resource) && resource is Microsoft.UI.Xaml.Media.SolidColorBrush solidBrush)
+            {
+                // Select hover/pressed variants based on the key name
+                if (key.Contains("Secondary") || key.Contains("PointerOver"))
+                {
+                    solidBrush.Color = palette.Light1;
+                }
+                else if (key.Contains("Tertiary") || key.Contains("Pressed"))
+                {
+                    solidBrush.Color = palette.Dark1;
+                }
+                else
+                {
+                    solidBrush.Color = palette.Accent;
+                }
+            }
+        }
     }
 
     private bool IsBrandAccentEligible(string platform)
@@ -232,21 +326,21 @@ public class ThemeService : IThemeService
     {
         try
         {
-            var uiSettings = new Windows.UI.ViewManagement.UISettings();
-            var palette = new AccentPalette(
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent),
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight1),
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight2),
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentLight3),
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark1),
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark2),
-                uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.AccentDark3)
-            );
-            SetAppAccentPalette(palette);
+            _systemAccentPalette = ReadSystemAccentPalette();
+            SetAppAccentPalette(_systemAccentPalette);
         }
-        catch
+        catch (Exception ex)
         {
-            SetAppAccentPalette(GeneratePalette(Microsoft.UI.Colors.Blue));
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] System accent read failed: {ex.Message}");
+
+            if (_systemAccentPalette is not null)
+            {
+                SetAppAccentPalette(_systemAccentPalette);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[ThemeService] No cached system accent available. Keeping the framework's default accent.");
+            }
         }
     }
 
@@ -255,34 +349,28 @@ public class ThemeService : IThemeService
         SetAccentResource("Default", palette);
         SetAccentResource("Light", palette);
         SetAccentResource("Dark", palette);
-        
-        // Trigger global {ThemeResource} re-evaluation safely without RequestedTheme flicker
-        // Done once after all theme dictionaries are updated.
-        var dummy = new Microsoft.UI.Xaml.ResourceDictionary();
-        Microsoft.UI.Xaml.Application.Current.Resources.MergedDictionaries.Add(dummy);
-        Microsoft.UI.Xaml.Application.Current.Resources.MergedDictionaries.Remove(dummy);
     }
 
     private static void SetAccentResource(string theme, AccentPalette palette)
     {
-        if (Microsoft.UI.Xaml.Application.Current.Resources.ThemeDictionaries.TryGetValue(theme, out var resource) &&
-            resource is Microsoft.UI.Xaml.ResourceDictionary dict)
+        if (!Microsoft.UI.Xaml.Application.Current.Resources.ThemeDictionaries.TryGetValue(theme, out var resource) ||
+            resource is not Microsoft.UI.Xaml.ResourceDictionary dict)
         {
-            var cpr = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<Microsoft.UI.Xaml.ColorPaletteResources>(dict.MergedDictionaries));
-            if (cpr != null)
-            {
-                // Set the accent dependency property
-                cpr.Accent = palette.Accent;
-                
-                // Generate the rest of the palette properly (never setting to same color)
-                cpr["SystemAccentColorLight1"] = palette.Light1;
-                cpr["SystemAccentColorLight2"] = palette.Light2;
-                cpr["SystemAccentColorLight3"] = palette.Light3;
-                cpr["SystemAccentColorDark1"] = palette.Dark1;
-                cpr["SystemAccentColorDark2"] = palette.Dark2;
-                cpr["SystemAccentColorDark3"] = palette.Dark3;
-            }
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] WARNING: Theme dictionary {theme} not found!");
+            return;
         }
+
+        var cpr = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<Microsoft.UI.Xaml.ColorPaletteResources>(dict.MergedDictionaries));
+
+        if (cpr == null)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] WARNING: ColorPaletteResources not found in {theme}!");
+            return;
+        }
+
+        cpr.Accent = palette.Accent;
+
+        System.Diagnostics.Debug.WriteLine($"[ThemeService] Set {theme} ColorPaletteResources.Accent to {palette.Accent}");
     }
 
     private static AccentPalette GeneratePalette(Windows.UI.Color baseColor)

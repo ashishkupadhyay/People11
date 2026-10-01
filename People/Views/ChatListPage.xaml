@@ -70,15 +70,23 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <AutoSuggestBox Grid.Column="0" x:Uid="SearchChatsBox" QueryIcon="Find" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox" />
+                    <AutoSuggestBox Grid.Column="0" x:Uid="SearchChatsBox" QueryIcon="Find" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox">
+                        <AutoSuggestBox.Resources>
+                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
+                        </AutoSuggestBox.Resources>
+                    </AutoSuggestBox>
                     
                     <!-- New Chat Button -->
-                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
+                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AppAccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
                         <Button.Flyout>
                             <Flyout>
                                 <StackPanel Width="280" Spacing="12">
                                     <TextBlock Text="New Chat" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find" />
+                                    <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find">
+                                        <AutoSuggestBox.Resources>
+                                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
+                                        </AutoSuggestBox.Resources>
+                                    </AutoSuggestBox>
                                     <!-- Placeholder for contacts list -->
                                     <ListView x:Name="NewChatList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="NewChatList_ItemClick" AutomationProperties.Name="New chat list" AutomationProperties.AutomationId="NewChatList">
                                         <ListView.ItemContainerTransitions>

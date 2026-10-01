@@ -12,6 +12,7 @@
     <Page.Resources>
         <converters:OutgoingAlignmentConverter x:Key="OutgoingAlignmentConverter" />
         <converters:OutgoingBackgroundConverter x:Key="OutgoingBackgroundConverter" />
+        <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
     </Page.Resources>
 
     <Grid>
@@ -58,7 +59,7 @@
             </Grid.ColumnDefinitions>
             
             <TextBox Grid.Column="0" Text="{x:Bind ViewModel.MessageText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" x:Uid="TypeMessageInput" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100" AutomationProperties.Name="Message input box" AutomationProperties.AutomationId="MessageInputBox" />
-            <Button Grid.Column="1" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Bottom" x:Uid="SendMessageBtn" AutomationProperties.AutomationId="SendBtn">
+            <Button Grid.Column="1" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AppAccentButtonStyle}" VerticalAlignment="Bottom" x:Uid="SendMessageBtn" AutomationProperties.AutomationId="SendBtn">
                 <FontIcon Glyph="&#xE122;" />
             </Button>
         </Grid>
