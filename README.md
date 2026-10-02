@@ -1,5 +1,6 @@
 # People App
 
+![Screenshot](docs/screenshots/people_light_acrylic.png)
 A modern, unified messaging application built for Windows 11. It brings together conversations from various platforms into a single, cohesive, and beautiful native experience. Built using WinUI 3, Windows App SDK, C#, and .NET 10, the application leverages the Fluent Design System to provide fluid animations, dynamic theming, and responsive layouts.
 
 ## Features
