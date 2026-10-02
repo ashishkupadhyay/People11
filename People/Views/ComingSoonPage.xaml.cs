@@ -58,7 +58,7 @@ public sealed partial class ComingSoonPage : Page
     
     private void UpdateAnimation(string appName)
     {
-        if (AppLottieSource == null) return;
+        if (AppLottiePlayer == null) return;
         
         bool isDark = App.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Dark;
         if (this.ActualTheme != Microsoft.UI.Xaml.ElementTheme.Default)
@@ -80,7 +80,9 @@ public sealed partial class ComingSoonPage : Page
         
         if (!string.IsNullOrEmpty(fileName))
         {
-            AppLottieSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+            var newSource = new CommunityToolkit.WinUI.Lottie.LottieVisualSource();
+            newSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+            AppLottiePlayer.Source = newSource;
             _ = AppLottiePlayer.PlayAsync(0, 1, true);
         }
     }

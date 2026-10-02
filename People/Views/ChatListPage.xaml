@@ -159,7 +159,7 @@
                 </AnimatedVisualPlayer>
                 <TextBlock x:Uid="NoChatSelectedText" 
                            Text="Select a chat to start messaging."
-                           Style="{ThemeResource SubtitleTextBlockStyle}"
+                           Style="{ThemeResource TitleTextBlockStyle}"
                            FontWeight="SemiBold"
                            HorizontalAlignment="Center" VerticalAlignment="Center" 
                            TextAlignment="Center" TextWrapping="Wrap"

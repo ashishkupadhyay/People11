@@ -68,7 +68,7 @@ public sealed partial class ChatListPage : Page
     
     private void UpdateEmptyStateAnimation(string? platformId)
     {
-        if (EmptyStateLottieSource == null) return;
+        if (EmptyStatePlayer == null) return;
         
         // Use App.Current.RequestedTheme as baseline, or the element theme if overridden
         bool isDark = App.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Dark;
@@ -93,7 +93,9 @@ public sealed partial class ChatListPage : Page
         
         if (!string.IsNullOrEmpty(fileName))
         {
-            EmptyStateLottieSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+            var newSource = new CommunityToolkit.WinUI.Lottie.LottieVisualSource();
+            newSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
+            EmptyStatePlayer.Source = newSource;
             _ = EmptyStatePlayer.PlayAsync(0, 1, true);
         }
     }

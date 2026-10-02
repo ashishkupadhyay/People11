@@ -97,7 +97,7 @@
   <data name="ChatsTitle.Text" xml:space="preserve"><value>Chats</value></data>
   <data name="SearchChatsBox.PlaceholderText" xml:space="preserve"><value>Search chats...</value></data>
   <data name="NewChatBtn.AutomationProperties.Name" xml:space="preserve"><value>New chat</value></data>
-  <data name="NoChatSelectedText.Text" xml:space="preserve"><value>Click on a contact or group to view the chats or start a new one</value></data>
+  <data name="NoChatSelectedText.Text" xml:space="preserve"><value>Select a chat to start messaging</value></data>
   <data name="ConnectWhatsAppTitle.Text" xml:space="preserve"><value>Connect to WhatsApp</value></data>
   <data name="ScanQrText.Text" xml:space="preserve"><value>Scan the QR code with your phone to login</value></data>
   <data name="ConnectingWhatsAppText.Text" xml:space="preserve"><value>Connecting to WhatsApp...</value></data>
