@@ -82,7 +82,7 @@
                         <Button.Flyout>
                             <Flyout>
                                 <StackPanel Width="280" Spacing="12">
-                                    <TextBlock Text="New Chat" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    <TextBlock x:Uid="NewChatText" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find" AutomationProperties.AutomationId="SearchContactsBox">
                                         <AutoSuggestBox.Resources>
                                             <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
@@ -97,14 +97,14 @@
                                         </ListView.ItemContainerTransitions>
                                         <ListViewItem AutomationProperties.AutomationId="NewChatList_Alice">
                                             <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <PersonPicture DisplayName="Alice" Width="32" Height="32"/>
-                                                <TextBlock Text="Alice" VerticalAlignment="Center"/>
+                                                <PersonPicture x:Uid="SampleContactAlicePicture" Width="32" Height="32"/>
+                                                <TextBlock x:Uid="SampleContactAliceText" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ListViewItem>
                                         <ListViewItem AutomationProperties.AutomationId="NewChatList_Bob">
                                             <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <PersonPicture DisplayName="Bob" Width="32" Height="32"/>
-                                                <TextBlock Text="Bob" VerticalAlignment="Center"/>
+                                                <PersonPicture x:Uid="SampleContactBobPicture" Width="32" Height="32"/>
+                                                <TextBlock x:Uid="SampleContactBobText" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ListViewItem>
                                     </ListView>
@@ -158,7 +158,6 @@
                     <lottie:LottieVisualSource x:Name="EmptyStateLottieSource" />
                 </AnimatedVisualPlayer>
                 <TextBlock x:Uid="NoChatSelectedText" 
-                           Text="Select a chat to start messaging."
                            Style="{ThemeResource TitleTextBlockStyle}"
                            FontWeight="SemiBold"
                            HorizontalAlignment="Center" VerticalAlignment="Center" 

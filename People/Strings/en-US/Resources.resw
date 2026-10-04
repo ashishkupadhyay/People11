@@ -97,6 +97,11 @@
   <data name="ChatsTitle.Text" xml:space="preserve"><value>Chats</value></data>
   <data name="SearchChatsBox.PlaceholderText" xml:space="preserve"><value>Search chats...</value></data>
   <data name="NewChatBtn.AutomationProperties.Name" xml:space="preserve"><value>New chat</value></data>
+  <data name="NewChatText.Text" xml:space="preserve"><value>New Chat</value></data>
+  <data name="SampleContactAlicePicture.DisplayName" xml:space="preserve"><value>Alice</value></data>
+  <data name="SampleContactAliceText.Text" xml:space="preserve"><value>Alice</value></data>
+  <data name="SampleContactBobPicture.DisplayName" xml:space="preserve"><value>Bob</value></data>
+  <data name="SampleContactBobText.Text" xml:space="preserve"><value>Bob</value></data>
   <data name="NoChatSelectedText.Text" xml:space="preserve"><value>Select a chat to start messaging</value></data>
   <data name="ConnectWhatsAppTitle.Text" xml:space="preserve"><value>Connect to WhatsApp</value></data>
   <data name="ScanQrText.Text" xml:space="preserve"><value>Scan the QR code with your phone to login</value></data>
@@ -114,7 +119,7 @@
   <data name="NavSettings.Content" xml:space="preserve"><value>Settings</value></data>
 
   <data name="ComingSoonTitle.Text" xml:space="preserve"><value>Coming Soon</value></data>
-  <data name="ComingSoonDesc.Text" xml:space="preserve"><value>This feature is not yet available.</value></data>
+  <data name="ComingSoonDesc.Text" xml:space="preserve"><value>We are working on bringing this platform to People.</value></data>
     <data name="UseSystemSettingThemeRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
   <data name="UseSystemSettingWhatsAppRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
   <data name="UseSystemSettingSmsRadio.Content" xml:space="preserve"><value>Use system setting</value></data>
