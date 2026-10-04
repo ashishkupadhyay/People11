@@ -29,7 +29,7 @@
                         <Setter Target="ListGrid.(Grid.ColumnSpan)" Value="1" />
                         <Setter Target="DetailFrame.(Grid.Column)" Value="1" />
                         <Setter Target="DetailFrame.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="DetailFrame.CornerRadius" Value="8,0,0,0" />
+                        <Setter Target="DetailFrame.CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
                         <Setter Target="ListGrid.Visibility" Value="Visible" />
                         <Setter Target="DetailFrame.Visibility" Value="Visible" />
                     </VisualState.Setters>
@@ -151,7 +151,7 @@
 
         <!-- Placeholder behind DetailFrame -->
         <Grid x:Name="PlaceholderGrid" Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" 
-              CornerRadius="8,0,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
+              CornerRadius="{ThemeResource OverlayCornerRadius}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
               Padding="24">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
                 <AnimatedVisualPlayer x:Name="EmptyStatePlayer" AutoPlay="True" Width="200" Height="200">
@@ -168,7 +168,7 @@
         </Grid>
 
         <!-- Pane 3: Detail View -->
-        <Frame x:Name="DetailFrame" Grid.Column="1" Background="Transparent" CornerRadius="8,0,0,0"
+        <Frame x:Name="DetailFrame" Grid.Column="1" Background="Transparent" CornerRadius="{ThemeResource OverlayCornerRadius}"
                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
             <Frame.ContentTransitions>
                 <TransitionCollection>
@@ -187,7 +187,7 @@
                 <TextBlock x:Uid="ConnectWhatsAppTitle" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
                 <TextBlock x:Uid="ScanQrText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
                 
-                <Border Background="White" Padding="16" CornerRadius="8" HorizontalAlignment="Center">
+                <Border Background="White" Padding="16" CornerRadius="{ThemeResource ControlCornerRadius}" HorizontalAlignment="Center">
                     <Image Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}" Width="256" Height="256" />
                 </Border>
             </StackPanel>

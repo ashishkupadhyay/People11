@@ -13,36 +13,36 @@
 
             <!-- App-specific accent resources (Updated dynamically by ThemeService) -->
             <Color x:Key="AppAccentColor">#0078D4</Color>
-            <SolidColorBrush x:Key="AppAccentBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="AppAccentHoverBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="AppAccentPressedBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="AppAccentBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AppAccentHoverBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AppAccentPressedBrush" Color="{ThemeResource SystemAccentColor}" />
 
             <LinearGradientBrush x:Key="AppAccentElevationBorderFocusedBrush" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,2">
                 <LinearGradientBrush.RelativeTransform>
                     <ScaleTransform ScaleY="-1" CenterY="0.5" />
                 </LinearGradientBrush.RelativeTransform>
                 <LinearGradientBrush.GradientStops>
-                    <GradientStop Offset="1.0" Color="#0078D4" />
+                    <GradientStop Offset="1.0" Color="{ThemeResource SystemAccentColor}" />
                     <!-- Wait, what if ControlStrokeColorDefault is not resolved at this level? We use ThemeResource. -->
                     <GradientStop Offset="1.0" Color="{ThemeResource ControlStrokeColorDefault}" />
                 </LinearGradientBrush.GradientStops>
             </LinearGradientBrush>
 
             <!-- Define WinUI lightweight styling keys at the application level so that C# updates trigger ThemeResource re-evaluations. -->
-            <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="{ThemeResource SystemAccentColor}" />
             
-            <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="AccentTextFillColorSecondaryBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="AccentTextFillColorTertiaryBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AccentTextFillColorSecondaryBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AccentTextFillColorTertiaryBrush" Color="{ThemeResource SystemAccentColor}" />
 
-            <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="{ThemeResource SystemAccentColor}" />
             
-            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#0078D4" />
-            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPointerOverBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPressedBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPointerOverBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPressedBrush" Color="{ThemeResource SystemAccentColor}" />
 
             <!-- Dedicated style for branded controls -->
             <Style x:Key="AppAccentButtonStyle" TargetType="Button">

@@ -42,9 +42,7 @@ public sealed partial class ComingSoonPage : Page
             {
                 TitleTextBlock.Text = $"{appName} Support is Coming Soon";
                 
-                // Set background gradient
-                ColorStop1.Color = GetColorFromHex(style.Hex1);
-                ColorStop2.Color = GetColorFromHex(style.Hex2);
+                // Background is now handled by Fluent ThemeResource
                 
                 UpdateAnimation(appName);
             }

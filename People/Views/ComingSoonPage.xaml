@@ -9,18 +9,15 @@
 
     <Grid x:Name="RootGrid">
         <Grid.Background>
-            <LinearGradientBrush x:Name="BackgroundGradient" StartPoint="0,0" EndPoint="1,1">
-                <GradientStop x:Name="ColorStop1" Offset="0.0" Color="#FF333333" />
-                <GradientStop x:Name="ColorStop2" Offset="1.0" Color="#FF000000" />
-            </LinearGradientBrush>
+            <SolidColorBrush Color="Transparent" />
         </Grid.Background>
         
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
             <AnimatedVisualPlayer x:Name="AppLottiePlayer" AutoPlay="True" Width="200" Height="200">
                 <lottie:LottieVisualSource x:Name="AppLottieSource" />
             </AnimatedVisualPlayer>
-            <TextBlock x:Name="TitleTextBlock" x:Uid="ComingSoonTitle" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" HorizontalAlignment="Center" />
-            <TextBlock x:Name="SubtitleTextBlock" Text="We are working on bringing this platform to People." Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}" HorizontalAlignment="Center" />
+            <TextBlock x:Name="TitleTextBlock" x:Uid="ComingSoonTitle" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" />
+            <TextBlock x:Name="SubtitleTextBlock" Text="We are working on bringing this platform to People." Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
         </StackPanel>
     </Grid>
 </Page>
