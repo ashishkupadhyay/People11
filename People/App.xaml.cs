@@ -60,6 +60,12 @@ public partial class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         // services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<ITrayIconService, TrayIconService>();
+        
+        var dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        if (dispatcherQueue != null)
+        {
+            services.AddSingleton<IDispatcherService>(new DispatcherService(dispatcherQueue));
+        }
 
         // Providers
         services.AddSingleton<IMessagingProvider, People.Providers.WhatsApp.WhatsAppProvider>();

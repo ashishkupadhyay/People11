@@ -19,10 +19,12 @@ public partial class ChatListViewModel : ViewModelBase
     public partial bool ShowQrCode { get; set; }
 
     private readonly IMessagingProvider _provider;
+    private readonly IDispatcherService _dispatcherService;
 
-    public ChatListViewModel(IMessagingProvider provider)
+    public ChatListViewModel(IMessagingProvider provider, IDispatcherService dispatcherService)
     {
         _provider = provider;
+        _dispatcherService = dispatcherService;
         _provider.ConnectionStateChanged += OnConnectionStateChanged;
         
         if (_provider is IWhatsAppProvider waProvider)
@@ -38,20 +40,14 @@ public partial class ChatListViewModel : ViewModelBase
     {
         try
         {
-            if (App.Current.MainWindow != null)
-            {
-                App.Current.MainWindow.DispatcherQueue.TryEnqueue(() => IsConnecting = true);
-            }
+            _dispatcherService.Enqueue(() => IsConnecting = true);
             await provider.ConnectAsync();
             await provider.AuthenticateAsync();
         }
         catch (Exception)
         {
             // Ignore or log. The provider will have emitted a ConnectionState.Error anyway.
-            if (App.Current.MainWindow != null)
-            {
-                App.Current.MainWindow.DispatcherQueue.TryEnqueue(() => IsConnecting = false);
-            }
+            _dispatcherService.Enqueue(() => IsConnecting = false);
         }
     }
 
@@ -60,27 +56,21 @@ public partial class ChatListViewModel : ViewModelBase
         // Update connection UI state
         if (e.State == ConnectionState.Connected)
         {
-            if (App.Current.MainWindow != null)
+            _dispatcherService.Enqueue(() => 
             {
-                App.Current.MainWindow.DispatcherQueue.TryEnqueue(() => 
-                {
-                    IsConnecting = false;
-                    ShowQrCode = false;
-                });
-            }
+                IsConnecting = false;
+                ShowQrCode = false;
+            });
         }
     }
 
     private void OnQrCodeReceived(object? sender, string qrString)
     {
-        if (App.Current.MainWindow != null)
+        _dispatcherService.Enqueue(() => 
         {
-            App.Current.MainWindow.DispatcherQueue.TryEnqueue(() => 
-            {
-                ShowQrCode = true;
-                QrCodeBytes = GenerateQrCodeBytes(qrString);
-            });
-        }
+            ShowQrCode = true;
+            QrCodeBytes = GenerateQrCodeBytes(qrString);
+        });
     }
 
     private byte[] GenerateQrCodeBytes(string text)
