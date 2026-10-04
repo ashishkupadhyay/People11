@@ -18,14 +18,16 @@ public sealed record AccentPalette(
 public class ThemeService : IThemeService
 {
     private readonly ISettingsService _settingsService;
+    private readonly IDispatcherService _dispatcherService;
     private const string ThemeKey = "AppTheme";
     
     private string _currentTheme = "Default";
     private string? _activePlatform;
 
-    public ThemeService(ISettingsService settingsService)
+    public ThemeService(ISettingsService settingsService, IDispatcherService dispatcherService)
     {
         _settingsService = settingsService;
+        _dispatcherService = dispatcherService;
         _settingsService.SettingChanged += OnSettingChanged;
     }
 
@@ -35,15 +37,7 @@ public class ThemeService : IThemeService
 
         if (key == $"BrandColor_{_activePlatform}" || (_activePlatform == "WhatsApp" && key == "WhatsAppEnabled"))
         {
-            var dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            if (dispatcherQueue != null)
-            {
-                dispatcherQueue.TryEnqueue(() => ApplyCurrentAccent());
-            }
-            else
-            {
-                ApplyCurrentAccent();
-            }
+            _dispatcherService.Enqueue(() => ApplyCurrentAccent());
         }
     }
 
