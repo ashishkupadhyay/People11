@@ -31,7 +31,7 @@
         </Border>
 
         <!-- Messages -->
-        <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Messages}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+        <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
             <ListView.ItemContainerTransitions>
                 <TransitionCollection>
                     <AddDeleteThemeTransition />
@@ -42,9 +42,9 @@
                 <DataTemplate x:DataType="models:Message">
                     <Grid Margin="0,4">
                         <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
-                                HorizontalAlignment="{x:Bind IsOutgoing, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                Background="{x:Bind IsOutgoing, Converter={StaticResource OutgoingBackgroundConverter}}">
-                            <TextBlock Text="{x:Bind Content.Text}" TextWrapping="Wrap" />
+                                HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneWay, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                Background="{x:Bind IsOutgoing, Mode=OneWay, Converter={StaticResource OutgoingBackgroundConverter}}">
+                            <TextBlock Text="{x:Bind Content.Text, Mode=OneWay}" TextWrapping="Wrap" />
                         </Border>
                     </Grid>
                 </DataTemplate>
