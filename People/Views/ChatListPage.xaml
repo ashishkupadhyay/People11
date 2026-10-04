@@ -83,7 +83,7 @@
                             <Flyout>
                                 <StackPanel Width="280" Spacing="12">
                                     <TextBlock Text="New Chat" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find">
+                                    <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find" AutomationProperties.AutomationId="SearchContactsBox">
                                         <AutoSuggestBox.Resources>
                                             <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
                                         </AutoSuggestBox.Resources>
@@ -95,13 +95,13 @@
                                                 <EntranceThemeTransition IsStaggeringEnabled="True" />
                                             </TransitionCollection>
                                         </ListView.ItemContainerTransitions>
-                                        <ListViewItem>
+                                        <ListViewItem AutomationProperties.AutomationId="NewChatList_Alice">
                                             <StackPanel Orientation="Horizontal" Spacing="12">
                                                 <PersonPicture DisplayName="Alice" Width="32" Height="32"/>
                                                 <TextBlock Text="Alice" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ListViewItem>
-                                        <ListViewItem>
+                                        <ListViewItem AutomationProperties.AutomationId="NewChatList_Bob">
                                             <StackPanel Orientation="Horizontal" Spacing="12">
                                                 <PersonPicture DisplayName="Bob" Width="32" Height="32"/>
                                                 <TextBlock Text="Bob" VerticalAlignment="Center"/>
