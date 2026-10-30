@@ -1,12 +1,19 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using People.Core.Interfaces;
 using People.Core.Models;
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace People.ViewModels;
 
 public partial class ConversationViewModel : ViewModelBase
 {
+    private readonly IMessagingProvider _provider;
+    private readonly IDispatcherService _dispatcherService;
+
     [ObservableProperty]
     public partial Chat? CurrentChat { get; set; }
 
@@ -15,44 +22,75 @@ public partial class ConversationViewModel : ViewModelBase
     [ObservableProperty]
     public partial string MessageText { get; set; } = string.Empty;
 
-    public void LoadChat(Chat chat)
+    [ObservableProperty]
+    public partial bool IsLoading { get; set; }
+
+    public ConversationViewModel(IMessagingProvider provider, IDispatcherService dispatcherService)
+    {
+        _provider = provider;
+        _dispatcherService = dispatcherService;
+        _provider.MessageReceived += OnMessageReceived;
+    }
+
+    public async void LoadChat(Chat chat)
     {
         CurrentChat = chat;
         Messages.Clear();
-        LoadMockMessages();
+        IsLoading = true;
+
+        try
+        {
+            var msgs = await _provider.GetMessagesAsync(chat.Id);
+            _dispatcherService.Enqueue(() =>
+            {
+                Messages.Clear();
+                foreach (var msg in msgs)
+                {
+                    Messages.Add(msg);
+                }
+                IsLoading = false;
+            });
+        }
+        catch
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                IsLoading = false;
+            });
+        }
     }
 
     [RelayCommand]
-    private void SendMessage()
+    private async Task SendMessageAsync()
     {
-        if (string.IsNullOrWhiteSpace(MessageText)) return;
+        if (string.IsNullOrWhiteSpace(MessageText) || CurrentChat == null) return;
 
-        Messages.Add(new Message 
-        { 
-            Id = System.Guid.NewGuid().ToString(), 
-            IsOutgoing = true, 
-            Content = new MessageContent { Text = MessageText }, 
-            Timestamp = System.DateTimeOffset.Now 
-        });
-
+        var text = MessageText;
         MessageText = string.Empty;
+
+        var content = new MessageContent { Text = text, Type = MessageContentType.Text };
+        var sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
+
+        _dispatcherService.Enqueue(() =>
+        {
+            if (!Messages.Any(m => m.Id == sentMsg.Id))
+            {
+                Messages.Add(sentMsg);
+            }
+        });
     }
 
-    private void LoadMockMessages()
+    private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        Messages.Add(new Message 
-        { 
-            Id = "1", 
-            IsOutgoing = false, 
-            Content = new MessageContent { Text = "Hello!" }, 
-            Timestamp = DateTimeOffset.Now.AddMinutes(-10) 
-        });
-        Messages.Add(new Message 
-        { 
-            Id = "2", 
-            IsOutgoing = true, 
-            Content = new MessageContent { Text = "Hey! What's up?" }, 
-            Timestamp = DateTimeOffset.Now.AddMinutes(-5) 
-        });
+        if (CurrentChat != null && e.Message.ChatId == CurrentChat.Id)
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                if (!Messages.Any(m => m.Id == e.Message.Id))
+                {
+                    Messages.Add(e.Message);
+                }
+            });
+        }
     }
 }

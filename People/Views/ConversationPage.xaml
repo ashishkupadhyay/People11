@@ -42,9 +42,9 @@
                 <DataTemplate x:DataType="models:Message">
                     <Grid Margin="0,4">
                         <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
-                                HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneWay, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                Background="{x:Bind IsOutgoing, Mode=OneWay, Converter={StaticResource OutgoingBackgroundConverter}}">
-                            <TextBlock Text="{x:Bind Content.Text, Mode=OneWay}" TextWrapping="Wrap" />
+                                HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                Background="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingBackgroundConverter}}">
+                            <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" TextWrapping="Wrap" />
                         </Border>
                     </Grid>
                 </DataTemplate>

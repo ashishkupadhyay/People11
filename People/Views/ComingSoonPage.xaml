@@ -19,6 +19,7 @@
             <AnimatedVisualPlayer x:Name="AppLottiePlayer" AutoPlay="True" Width="200" Height="200">
                 <lottie:LottieVisualSource x:Name="AppLottieSource" />
             </AnimatedVisualPlayer>
+
             <TextBlock x:Name="TitleTextBlock" x:Uid="ComingSoonTitle" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="White" HorizontalAlignment="Center" />
             <TextBlock x:Name="SubtitleTextBlock" x:Uid="ComingSoonDesc" Style="{ThemeResource BodyTextBlockStyle}" Foreground="White" HorizontalAlignment="Center" />
         </StackPanel>

@@ -71,25 +71,29 @@ public sealed partial class ComingSoonPage : Page
             isDark = this.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark;
         }
 
-        string themeSuffix = isDark ? "white" : "black";
+        string themeSuffix = "white";
         string prefix = appName.ToLower(); 
         
-        string fileName = "";
         switch(prefix)
         {
-            case "telegram": fileName = $"telegram-animated-reveal-{themeSuffix}.json"; break;
-            case "signal": fileName = $"signal-animated-reveal-{themeSuffix}.json"; break;
-            case "discord": fileName = $"discord-animated-reveal-filled-{themeSuffix}.json"; break;
-            // Add fallback or other platforms if necessary
+            case "whatsapp": 
+                AppLottiePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
+                break;
+            case "telegram": 
+                AppLottiePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Telegram_animated_white() : new AnimatedVisuals.Telegram_animated_black();
+                break;
+            case "signal": 
+                AppLottiePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Signal_animated_reveal_white() : new AnimatedVisuals.Signal_animated_reveal_black();
+                break;
+            case "discord": 
+                AppLottiePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Discord_animated_reveal_filled_white() : new AnimatedVisuals.Discord_animated_reveal_filled_black();
+                break;
+            default: 
+                AppLottiePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
+                break;
         }
         
-        if (!string.IsNullOrEmpty(fileName))
-        {
-            var newSource = new CommunityToolkit.WinUI.Lottie.LottieVisualSource();
-            newSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
-            AppLottiePlayer.Source = newSource;
-            _ = AppLottiePlayer.PlayAsync(0, 1, true);
-        }
+        _ = AppLottiePlayer.PlayAsync(0, 1, false);
     }
 
     private Windows.UI.Color GetColorFromHex(string hex)

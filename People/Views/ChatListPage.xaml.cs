@@ -79,25 +79,30 @@ public sealed partial class ChatListPage : Page
 
         string themeSuffix = isDark ? "white" : "black";
         string prefix = (platformId ?? "sms").ToLower(); 
-        
-        string fileName = "";
+
         switch(prefix)
         {
-            case "whatsapp": fileName = $"whatsapp-animated-reveal-{themeSuffix}.json"; break;
-            case "sms": fileName = $"chat-animated-{themeSuffix}.json"; break;
-            case "telegram": fileName = $"telegram-animated-reveal-{themeSuffix}.json"; break;
-            case "signal": fileName = $"signal-animated-reveal-{themeSuffix}.json"; break;
-            case "discord": fileName = $"discord-animated-reveal-filled-{themeSuffix}.json"; break;
-            default: fileName = $"chat-animated-{themeSuffix}.json"; break; // Fallback to SMS
+            case "whatsapp": 
+                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
+                break;
+            case "sms": 
+                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
+                break;
+            case "telegram": 
+                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Telegram_animated_white() : new AnimatedVisuals.Telegram_animated_black();
+                break;
+            case "signal": 
+                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Signal_animated_reveal_white() : new AnimatedVisuals.Signal_animated_reveal_black();
+                break;
+            case "discord": 
+                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Discord_animated_reveal_filled_white() : new AnimatedVisuals.Discord_animated_reveal_filled_black();
+                break;
+            default: 
+                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
+                break;
         }
         
-        if (!string.IsNullOrEmpty(fileName))
-        {
-            var newSource = new CommunityToolkit.WinUI.Lottie.LottieVisualSource();
-            newSource.UriSource = new System.Uri($"ms-appx:///Assets/Animations/{fileName}");
-            EmptyStatePlayer.Source = newSource;
-            _ = EmptyStatePlayer.PlayAsync(0, 1, true);
-        }
+        _ = EmptyStatePlayer.PlayAsync(0, 1, false);
     }
     
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -157,22 +162,18 @@ public sealed partial class ChatListPage : Page
         }
     }
 
+    private void SearchContactsBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        ViewModel.FilterContacts(sender.Text);
+    }
+
     private void NewChatList_ItemClick(object sender, ItemClickEventArgs e)
     {
-        // For now just close flyout and navigate to dummy chat or first chat
-        if (sender is ListView listView && listView.XamlRoot != null)
+        if (e.ClickedItem is People.Core.Models.Contact contact)
         {
-            // Close flyout
-            if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(listView) is Microsoft.UI.Xaml.FrameworkElement parent)
-            {
-                // Simplistic flyout close placeholder
-            }
-        }
-        
-        // Navigate to the first chat for demo purposes
-        if (ViewModel.Chats.Count > 0)
-        {
-            DetailFrame.Navigate(typeof(ConversationPage), ViewModel.Chats[0]);
+            NewChatFlyout?.Hide();
+            var chat = ViewModel.GetOrCreateChatForContact(contact);
+            DetailFrame.Navigate(typeof(ConversationPage), chat);
         }
     }
 

@@ -92,6 +92,18 @@
                         <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
                             <Button x:Uid="ReauthBtn" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
                         </ui:SettingsCard>
+                        <ui:SettingsCard Header="Testing / Demo Mode" Description="Bypass QR code authentication and use simulated data for testing UI changes">
+                            <ui:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE7BE;" />
+                            </ui:SettingsCard.HeaderIcon>
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.IsWhatsAppTestingMode, Mode=TwoWay}" AutomationProperties.Name="WhatsApp testing mode" AutomationProperties.AutomationId="WhatsAppTestingToggle" />
+                        </ui:SettingsCard>
+                        <ui:SettingsCard Header="Sample Data" Description="Inject test conversations and messages for UI testing">
+                            <ui:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE8B7;" />
+                            </ui:SettingsCard.HeaderIcon>
+                            <Button Content="Inject Test Data" Command="{x:Bind ViewModel.InjectSampleDataCommand}" AutomationProperties.Name="Inject test data" AutomationProperties.AutomationId="InjectDataBtn" />
+                        </ui:SettingsCard>
                         <ui:SettingsCard x:Uid="WhatsAppAccentColorCard" Header="Accent colour">
                             <ui:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />

@@ -80,33 +80,45 @@
                     <!-- New Chat Button -->
                     <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AppAccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
                         <Button.Flyout>
-                            <Flyout>
+                            <Flyout x:Name="NewChatFlyout">
                                 <StackPanel Width="280" Spacing="12">
                                     <TextBlock x:Uid="NewChatText" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <AutoSuggestBox x:Uid="SearchContactsBox" QueryIcon="Find" AutomationProperties.AutomationId="SearchContactsBox">
+                                    <AutoSuggestBox x:Name="SearchContactsBox" x:Uid="SearchContactsBox" QueryIcon="Find"
+                                                    TextChanged="SearchContactsBox_TextChanged"
+                                                    AutomationProperties.AutomationId="SearchContactsBox">
                                         <AutoSuggestBox.Resources>
                                             <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
                                         </AutoSuggestBox.Resources>
                                     </AutoSuggestBox>
-                                    <!-- Placeholder for contacts list -->
-                                    <ListView x:Name="NewChatList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="NewChatList_ItemClick" AutomationProperties.Name="New chat list" AutomationProperties.AutomationId="NewChatList">
+                                    <!-- Contacts list -->
+                                    <ListView x:Name="NewChatList"
+                                              ItemsSource="{x:Bind ViewModel.FilteredContacts, Mode=OneWay}"
+                                              SelectionMode="Single"
+                                              IsItemClickEnabled="True"
+                                              ItemClick="NewChatList_ItemClick"
+                                              MaxHeight="300"
+                                              AutomationProperties.Name="New chat list"
+                                              AutomationProperties.AutomationId="NewChatList">
                                         <ListView.ItemContainerTransitions>
                                             <TransitionCollection>
                                                 <EntranceThemeTransition IsStaggeringEnabled="True" />
                                             </TransitionCollection>
                                         </ListView.ItemContainerTransitions>
-                                        <ListViewItem AutomationProperties.AutomationId="NewChatList_Alice">
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <PersonPicture x:Uid="SampleContactAlicePicture" Width="32" Height="32"/>
-                                                <TextBlock x:Uid="SampleContactAliceText" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ListViewItem>
-                                        <ListViewItem AutomationProperties.AutomationId="NewChatList_Bob">
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <PersonPicture x:Uid="SampleContactBobPicture" Width="32" Height="32"/>
-                                                <TextBlock x:Uid="SampleContactBobText" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ListViewItem>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="models:Contact">
+                                                <Grid Padding="0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <PersonPicture Grid.Column="0" DisplayName="{x:Bind Name, Mode=OneTime}" Width="32" Height="32" Margin="0,0,10,0"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind Name, Mode=OneTime}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{x:Bind PhoneNumber, Mode=OneTime}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
                                     </ListView>
                                 </StackPanel>
                             </Flyout>
@@ -114,6 +126,12 @@
                         <FontIcon Glyph="&#xE710;" FontSize="14" />
                     </Button>
                 </Grid>
+
+                <!-- Syncing Banner -->
+                <StackPanel Visibility="{x:Bind ViewModel.IsSyncing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Spacing="4" Margin="0,4,0,0">
+                    <ProgressBar Value="{x:Bind ViewModel.SyncProgress, Mode=OneWay}" Maximum="100" />
+                    <TextBlock Text="{x:Bind ViewModel.SyncStatusText, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
             </StackPanel>
 
             <ListView x:Name="ChatsListView" Grid.Row="1" ItemsSource="{x:Bind ViewModel.Chats, Mode=OneWay}" 
@@ -137,11 +155,11 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             
-                            <PersonPicture Grid.Column="0" DisplayName="{x:Bind Title, Mode=OneWay}" Width="48" Height="48" Margin="0,0,12,0"/>
+                            <PersonPicture Grid.Column="0" DisplayName="{x:Bind Title, Mode=OneTime}" Width="48" Height="48" Margin="0,0,12,0"/>
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneWay, FallbackValue=''}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                <TextBlock Text="{x:Bind Title, Mode=OneTime}" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneTime, FallbackValue=''}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
                             </StackPanel>
                         </Grid>
                     </DataTemplate>
@@ -154,7 +172,7 @@
               CornerRadius="{ThemeResource OverlayCornerRadius}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
               Padding="24">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-                <AnimatedVisualPlayer x:Name="EmptyStatePlayer" AutoPlay="True" Width="200" Height="200">
+                <AnimatedVisualPlayer x:Name="EmptyStatePlayer" AutoPlay="True" Width="120" Height="120">
                     <lottie:LottieVisualSource x:Name="EmptyStateLottieSource" />
                 </AnimatedVisualPlayer>
                 <TextBlock x:Uid="NoChatSelectedText" 
@@ -180,7 +198,7 @@
             </Frame.ContentTransitions>
         </Frame>
 
-        <!-- Auth Overlay -->
+        <!-- Auth Overlay (QR Code) -->
         <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.ShowQrCode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
                 <TextBlock x:Uid="ConnectWhatsAppTitle" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
@@ -189,13 +207,30 @@
                 <Border Background="White" Padding="16" CornerRadius="{ThemeResource ControlCornerRadius}" HorizontalAlignment="Center">
                     <Image Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}" Width="256" Height="256" />
                 </Border>
+
+                <Button Content="Switch to Demo / Testing Mode" Style="{ThemeResource DefaultButtonStyle}" HorizontalAlignment="Center" Margin="0,8,0,0" Command="{x:Bind ViewModel.UseTestingModeCommand}" />
             </StackPanel>
         </Grid>
         
+        <!-- Connecting Overlay -->
         <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.IsConnecting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
                 <ProgressRing IsActive="{x:Bind ViewModel.IsConnecting, Mode=OneWay}" Width="64" Height="64" />
                 <TextBlock x:Uid="ConnectingWhatsAppText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Button Content="Switch to Demo / Testing Mode" Style="{ThemeResource DefaultButtonStyle}" HorizontalAlignment="Center" Margin="0,12,0,0" Command="{x:Bind ViewModel.UseTestingModeCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Error Overlay -->
+        <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="360">
+                <FontIcon Glyph="&#xE783;" FontSize="48" Foreground="{ThemeResource SystemFillColorCautionBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="WhatsApp Connection Failed" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+                <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,8,0,0">
+                    <Button Content="Retry" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind ViewModel.RetryConnectCommand}" />
+                    <Button Content="Use Testing Mode" Command="{x:Bind ViewModel.UseTestingModeCommand}" />
+                </StackPanel>
             </StackPanel>
         </Grid>
     </Grid>

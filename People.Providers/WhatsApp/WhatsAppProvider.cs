@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using People.Core.Interfaces;
 using People.Core.Models;
 using People.Interop;
-
-using Microsoft.Extensions.Logging;
 
 namespace People.Providers.WhatsApp;
 
@@ -17,47 +19,130 @@ public class WhatsAppProvider : IWhatsAppProvider
     public string DisplayName => "WhatsApp";
     public ConnectionState ConnectionState { get; private set; } = ConnectionState.Disconnected;
 
+    public bool IsAuthenticated
+    {
+        get
+        {
+            if (IsTestingMode) return true;
+            try
+            {
+                var dbPath = GetSessionDbPath();
+                return WhatsAppNative.wa_is_authenticated(dbPath) == 1;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
     public event EventHandler<ChatUpdatedEventArgs>? ChatUpdated;
     public event EventHandler<string>? QrCodeReceived;
+    public event EventHandler<int>? SyncProgressChanged;
 
     private IntPtr _clientPtr = IntPtr.Zero;
     private readonly ILogger<WhatsAppProvider>? _logger;
+    private readonly ISettingsService? _settingsService;
 
-    public WhatsAppProvider(ILogger<WhatsAppProvider>? logger = null)
+    // Static instance pointer for unmanaged C callbacks
+    private static WhatsAppProvider? _activeInstance;
+
+    // In-memory testing messages cache so sent messages persist during session
+    private readonly List<Message> _testingMessages = new();
+
+    public WhatsAppProvider(ILogger<WhatsAppProvider>? logger = null, ISettingsService? settingsService = null)
     {
         _logger = logger;
+        _settingsService = settingsService;
+        _activeInstance = this;
+    }
+
+    private bool IsTestingMode => _settingsService?.GetValue<bool>("WhatsAppTestingMode", false) ?? false;
+
+    public static string GetSessionDbPath()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var dir = Path.Combine(localAppData, "People");
+        Directory.CreateDirectory(dir);
+        return Path.Combine(dir, "whatsapp_session.db");
     }
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        ConnectionState = ConnectionState.Connecting;
-        OnConnectionStateChanged(ConnectionState);
+        if (ConnectionState == ConnectionState.Connected && _clientPtr != IntPtr.Zero)
+        {
+            return;
+        }
+
+        if (IsTestingMode)
+        {
+            _logger?.LogInformation("WhatsApp is operating in Testing/Demo Mode.");
+            await Task.Delay(50, ct);
+            ConnectionState = ConnectionState.Connected;
+            OnConnectionStateChanged(ConnectionState);
+            return;
+        }
 
         try
         {
-            await Task.Run(() => 
+            await Task.Run(() =>
             {
-                _clientPtr = WhatsAppNative.wa_create_client();
+                if (_clientPtr == IntPtr.Zero)
+                {
+                    _clientPtr = WhatsAppNative.wa_create_client();
+                }
             }, ct);
 
             if (_clientPtr != IntPtr.Zero)
             {
-                _logger?.LogInformation("Successfully connected to WhatsApp Rust backend.");
-                ConnectionState = ConnectionState.Connected;
-                OnConnectionStateChanged(ConnectionState);
+                _logger?.LogInformation("Successfully created WhatsApp client backend.");
+                var dbPath = GetSessionDbPath();
+
+                unsafe
+                {
+                    WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
+                    WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
+                    WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
+                    WhatsAppNative.wa_load_cache(dbPath);
+                }
+
+                if (IsAuthenticated)
+                {
+                    _logger?.LogInformation("WhatsApp is already authenticated. Connected immediately.");
+                    ConnectionState = ConnectionState.Connected;
+                    OnConnectionStateChanged(ConnectionState);
+
+                    // Run authentication in background to connect socket & sync
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await AuthenticateAsync(ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError(ex, "Background WhatsApp reconnect failed.");
+                        }
+                    }, ct);
+                }
+                else
+                {
+                    ConnectionState = ConnectionState.Connecting;
+                    OnConnectionStateChanged(ConnectionState);
+                }
             }
             else
             {
-                _logger?.LogError("Failed to create WhatsApp client. Pointer is zero.");
+                _logger?.LogError("Failed to create WhatsApp native client. Pointer is zero.");
                 ConnectionState = ConnectionState.Error;
                 OnConnectionStateChanged(ConnectionState);
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Exception occurred while connecting to WhatsApp backend.");
+            _logger?.LogError(ex, "Exception connecting to WhatsApp backend.");
             ConnectionState = ConnectionState.Error;
             OnConnectionStateChanged(ConnectionState);
         }
@@ -65,28 +150,118 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     public async Task AuthenticateAsync(CancellationToken ct = default)
     {
+        if (IsTestingMode)
+        {
+            _logger?.LogInformation("Bypassing authentication in Testing Mode.");
+            return;
+        }
+
         if (_clientPtr == IntPtr.Zero)
         {
-            _logger?.LogWarning("Attempted to authenticate while not connected.");
-            throw new InvalidOperationException("Not connected.");
+            _logger?.LogWarning("Attempted to authenticate without client pointer.");
+            throw new InvalidOperationException("Client backend is not connected.");
         }
 
         try
         {
-            // In a real implementation, we would pass unmanaged function pointers
-            // to handle the QR string and success callbacks asynchronously.
-            // For the skeleton, we mock it.
-            await Task.Run(() => 
+            var dbPath = GetSessionDbPath();
+            _logger?.LogInformation("Authenticating WhatsApp with SQLite DB at '{DbPath}'", dbPath);
+
+            await Task.Run(() =>
             {
-                // WhatsAppNative.wa_authenticate_qr(_clientPtr, &QrCallback, &SuccessCallback);
-                _logger?.LogInformation("Mocking QR code generation.");
-                QrCodeReceived?.Invoke(this, "mock-qr-code-data");
+                unsafe
+                {
+                    WhatsAppNative.wa_authenticate_qr(
+                        _clientPtr,
+                        dbPath,
+                        &OnNativeQrReceived,
+                        &OnNativeAuthSuccess,
+                        &OnNativeError);
+                }
             }, ct);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Exception occurred during WhatsApp authentication.");
+            _logger?.LogError(ex, "Exception during WhatsApp authentication.");
             throw;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeError(IntPtr errPtr)
+    {
+        if (errPtr == IntPtr.Zero || _activeInstance == null) return;
+        string? err = Marshal.PtrToStringUTF8(errPtr);
+        _activeInstance._logger?.LogError("WhatsApp backend error: {Error}", err);
+        _activeInstance.ConnectionState = ConnectionState.Error;
+        _activeInstance.OnConnectionStateChanged(ConnectionState.Error);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeQrReceived(IntPtr qrStrPtr)
+    {
+        if (qrStrPtr == IntPtr.Zero || _activeInstance == null) return;
+        string? qr = Marshal.PtrToStringUTF8(qrStrPtr);
+        if (!string.IsNullOrEmpty(qr))
+        {
+            _activeInstance._logger?.LogInformation("Received QR string from WhatsApp backend.");
+            _activeInstance.QrCodeReceived?.Invoke(_activeInstance, qr);
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeAuthSuccess()
+    {
+        if (_activeInstance == null) return;
+        _activeInstance._logger?.LogInformation("WhatsApp authenticated successfully.");
+        _activeInstance.ConnectionState = ConnectionState.Connected;
+        _activeInstance.OnConnectionStateChanged(ConnectionState.Connected);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeSyncProgress(int progress)
+    {
+        if (_activeInstance == null) return;
+        _activeInstance._logger?.LogInformation("WhatsApp sync progress: {Progress}%", progress);
+        _activeInstance.SyncProgressChanged?.Invoke(_activeInstance, progress);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeChatsUpdated()
+    {
+        if (_activeInstance == null) return;
+        _activeInstance._logger?.LogInformation("WhatsApp chats updated notification from backend.");
+        _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeMessageReceived(IntPtr msgJsonPtr)
+    {
+        if (msgJsonPtr == IntPtr.Zero || _activeInstance == null) return;
+        string? json = Marshal.PtrToStringUTF8(msgJsonPtr);
+        if (!string.IsNullOrEmpty(json))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                var msg = new Message
+                {
+                    Id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? Guid.NewGuid().ToString() : Guid.NewGuid().ToString(),
+                    ChatId = root.TryGetProperty("chatId", out var chatProp) ? chatProp.GetString() ?? string.Empty : string.Empty,
+                    SenderId = root.TryGetProperty("senderId", out var senderProp) ? senderProp.GetString() ?? string.Empty : string.Empty,
+                    PlatformId = "WhatsApp",
+                    Content = new MessageContent { Text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? string.Empty : string.Empty },
+                    Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
+                    Status = MessageStatus.Delivered,
+                    IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean()
+                };
+                _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
+            }
+            catch (Exception ex)
+            {
+                _activeInstance._logger?.LogError(ex, "Failed to parse incoming native message JSON.");
+            }
         }
     }
 
@@ -102,30 +277,246 @@ public class WhatsAppProvider : IWhatsAppProvider
         OnConnectionStateChanged(ConnectionState);
     }
 
-    public Task<IReadOnlyList<Chat>> GetChatsAsync(int offset = 0, int limit = 50, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Chat>> GetChatsAsync(int offset = 0, int limit = 50, CancellationToken ct = default)
     {
-        // Mock implementation to return a chat
-        IReadOnlyList<Chat> chats = new List<Chat>
+        if (IsTestingMode)
         {
-            new Chat { Id = "wa_1", Title = "WhatsApp User", PlatformId = PlatformId, UnreadCount = 2 }
-        };
-        return Task.FromResult(chats);
+            return GetTestingChats();
+        }
+
+        if (_clientPtr == IntPtr.Zero)
+        {
+            return Array.Empty<Chat>();
+        }
+
+        return await Task.Run(() =>
+        {
+            var ptr = WhatsAppNative.wa_get_chats(_clientPtr);
+            if (ptr == IntPtr.Zero) return (IReadOnlyList<Chat>)new List<Chat>();
+
+            try
+            {
+                var json = Marshal.PtrToStringUTF8(ptr);
+                if (string.IsNullOrEmpty(json)) return new List<Chat>();
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var dtos = JsonSerializer.Deserialize<List<NativeChatDto>>(json, options) ?? new List<NativeChatDto>();
+
+                var chats = new List<Chat>();
+                foreach (var dto in dtos)
+                {
+                    var chat = new Chat
+                    {
+                        Id = dto.Id ?? string.Empty,
+                        PlatformId = "WhatsApp",
+                        Title = dto.Title ?? string.Empty,
+                        IsGroup = dto.IsGroup,
+                        UnreadCount = dto.UnreadCount,
+                        LastMessageTime = dto.LastMessageTimestamp > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessageTimestamp)
+                            : DateTimeOffset.UtcNow
+                    };
+
+                    if (dto.LastMessage != null)
+                    {
+                        chat.LastMessage = new Message
+                        {
+                            Id = dto.LastMessage.Id ?? Guid.NewGuid().ToString(),
+                            ChatId = dto.LastMessage.ChatId ?? chat.Id,
+                            PlatformId = "WhatsApp",
+                            SenderId = dto.LastMessage.SenderId ?? string.Empty,
+                            IsOutgoing = dto.LastMessage.IsOutgoing,
+                            Content = new MessageContent { Text = dto.LastMessage.Text ?? string.Empty },
+                            Timestamp = dto.LastMessage.Timestamp > 0
+                                ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
+                                : chat.LastMessageTime,
+                            Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered
+                        };
+                    }
+
+                    chats.Add(chat);
+                }
+
+                return (IReadOnlyList<Chat>)chats;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to deserialize chats from native bridge.");
+                return new List<Chat>();
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }, ct);
     }
 
-    public Task<IReadOnlyList<Message>> GetMessagesAsync(string chatId, int offset = 0, int limit = 50, CancellationToken ct = default)
+    private IReadOnlyList<Chat> GetTestingChats()
     {
-        IReadOnlyList<Message> messages = new List<Message>();
-        return Task.FromResult(messages);
+        return new List<Chat>
+        {
+            new Chat
+            {
+                Id = "sample_wa_1",
+                PlatformId = PlatformId,
+                Title = "Sarah Connor",
+                UnreadCount = 1,
+                LastMessageTime = DateTimeOffset.UtcNow.AddMinutes(-5),
+                LastMessage = new Message
+                {
+                    Id = "msg_1",
+                    ChatId = "sample_wa_1",
+                    PlatformId = PlatformId,
+                    SenderId = "sarah",
+                    Content = new MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
+                    Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
+                    Status = MessageStatus.Read,
+                    IsOutgoing = false
+                }
+            },
+            new Chat
+            {
+                Id = "sample_wa_2",
+                PlatformId = PlatformId,
+                Title = "Windows Dev Team",
+                IsGroup = true,
+                UnreadCount = 3,
+                LastMessageTime = DateTimeOffset.UtcNow.AddHours(-1),
+                LastMessage = new Message
+                {
+                    Id = "msg_3",
+                    ChatId = "sample_wa_2",
+                    PlatformId = PlatformId,
+                    SenderId = "dev_alex",
+                    Content = new MessageContent { Text = "The Fluent Design Mica backdrop looks amazing!" },
+                    Timestamp = DateTimeOffset.UtcNow.AddMinutes(-20),
+                    Status = MessageStatus.Read,
+                    IsOutgoing = false
+                }
+            }
+        };
+    }
+
+    public async Task<IReadOnlyList<Message>> GetMessagesAsync(string chatId, int offset = 0, int limit = 50, CancellationToken ct = default)
+    {
+        if (IsTestingMode)
+        {
+            var msgs = _testingMessages.FindAll(m => m.ChatId == chatId);
+            if (msgs.Count > 0) return msgs;
+
+            if (chatId == "sample_wa_1")
+            {
+                return new List<Message>
+                {
+                    new Message
+                    {
+                        Id = "msg_1",
+                        ChatId = chatId,
+                        PlatformId = PlatformId,
+                        SenderId = "sarah",
+                        Content = new MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
+                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
+                        Status = MessageStatus.Read,
+                        IsOutgoing = false
+                    },
+                    new Message
+                    {
+                        Id = "msg_2",
+                        ChatId = chatId,
+                        PlatformId = PlatformId,
+                        SenderId = "me",
+                        Content = new MessageContent { Text = "Yes, we just implemented the full WhatsApp provider and testing mode!" },
+                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5),
+                        Status = MessageStatus.Delivered,
+                        IsOutgoing = true
+                    }
+                };
+            }
+
+            return Array.Empty<Message>();
+        }
+
+        if (_clientPtr == IntPtr.Zero) return Array.Empty<Message>();
+
+        return await Task.Run(() =>
+        {
+            var ptr = WhatsAppNative.wa_get_messages(_clientPtr, chatId);
+            if (ptr == IntPtr.Zero) return (IReadOnlyList<Message>)new List<Message>();
+
+            try
+            {
+                var json = Marshal.PtrToStringUTF8(ptr);
+                if (string.IsNullOrEmpty(json)) return new List<Message>();
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var dtos = JsonSerializer.Deserialize<List<NativeMessageDto>>(json, options) ?? new List<NativeMessageDto>();
+
+                var messages = new List<Message>();
+                foreach (var dto in dtos)
+                {
+                    messages.Add(new Message
+                    {
+                        Id = dto.Id ?? Guid.NewGuid().ToString(),
+                        ChatId = dto.ChatId ?? chatId,
+                        PlatformId = "WhatsApp",
+                        SenderId = dto.SenderId ?? string.Empty,
+                        IsOutgoing = dto.IsOutgoing,
+                        Content = new MessageContent { Text = dto.Text ?? string.Empty },
+                        Timestamp = dto.Timestamp > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
+                            : DateTimeOffset.UtcNow,
+                        Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered
+                    });
+                }
+
+                return (IReadOnlyList<Message>)messages;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to deserialize messages from native bridge.");
+                return new List<Message>();
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }, ct);
+    }
+
+    public async Task<Message> SendMessageAsync(string chatId, MessageContent content, CancellationToken ct = default)
+    {
+        var msg = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            ChatId = chatId,
+            PlatformId = PlatformId,
+            Content = content,
+            Timestamp = DateTimeOffset.UtcNow,
+            Status = MessageStatus.Sent,
+            SenderId = "me",
+            IsOutgoing = true
+        };
+
+        if (IsTestingMode)
+        {
+            _testingMessages.Add(msg);
+            return msg;
+        }
+
+        if (_clientPtr != IntPtr.Zero)
+        {
+            await Task.Run(() =>
+            {
+                WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text);
+            }, ct);
+        }
+
+        return msg;
     }
 
     public Task MarkAsReadAsync(string chatId, string messageId, CancellationToken ct = default)
     {
         return Task.CompletedTask;
-    }
-
-    public Task<Message> SendMessageAsync(string chatId, MessageContent content, CancellationToken ct = default)
-    {
-        return Task.FromResult(new Message { Id = Guid.NewGuid().ToString(), ChatId = chatId, Content = content, Timestamp = DateTime.UtcNow, Status = MessageStatus.Sent, SenderId = "me", IsOutgoing = true });
     }
 
     protected virtual void OnConnectionStateChanged(ConnectionState state)
@@ -136,5 +527,26 @@ public class WhatsAppProvider : IWhatsAppProvider
     public void Dispose()
     {
         _ = DisconnectAsync();
+    }
+
+    private class NativeChatDto
+    {
+        public string? Id { get; set; }
+        public string? PlatformId { get; set; }
+        public string? Title { get; set; }
+        public bool IsGroup { get; set; }
+        public int UnreadCount { get; set; }
+        public long LastMessageTimestamp { get; set; }
+        public NativeMessageDto? LastMessage { get; set; }
+    }
+
+    private class NativeMessageDto
+    {
+        public string? Id { get; set; }
+        public string? ChatId { get; set; }
+        public string? SenderId { get; set; }
+        public bool IsOutgoing { get; set; }
+        public string? Text { get; set; }
+        public long Timestamp { get; set; }
     }
 }

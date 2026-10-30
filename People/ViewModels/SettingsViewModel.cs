@@ -21,6 +21,9 @@ public partial class SettingsViewModel : ViewModelBase
     public partial bool IsWhatsAppEnabled { get; set; } = true;
 
     [ObservableProperty]
+    public partial bool IsWhatsAppTestingMode { get; set; } = false;
+
+    [ObservableProperty]
     public partial string WhatsAppBubbleColorOption { get; set; } = "Accent";
 
     [ObservableProperty]
@@ -107,6 +110,95 @@ public partial class SettingsViewModel : ViewModelBase
         // TODO: Trigger re-authentication flow
     }
 
+    [RelayCommand]
+    private async Task InjectSampleDataAsync()
+    {
+        var factory = App.Current.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<People.Data.PeopleDbContext>>();
+        await using var dbContext = await factory.CreateDbContextAsync();
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var existingChat = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(dbContext.Chats, c => c.Id == "sample_wa_1");
+        if (existingChat == null)
+        {
+            var userContact = new People.Core.Models.Contact
+            {
+                Id = "contact_sarah",
+                Name = "Sarah Connor",
+                PhoneNumber = "+1 555-0199",
+                PlatformId = "WhatsApp"
+            };
+
+            var sampleChat = new People.Core.Models.Chat
+            {
+                Id = "sample_wa_1",
+                Title = "Sarah Connor",
+                PlatformId = "WhatsApp",
+                UnreadCount = 1,
+                LastMessageTime = DateTimeOffset.UtcNow
+            };
+
+            var sampleMsg1 = new People.Core.Models.Message
+            {
+                Id = "msg_1",
+                ChatId = sampleChat.Id,
+                SenderId = userContact.Id,
+                PlatformId = "WhatsApp",
+                Content = new People.Core.Models.MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
+                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
+                Status = People.Core.Models.MessageStatus.Read,
+                IsOutgoing = false
+            };
+
+            var sampleMsg2 = new People.Core.Models.Message
+            {
+                Id = "msg_2",
+                ChatId = sampleChat.Id,
+                SenderId = "me",
+                PlatformId = "WhatsApp",
+                Content = new People.Core.Models.MessageContent { Text = "Yes, we just implemented the full WhatsApp provider and testing mode!" },
+                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5),
+                Status = People.Core.Models.MessageStatus.Delivered,
+                IsOutgoing = true
+            };
+
+            var groupChat = new People.Core.Models.Chat
+            {
+                Id = "sample_wa_2",
+                Title = "Windows Dev Team",
+                PlatformId = "WhatsApp",
+                IsGroup = true,
+                UnreadCount = 3,
+                LastMessageTime = DateTimeOffset.UtcNow.AddHours(-1)
+            };
+
+            var groupMsg = new People.Core.Models.Message
+            {
+                Id = "msg_3",
+                ChatId = groupChat.Id,
+                SenderId = "dev_alex",
+                PlatformId = "WhatsApp",
+                Content = new People.Core.Models.MessageContent { Text = "The Fluent Design Mica backdrop looks amazing!" },
+                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-20),
+                Status = People.Core.Models.MessageStatus.Read,
+                IsOutgoing = false
+            };
+
+            dbContext.Contacts.Add(userContact);
+            dbContext.Chats.AddRange(sampleChat, groupChat);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Messages.AddRange(sampleMsg1, sampleMsg2, groupMsg);
+            await dbContext.SaveChangesAsync();
+
+            sampleChat.LastMessage = sampleMsg2;
+            groupChat.LastMessage = groupMsg;
+            await dbContext.SaveChangesAsync();
+        }
+
+        var trayService = App.Current.Services.GetService<ITrayIconService>();
+        trayService?.ShowNotification("Sample Data Injected", "Test chats and messages were added to WhatsApp.");
+    }
+
     public SettingsViewModel(ISettingsService settingsService, IThemeService themeService)
     {
         _settingsService = settingsService;
@@ -122,6 +214,7 @@ public partial class SettingsViewModel : ViewModelBase
         SelectedTheme = _settingsService.GetValue<string>("AppTheme") ?? "Default";
         SelectedBackdrop = _settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
         IsWhatsAppEnabled = _settingsService.GetValue<bool>("WhatsAppEnabled", true);
+        IsWhatsAppTestingMode = _settingsService.GetValue<bool>("WhatsAppTestingMode", false);
         IsFlyoutEnabled = _settingsService.GetValue<bool>("FlyoutEnabled", true);
         ShowUnreadBadge = _settingsService.GetValue<bool>("ShowUnreadBadge", true);
         WhatsAppBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_WhatsApp", false) ? "Brand" : "Accent";
@@ -138,6 +231,8 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnSelectedBackdropChanged(string value) { if (!_isInitializing) { _themeService.SetBackdrop(value); _settingsService.SetValue("AppBackdrop", value); } OnPropertyChanged(nameof(SelectedBackdropIndex)); OnPropertyChanged(nameof(SelectedBackdropDisplay)); }
 
     partial void OnIsWhatsAppEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppEnabled", value); }
+
+    partial void OnIsWhatsAppTestingModeChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppTestingMode", value); }
 
     partial void OnIsFlyoutEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("FlyoutEnabled", value); }
 

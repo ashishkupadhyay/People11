@@ -10,11 +10,19 @@ public static unsafe partial class WhatsAppNative
     [LibraryImport(DllName)]
     public static partial IntPtr wa_create_client();
 
-    [LibraryImport(DllName)]
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_is_authenticated(string dbPath);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_load_cache(string dbPath);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_authenticate_qr(
         IntPtr clientPtr,
+        string dbPath,
         delegate* unmanaged[Cdecl]<IntPtr, void> qrCallback,
-        delegate* unmanaged[Cdecl]<void> successCallback);
+        delegate* unmanaged[Cdecl]<void> successCallback,
+        delegate* unmanaged[Cdecl]<IntPtr, void> errorCallback);
 
     [LibraryImport(DllName)]
     public static partial IntPtr wa_get_chats(IntPtr clientPtr);
@@ -29,6 +37,16 @@ public static unsafe partial class WhatsAppNative
     public static partial int wa_register_message_callback(
         IntPtr clientPtr,
         delegate* unmanaged[Cdecl]<IntPtr, void> callback);
+
+    [LibraryImport(DllName)]
+    public static partial int wa_register_sync_progress_callback(
+        IntPtr clientPtr,
+        delegate* unmanaged[Cdecl]<int, void> callback);
+
+    [LibraryImport(DllName)]
+    public static partial int wa_register_chats_updated_callback(
+        IntPtr clientPtr,
+        delegate* unmanaged[Cdecl]<void> callback);
 
     [LibraryImport(DllName)]
     public static partial void wa_destroy_client(IntPtr clientPtr);

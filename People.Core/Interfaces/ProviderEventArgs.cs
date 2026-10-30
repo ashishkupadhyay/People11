@@ -26,9 +26,9 @@ public class MessageReceivedEventArgs : EventArgs
 
 public class ChatUpdatedEventArgs : EventArgs
 {
-    public Chat Chat { get; }
+    public Chat? Chat { get; }
     
-    public ChatUpdatedEventArgs(Chat chat)
+    public ChatUpdatedEventArgs(Chat? chat = null)
     {
         Chat = chat;
     }

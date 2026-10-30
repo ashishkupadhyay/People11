@@ -87,6 +87,13 @@ public partial class App : Application
     {
         try
         {
+            var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
+            if (dbFactory != null)
+            {
+                using var db = dbFactory.CreateDbContext();
+                db.Database.EnsureCreated();
+            }
+
             MainWindow = Services.GetRequiredService<MainWindow>();
             MainWindow.Activate();
 
