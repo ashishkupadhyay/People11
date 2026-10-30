@@ -33,6 +33,7 @@ public partial class ConversationViewModel : ViewModelBase
         _provider = provider;
         _dispatcherService = dispatcherService;
         _provider.MessageReceived += OnMessageReceived;
+        _provider.ChatUpdated += OnChatUpdated;
     }
 
     public async void LoadChat(Chat chat)
@@ -123,6 +124,43 @@ public partial class ConversationViewModel : ViewModelBase
                 Messages.Add(sentMsg);
             }
         });
+    }
+
+    private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
+    {
+        if (CurrentChat == null) return;
+        _dispatcherService.Enqueue(async () =>
+        {
+            await RefreshMessagesAsync();
+        });
+    }
+
+    private async Task RefreshMessagesAsync()
+    {
+        if (CurrentChat == null) return;
+        try
+        {
+            var msgs = await _provider.GetMessagesAsync(CurrentChat.Id);
+            _dispatcherService.Enqueue(() =>
+            {
+                foreach (var msg in msgs)
+                {
+                    if (!Messages.Any(m => m.Id == msg.Id))
+                    {
+                        int index = 0;
+                        while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
+                        {
+                            index++;
+                        }
+                        Messages.Insert(index, msg);
+                    }
+                }
+            });
+        }
+        catch
+        {
+            // Ignore
+        }
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)

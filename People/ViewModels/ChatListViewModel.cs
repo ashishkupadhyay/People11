@@ -78,9 +78,9 @@ public partial class ChatListViewModel : ViewModelBase
                 ShowQrCode = false;
                 HasError = false;
                 ErrorMessage = string.Empty;
-                IsSyncing = true;
+                IsSyncing = false;
                 SyncProgress = 0;
-                SyncStatusText = "Connecting and syncing WhatsApp...";
+                SyncStatusText = string.Empty;
             });
 
             // Immediately load any cached chats
@@ -154,7 +154,7 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             SyncProgress = progress;
-            if (progress >= 100)
+            if (progress >= 100 || progress <= 0)
             {
                 IsSyncing = false;
                 SyncStatusText = string.Empty;
@@ -184,6 +184,8 @@ public partial class ChatListViewModel : ViewModelBase
                 IsConnecting = false;
                 ShowQrCode = false;
                 HasError = false;
+                IsSyncing = false;
+                SyncStatusText = string.Empty;
             });
             _ = LoadChatsAsync();
         }
@@ -253,7 +255,7 @@ public partial class ChatListViewModel : ViewModelBase
             }
         }
 
-        if (!string.IsNullOrEmpty(chat.Id))
+        if (!string.IsNullOrEmpty(chat.Id) && !chat.Id.EndsWith("@lid", StringComparison.OrdinalIgnoreCase))
         {
             var userPart = chat.Id.Contains('@') ? chat.Id.Split('@')[0] : chat.Id;
             var idDigits = new string(userPart.Where(char.IsDigit).ToArray());
@@ -367,27 +369,31 @@ public partial class ChatListViewModel : ViewModelBase
         // 3. Extract 1-on-1 contacts from chats
         foreach (var chat in Chats)
         {
-            if (!chat.IsGroup && !string.IsNullOrWhiteSpace(chat.Title))
+            if (!chat.IsGroup && !string.IsNullOrWhiteSpace(chat.Title) && chat.Title != "WhatsApp Contact")
             {
-                string phone;
+                string? phone = null;
                 if (chat.Title.StartsWith('+'))
                 {
-                    phone = chat.Title.TrimStart('+');
+                    phone = chat.Title;
                 }
-                else
+                else if (!chat.Id.EndsWith("@lid", StringComparison.OrdinalIgnoreCase))
                 {
-                    phone = chat.Id.Contains("@") ? chat.Id.Split('@')[0] : chat.Id;
+                    var userPart = chat.Id.Contains('@') ? chat.Id.Split('@')[0] : chat.Id;
+                    if (userPart.All(char.IsDigit) && userPart.Length >= 7)
+                    {
+                        phone = $"+{userPart}";
+                    }
                 }
 
-                var key = phone;
-                if (!contactsMap.ContainsKey(key) && !contactsMap.ContainsKey($"+{key}"))
+                var key = phone ?? chat.Id;
+                if (!contactsMap.ContainsKey(key))
                 {
                     contactsMap[key] = new Contact
                     {
                         Id = chat.Id,
                         Name = chat.Title,
                         PlatformId = chat.PlatformId,
-                        PhoneNumber = phone.Length >= 7 && !phone.StartsWith("+") ? $"+{phone}" : phone
+                        PhoneNumber = phone
                     };
                 }
             }

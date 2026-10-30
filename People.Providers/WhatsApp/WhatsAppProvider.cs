@@ -525,9 +525,9 @@ public class WhatsAppProvider : IWhatsAppProvider
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, chatId, count);
         }, ct);
 
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 20; i++)
         {
-            await Task.Delay(250, ct);
+            await Task.Delay(200, ct);
             var currentMsgs = await GetMessagesAsync(chatId, 0, 100, ct);
             if (currentMsgs.Count > initialCount)
             {

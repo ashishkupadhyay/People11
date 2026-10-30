@@ -48,6 +48,7 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
+    <uap:Capability Name="contacts" />
     <systemai:Capability Name="systemAIModels"/>
   </Capabilities>
 </Package>
