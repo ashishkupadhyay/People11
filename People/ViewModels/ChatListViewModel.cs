@@ -51,6 +51,8 @@ public partial class ChatListViewModel : ViewModelBase
         _provider.ConnectionStateChanged += OnConnectionStateChanged;
         _provider.ChatUpdated += OnChatUpdated;
 
+        _ = RebuildContactsAsync();
+
         if (_provider is IWhatsAppProvider waProvider)
         {
             waProvider.QrCodeReceived += OnQrCodeReceived;
@@ -213,7 +215,7 @@ public partial class ChatListViewModel : ViewModelBase
         try
         {
             var chats = await _provider.GetChatsAsync();
-            _dispatcherService.Enqueue(() =>
+            _dispatcherService.Enqueue(async () =>
             {
                 Chats.Clear();
                 foreach (var chat in chats)
@@ -222,7 +224,7 @@ public partial class ChatListViewModel : ViewModelBase
                 }
 
                 // Refresh contacts list for New Chat flyout
-                RebuildContacts();
+                await RebuildContactsAsync();
             });
         }
         catch (Exception)
@@ -231,25 +233,99 @@ public partial class ChatListViewModel : ViewModelBase
         }
     }
 
-    private void RebuildContacts()
+    public async Task RebuildContactsAsync()
     {
-        _allContacts.Clear();
+        var contactsMap = new Dictionary<string, Contact>(StringComparer.OrdinalIgnoreCase);
 
-        // Extract contacts from chats
+        // 1. Load from IContactRepository
+        try
+        {
+            var repo = App.Current.Services.GetService<People.Core.Interfaces.Repositories.IContactRepository>();
+            if (repo != null)
+            {
+                var dbContacts = await repo.GetAllAsync();
+                foreach (var c in dbContacts)
+                {
+                    if (!string.IsNullOrWhiteSpace(c.Name) || !string.IsNullOrWhiteSpace(c.PhoneNumber))
+                    {
+                        var key = !string.IsNullOrWhiteSpace(c.PhoneNumber) ? c.PhoneNumber : c.Id;
+                        contactsMap[key] = c;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore if DB not ready
+        }
+
+        // 2. Load from Windows ContactStore (Windows Contacts)
+        try
+        {
+            var contactStore = await Windows.ApplicationModel.Contacts.ContactManager.RequestStoreAsync(
+                Windows.ApplicationModel.Contacts.ContactStoreAccessType.AllContactsReadOnly);
+            if (contactStore != null)
+            {
+                var winContacts = await contactStore.FindContactsAsync();
+                foreach (var wc in winContacts)
+                {
+                    var name = wc.DisplayName;
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        name = $"{wc.FirstName} {wc.LastName}".Trim();
+                    }
+                    var phone = wc.Phones?.FirstOrDefault()?.Number;
+                    if (!string.IsNullOrWhiteSpace(name) || !string.IsNullOrWhiteSpace(phone))
+                    {
+                        var cleanPhone = phone != null ? new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray()) : null;
+                        var contactId = !string.IsNullOrEmpty(cleanPhone)
+                            ? $"{cleanPhone.TrimStart('+')}@s.whatsapp.net"
+                            : wc.Id ?? Guid.NewGuid().ToString();
+
+                        var c = new Contact
+                        {
+                            Id = contactId,
+                            Name = !string.IsNullOrWhiteSpace(name) ? name : (phone ?? "Unknown"),
+                            PhoneNumber = phone,
+                            PlatformId = "WhatsApp"
+                        };
+
+                        var key = !string.IsNullOrWhiteSpace(cleanPhone) ? cleanPhone : c.Id;
+                        if (!contactsMap.ContainsKey(key))
+                        {
+                            contactsMap[key] = c;
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Windows Contacts store access may be restricted
+        }
+
+        // 3. Extract 1-on-1 contacts from chats
         foreach (var chat in Chats)
         {
             if (!chat.IsGroup && !string.IsNullOrWhiteSpace(chat.Title))
             {
-                _allContacts.Add(new Contact
+                var phone = chat.Id.Contains("@") ? chat.Id.Split('@')[0] : chat.Id;
+                var key = phone;
+                if (!contactsMap.ContainsKey(key) && !contactsMap.ContainsKey($"+{key}"))
                 {
-                    Id = chat.Id,
-                    Name = chat.Title,
-                    PlatformId = chat.PlatformId,
-                    PhoneNumber = chat.Id.Contains("@") ? chat.Id.Split('@')[0] : chat.Id
-                });
+                    contactsMap[key] = new Contact
+                    {
+                        Id = chat.Id,
+                        Name = chat.Title,
+                        PlatformId = chat.PlatformId,
+                        PhoneNumber = phone.Length >= 7 ? $"+{phone}" : phone
+                    };
+                }
             }
         }
 
+        _allContacts.Clear();
+        _allContacts.AddRange(contactsMap.Values.OrderBy(c => c.Name));
         FilterContacts(string.Empty);
     }
 
@@ -259,20 +335,18 @@ public partial class ChatListViewModel : ViewModelBase
 
         var trimmed = query?.Trim() ?? string.Empty;
 
-        // If user typed numbers, offer starting direct chat
-        if (!string.IsNullOrEmpty(trimmed) && trimmed.All(c => char.IsDigit(c) || c == '+' || c == '-' || c == ' '))
+        // If user typed numbers, offer starting direct chat with that number
+        var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+        if (digits.Length >= 5)
         {
-            var cleanDigits = new string(trimmed.Where(char.IsDigit).ToArray());
-            if (cleanDigits.Length >= 5)
+            var formattedNumber = trimmed.StartsWith("+") ? $"+{digits}" : $"+{digits}";
+            FilteredContacts.Add(new Contact
             {
-                FilteredContacts.Add(new Contact
-                {
-                    Id = $"{cleanDigits}@s.whatsapp.net",
-                    Name = $"+{cleanDigits}",
-                    PlatformId = "WhatsApp",
-                    PhoneNumber = $"+{cleanDigits}"
-                });
-            }
+                Id = $"{digits}@s.whatsapp.net",
+                Name = $"Message {formattedNumber}",
+                PlatformId = "WhatsApp",
+                PhoneNumber = formattedNumber
+            });
         }
 
         foreach (var c in _allContacts)
@@ -297,11 +371,13 @@ public partial class ChatListViewModel : ViewModelBase
             return existing;
         }
 
+        var title = contact.Name.StartsWith("Message +") ? contact.PhoneNumber ?? contact.Name : contact.Name;
+
         var newChat = new Chat
         {
             Id = contact.Id,
             PlatformId = "WhatsApp",
-            Title = contact.Name,
+            Title = title,
             IsGroup = false,
             LastMessageTime = DateTimeOffset.UtcNow,
             UnreadCount = 0
@@ -347,6 +423,6 @@ public partial class ChatListViewModel : ViewModelBase
             LastMessage = new Message { Content = new MessageContent { Text = "Dinner at 7!" }, Timestamp = DateTimeOffset.Now.AddHours(-1) },
             UnreadCount = 0
         });
-        RebuildContacts();
+        _ = RebuildContactsAsync();
     }
 }

@@ -18,6 +18,12 @@ public sealed partial class ChatListPage : Page
         DetailFrame.Navigated += DetailFrame_Navigated;
         this.SizeChanged += ChatListPage_SizeChanged;
         this.ActualThemeChanged += (s, e) => UpdateEmptyStateAnimation(_platformId);
+        NewChatFlyout.Opened += (s, e) =>
+        {
+            SearchContactsBox.Text = string.Empty;
+            ViewModel.FilterContacts(string.Empty);
+            _ = ViewModel.RebuildContactsAsync();
+        };
     }
 
     private void ChatListPage_SizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)

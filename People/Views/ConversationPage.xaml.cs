@@ -14,6 +14,14 @@ public sealed partial class ConversationPage : Page
     {
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
+
+        ViewModel.Messages.CollectionChanged += (s, e) =>
+        {
+            if (ViewModel.Messages.Count > 0)
+            {
+                MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
+            }
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)

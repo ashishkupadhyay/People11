@@ -13,6 +13,7 @@
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageSourceConverter" />
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
     </Page.Resources>
 
     <Grid x:Name="RootGrid">
@@ -81,9 +82,10 @@
                     <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AppAccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
                         <Button.Flyout>
                             <Flyout x:Name="NewChatFlyout">
-                                <StackPanel Width="280" Spacing="12">
+                                <StackPanel Width="320" Spacing="12">
                                     <TextBlock x:Uid="NewChatText" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <AutoSuggestBox x:Name="SearchContactsBox" x:Uid="SearchContactsBox" QueryIcon="Find"
+                                                    PlaceholderText="Search name or type phone number..."
                                                     TextChanged="SearchContactsBox_TextChanged"
                                                     AutomationProperties.AutomationId="SearchContactsBox">
                                         <AutoSuggestBox.Resources>
@@ -96,7 +98,7 @@
                                               SelectionMode="Single"
                                               IsItemClickEnabled="True"
                                               ItemClick="NewChatList_ItemClick"
-                                              MaxHeight="300"
+                                              MaxHeight="450"
                                               AutomationProperties.Name="New chat list"
                                               AutomationProperties.AutomationId="NewChatList">
                                         <ListView.ItemContainerTransitions>
@@ -106,15 +108,19 @@
                                         </ListView.ItemContainerTransitions>
                                         <ListView.ItemTemplate>
                                             <DataTemplate x:DataType="models:Contact">
-                                                <Grid Padding="0,6">
+                                                <Grid Padding="4,6">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <PersonPicture Grid.Column="0" DisplayName="{x:Bind Name, Mode=OneTime}" Width="32" Height="32" Margin="0,0,10,0"/>
+                                                    <PersonPicture Grid.Column="0" DisplayName="{x:Bind Name, Mode=OneTime}" Width="36" Height="36" Margin="0,0,10,0"/>
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                         <TextBlock Text="{x:Bind Name, Mode=OneTime}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{x:Bind PhoneNumber, Mode=OneTime}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{x:Bind PhoneNumber, Mode=OneTime}" 
+                                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Visibility="{x:Bind PhoneNumber, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </DataTemplate>

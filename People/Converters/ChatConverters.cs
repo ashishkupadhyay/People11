@@ -99,3 +99,69 @@ public class BoolToVisibilityConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+public class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        return !string.IsNullOrWhiteSpace(value as string) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class CollectionToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is System.Collections.ICollection coll)
+        {
+            return coll.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class GroupSenderVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is People.Core.Models.Message msg)
+        {
+            return (!msg.IsOutgoing && !string.IsNullOrWhiteSpace(msg.SenderName)) ? Visibility.Visible : Visibility.Collapsed;
+        }
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class OutgoingTextColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool isOutgoing && isOutgoing)
+        {
+            return App.Current.Resources["TextOnAccentFillColorPrimaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White);
+        }
+        return App.Current.Resources["TextFillColorPrimaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class OutgoingSubtextColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool isOutgoing && isOutgoing)
+        {
+            return App.Current.Resources["TextOnAccentFillColorSecondaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(200, 255, 255, 255));
+        }
+        return App.Current.Resources["TextFillColorSecondaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}

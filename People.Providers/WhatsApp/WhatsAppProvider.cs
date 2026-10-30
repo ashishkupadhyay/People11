@@ -245,16 +245,30 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
+                var reactionsList = new List<string>();
+                if (root.TryGetProperty("reactions", out var rProp) && rProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var elem in rProp.EnumerateArray())
+                    {
+                        var str = elem.GetString();
+                        if (!string.IsNullOrEmpty(str)) reactionsList.Add(str);
+                    }
+                }
+
                 var msg = new Message
                 {
                     Id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? Guid.NewGuid().ToString() : Guid.NewGuid().ToString(),
                     ChatId = root.TryGetProperty("chatId", out var chatProp) ? chatProp.GetString() ?? string.Empty : string.Empty,
                     SenderId = root.TryGetProperty("senderId", out var senderProp) ? senderProp.GetString() ?? string.Empty : string.Empty,
+                    SenderName = root.TryGetProperty("senderName", out var sNameProp) ? sNameProp.GetString() : null,
                     PlatformId = "WhatsApp",
                     Content = new MessageContent { Text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? string.Empty : string.Empty },
                     Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
                     Status = MessageStatus.Delivered,
-                    IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean()
+                    IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
+                    QuotedText = root.TryGetProperty("quotedText", out var qTextProp) ? qTextProp.GetString() : null,
+                    QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
+                    Reactions = reactionsList
                 };
                 _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
             }
@@ -325,12 +339,16 @@ public class WhatsAppProvider : IWhatsAppProvider
                             ChatId = dto.LastMessage.ChatId ?? chat.Id,
                             PlatformId = "WhatsApp",
                             SenderId = dto.LastMessage.SenderId ?? string.Empty,
+                            SenderName = dto.LastMessage.SenderName,
                             IsOutgoing = dto.LastMessage.IsOutgoing,
                             Content = new MessageContent { Text = dto.LastMessage.Text ?? string.Empty },
                             Timestamp = dto.LastMessage.Timestamp > 0
                                 ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
                                 : chat.LastMessageTime,
-                            Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered
+                            Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                            QuotedText = dto.LastMessage.QuotedText,
+                            QuotedSender = dto.LastMessage.QuotedSender,
+                            Reactions = dto.LastMessage.Reactions ?? new()
                         };
                     }
 
@@ -460,12 +478,16 @@ public class WhatsAppProvider : IWhatsAppProvider
                         ChatId = dto.ChatId ?? chatId,
                         PlatformId = "WhatsApp",
                         SenderId = dto.SenderId ?? string.Empty,
+                        SenderName = dto.SenderName,
                         IsOutgoing = dto.IsOutgoing,
                         Content = new MessageContent { Text = dto.Text ?? string.Empty },
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                             : DateTimeOffset.UtcNow,
-                        Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered
+                        Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                        QuotedText = dto.QuotedText,
+                        QuotedSender = dto.QuotedSender,
+                        Reactions = dto.Reactions ?? new()
                     });
                 }
 
@@ -545,8 +567,13 @@ public class WhatsAppProvider : IWhatsAppProvider
         public string? Id { get; set; }
         public string? ChatId { get; set; }
         public string? SenderId { get; set; }
+        public string? SenderName { get; set; }
         public bool IsOutgoing { get; set; }
         public string? Text { get; set; }
+        public string? MediaType { get; set; }
+        public string? QuotedText { get; set; }
+        public string? QuotedSender { get; set; }
+        public List<string>? Reactions { get; set; }
         public long Timestamp { get; set; }
     }
 }

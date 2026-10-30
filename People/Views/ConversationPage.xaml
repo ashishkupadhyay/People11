@@ -12,6 +12,12 @@
     <Page.Resources>
         <converters:OutgoingAlignmentConverter x:Key="OutgoingAlignmentConverter" />
         <converters:OutgoingBackgroundConverter x:Key="OutgoingBackgroundConverter" />
+        <converters:OutgoingTextColorConverter x:Key="OutgoingTextColorConverter" />
+        <converters:OutgoingSubtextColorConverter x:Key="OutgoingSubtextColorConverter" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+        <converters:CollectionToVisibilityConverter x:Key="CollectionToVisibilityConverter" />
+        <converters:GroupSenderVisibilityConverter x:Key="GroupSenderVisibilityConverter" />
         <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
     </Page.Resources>
 
@@ -31,7 +37,13 @@
         </Border>
 
         <!-- Messages -->
-        <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+        <ListView x:Name="MessagesListView" Grid.Row="1" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Padding" Value="0" />
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.ItemContainerTransitions>
                 <TransitionCollection>
                     <AddDeleteThemeTransition />
@@ -40,12 +52,83 @@
             </ListView.ItemContainerTransitions>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Message">
-                    <Grid Margin="0,4">
-                        <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
-                                HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                Background="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingBackgroundConverter}}">
-                            <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" TextWrapping="Wrap" />
-                        </Border>
+                    <Grid Margin="0,4" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">
+                        <StackPanel MaxWidth="480" Spacing="2">
+                            <!-- Message Bubble -->
+                            <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
+                                    Background="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}">
+                                <StackPanel Spacing="4">
+                                    <!-- Sender Name (for incoming messages in groups) -->
+                                    <TextBlock Text="{x:Bind SenderName, Mode=OneTime}"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource AppAccentBrush}"
+                                               Visibility="{x:Bind Converter={StaticResource GroupSenderVisibilityConverter}}"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <!-- Quoted / Reply Preview -->
+                                    <Border Visibility="{x:Bind QuotedText, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
+                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource AppAccentBrush}"
+                                            BorderThickness="3,0,0,0"
+                                            CornerRadius="4"
+                                            Padding="8,4"
+                                            Margin="0,0,0,4">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="11"
+                                                       Foreground="{ThemeResource AppAccentBrush}"
+                                                       Visibility="{x:Bind QuotedSender, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{x:Bind QuotedText, Mode=OneTime}"
+                                                       FontSize="12"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                       MaxLines="2"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Message Text -->
+                                    <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" 
+                                               TextWrapping="Wrap" 
+                                               Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}" />
+
+                                    <!-- Timestamp and status icon -->
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
+                                        <TextBlock Text="{x:Bind FormattedTime, Mode=OneTime}" 
+                                                   FontSize="10" 
+                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
+                                        <FontIcon Glyph="&#xE73E;" FontSize="10"
+                                                  Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                  Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Reaction pills -->
+                            <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneTime}"
+                                          Visibility="{x:Bind Reactions, Mode=OneTime, Converter={StaticResource CollectionToVisibilityConverter}}"
+                                          HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                          Margin="4,-4,4,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="4"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="6,2">
+                                            <TextBlock Text="{x:Bind}" FontSize="12"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
