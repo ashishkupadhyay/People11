@@ -25,6 +25,9 @@ public partial class ConversationViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsLoadingOlder { get; set; }
+
     public ConversationViewModel(IMessagingProvider provider, IDispatcherService dispatcherService)
     {
         _provider = provider;
@@ -49,6 +52,12 @@ public partial class ConversationViewModel : ViewModelBase
                     Messages.Add(msg);
                 }
                 IsLoading = false;
+
+                // If chat has few or no messages, automatically fetch older messages from phone
+                if (Messages.Count < 10)
+                {
+                    _ = LoadOlderMessagesAsync();
+                }
             });
         }
         catch
@@ -56,6 +65,42 @@ public partial class ConversationViewModel : ViewModelBase
             _dispatcherService.Enqueue(() =>
             {
                 IsLoading = false;
+            });
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadOlderMessagesAsync()
+    {
+        if (CurrentChat == null || IsLoadingOlder) return;
+
+        IsLoadingOlder = true;
+
+        try
+        {
+            var older = await _provider.GetOlderMessagesAsync(CurrentChat.Id, 25);
+            _dispatcherService.Enqueue(() =>
+            {
+                foreach (var msg in older)
+                {
+                    if (!Messages.Any(m => m.Id == msg.Id))
+                    {
+                        int index = 0;
+                        while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
+                        {
+                            index++;
+                        }
+                        Messages.Insert(index, msg);
+                    }
+                }
+                IsLoadingOlder = false;
+            });
+        }
+        catch
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                IsLoadingOlder = false;
             });
         }
     }

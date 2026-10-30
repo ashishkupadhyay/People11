@@ -33,6 +33,9 @@ public static unsafe partial class WhatsAppNative
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_send_message(IntPtr clientPtr, string chatId, string text);
 
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_fetch_older_messages(IntPtr clientPtr, string chatId, int count);
+
     [LibraryImport(DllName)]
     public static partial int wa_register_message_callback(
         IntPtr clientPtr,

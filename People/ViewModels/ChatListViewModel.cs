@@ -214,12 +214,18 @@ public partial class ChatListViewModel : ViewModelBase
     {
         try
         {
+            if (_allContacts.Count == 0)
+            {
+                await RebuildContactsAsync();
+            }
+
             var chats = await _provider.GetChatsAsync();
             _dispatcherService.Enqueue(async () =>
             {
                 Chats.Clear();
                 foreach (var chat in chats)
                 {
+                    chat.Title = ResolveChatTitle(chat);
                     Chats.Add(chat);
                 }
 
@@ -231,6 +237,60 @@ public partial class ChatListViewModel : ViewModelBase
         {
             _dispatcherService.Enqueue(() => LoadMockData());
         }
+    }
+
+    private string ResolveChatTitle(Chat chat)
+    {
+        if (chat.IsGroup) return chat.Title;
+
+        var candidateNumbers = new List<string>();
+        if (!string.IsNullOrEmpty(chat.Title) && (chat.Title.StartsWith('+') || chat.Title.All(char.IsDigit)))
+        {
+            var tDigits = new string(chat.Title.Where(char.IsDigit).ToArray());
+            if (!string.IsNullOrEmpty(tDigits))
+            {
+                candidateNumbers.Add(tDigits);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(chat.Id))
+        {
+            var userPart = chat.Id.Contains('@') ? chat.Id.Split('@')[0] : chat.Id;
+            var idDigits = new string(userPart.Where(char.IsDigit).ToArray());
+            if (!string.IsNullOrEmpty(idDigits))
+            {
+                candidateNumbers.Add(idDigits);
+            }
+        }
+
+        foreach (var c in _allContacts)
+        {
+            if (string.IsNullOrWhiteSpace(c.Name)) continue;
+
+            if (!string.IsNullOrWhiteSpace(c.PhoneNumber))
+            {
+                var cDigits = new string(c.PhoneNumber.Where(char.IsDigit).ToArray());
+                if (!string.IsNullOrEmpty(cDigits))
+                {
+                    foreach (var num in candidateNumbers)
+                    {
+                        if (cDigits == num ||
+                            (cDigits.Length >= 10 && num.Length >= 10 &&
+                             (cDigits.EndsWith(num.Substring(num.Length - 10)) || num.EndsWith(cDigits.Substring(cDigits.Length - 10)))))
+                        {
+                            return c.Name;
+                        }
+                    }
+                }
+            }
+
+            if (c.Id.Equals(chat.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                return c.Name;
+            }
+        }
+
+        return chat.Title;
     }
 
     public async Task RebuildContactsAsync()
@@ -309,7 +369,16 @@ public partial class ChatListViewModel : ViewModelBase
         {
             if (!chat.IsGroup && !string.IsNullOrWhiteSpace(chat.Title))
             {
-                var phone = chat.Id.Contains("@") ? chat.Id.Split('@')[0] : chat.Id;
+                string phone;
+                if (chat.Title.StartsWith('+'))
+                {
+                    phone = chat.Title.TrimStart('+');
+                }
+                else
+                {
+                    phone = chat.Id.Contains("@") ? chat.Id.Split('@')[0] : chat.Id;
+                }
+
                 var key = phone;
                 if (!contactsMap.ContainsKey(key) && !contactsMap.ContainsKey($"+{key}"))
                 {
@@ -318,7 +387,7 @@ public partial class ChatListViewModel : ViewModelBase
                         Id = chat.Id,
                         Name = chat.Title,
                         PlatformId = chat.PlatformId,
-                        PhoneNumber = phone.Length >= 7 ? $"+{phone}" : phone
+                        PhoneNumber = phone.Length >= 7 && !phone.StartsWith("+") ? $"+{phone}" : phone
                     };
                 }
             }

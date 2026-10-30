@@ -104,6 +104,16 @@
                             </ui:SettingsCard.HeaderIcon>
                             <Button Content="Inject Test Data" Command="{x:Bind ViewModel.InjectSampleDataCommand}" AutomationProperties.Name="Inject test data" AutomationProperties.AutomationId="InjectDataBtn" />
                         </ui:SettingsCard>
+                        <ui:SettingsCard Header="Automatically download media" Description="Choose which media types to download automatically">
+                            <ui:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE896;" />
+                            </ui:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <CheckBox Content="Photos" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadPhotos, Mode=TwoWay}" AutomationProperties.Name="Auto download photos" />
+                                <CheckBox Content="Videos" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadVideos, Mode=TwoWay}" AutomationProperties.Name="Auto download videos" />
+                                <CheckBox Content="Documents" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadDocuments, Mode=TwoWay}" AutomationProperties.Name="Auto download documents" />
+                            </StackPanel>
+                        </ui:SettingsCard>
                         <ui:SettingsCard x:Uid="WhatsAppAccentColorCard" Header="Accent colour">
                             <ui:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />

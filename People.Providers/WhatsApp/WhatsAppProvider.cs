@@ -505,6 +505,39 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
+    public async Task<IReadOnlyList<Message>> GetOlderMessagesAsync(string chatId, int count = 25, CancellationToken ct = default)
+    {
+        if (IsTestingMode)
+        {
+            return Array.Empty<Message>();
+        }
+
+        if (_clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
+        {
+            return Array.Empty<Message>();
+        }
+
+        var initialMsgs = await GetMessagesAsync(chatId, 0, 100, ct);
+        int initialCount = initialMsgs.Count;
+
+        await Task.Run(() =>
+        {
+            WhatsAppNative.wa_fetch_older_messages(_clientPtr, chatId, count);
+        }, ct);
+
+        for (int i = 0; i < 10; i++)
+        {
+            await Task.Delay(250, ct);
+            var currentMsgs = await GetMessagesAsync(chatId, 0, 100, ct);
+            if (currentMsgs.Count > initialCount)
+            {
+                return currentMsgs;
+            }
+        }
+
+        return await GetMessagesAsync(chatId, 0, 100, ct);
+    }
+
     public async Task<Message> SendMessageAsync(string chatId, MessageContent content, CancellationToken ct = default)
     {
         var msg = new Message

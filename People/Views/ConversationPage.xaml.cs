@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -17,11 +18,24 @@ public sealed partial class ConversationPage : Page
 
         ViewModel.Messages.CollectionChanged += (s, e) =>
         {
-            if (ViewModel.Messages.Count > 0)
+            // Only auto-scroll to the bottom when messages are appended to the end or on initial load
+            if (ViewModel.Messages.Count > 0 && e.Action == NotifyCollectionChangedAction.Add)
             {
-                MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
+                if (e.NewStartingIndex >= ViewModel.Messages.Count - (e.NewItems?.Count ?? 1))
+                {
+                    MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
+                }
             }
         };
+    }
+
+    private async void MessagesRefreshContainer_RefreshRequested(RefreshContainer sender, RefreshRequestedEventArgs args)
+    {
+        using var deferral = args.GetDeferral();
+        if (ViewModel != null)
+        {
+            await ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
+        }
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
