@@ -14,6 +14,7 @@ public sealed partial class ChatListPage : Page
     {
         ViewModel = App.Current.Services.GetRequiredService<ChatListViewModel>();
         InitializeComponent();
+        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         
         DetailFrame.Navigated += DetailFrame_Navigated;
         this.SizeChanged += ChatListPage_SizeChanged;

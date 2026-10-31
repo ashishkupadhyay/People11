@@ -73,7 +73,7 @@ public partial class App : Application
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();
-        services.AddTransient<ChatListViewModel>();
+        services.AddSingleton<ChatListViewModel>();
         services.AddTransient<ConversationViewModel>();
         services.AddTransient<SettingsViewModel>();
 

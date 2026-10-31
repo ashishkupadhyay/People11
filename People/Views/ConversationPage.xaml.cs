@@ -41,7 +41,7 @@ public sealed partial class ConversationPage : Page
     private async void MessagesRefreshContainer_RefreshRequested(RefreshContainer sender, RefreshRequestedEventArgs args)
     {
         using var deferral = args.GetDeferral();
-        if (ViewModel != null)
+        if (ViewModel != null && !ViewModel.IsLoadingOlder)
         {
             var anchor = ViewModel.Messages.FirstOrDefault();
             await ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);

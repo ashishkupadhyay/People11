@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using People.Core.Interfaces;
+using People.Core.Interfaces.Repositories;
 using People.Core.Models;
 using System;
 using System.Collections.Generic;
@@ -43,11 +44,16 @@ public partial class ChatListViewModel : ViewModelBase
 
     private readonly IMessagingProvider _provider;
     private readonly IDispatcherService _dispatcherService;
+    private readonly IChatRepository? _chatRepository;
 
-    public ChatListViewModel(IMessagingProvider provider, IDispatcherService dispatcherService)
+    public ChatListViewModel(
+        IMessagingProvider provider, 
+        IDispatcherService dispatcherService,
+        IChatRepository? chatRepository = null)
     {
         _provider = provider;
         _dispatcherService = dispatcherService;
+        _chatRepository = chatRepository;
         _provider.ConnectionStateChanged += OnConnectionStateChanged;
         _provider.ChatUpdated += OnChatUpdated;
 
@@ -216,6 +222,29 @@ public partial class ChatListViewModel : ViewModelBase
     {
         try
         {
+            if (Chats.Count == 0 && _chatRepository != null)
+            {
+                try
+                {
+                    var cached = await _chatRepository.GetAllAsync(0, 100);
+                    if (cached.Count > 0 && Chats.Count == 0)
+                    {
+                        _dispatcherService.Enqueue(() =>
+                        {
+                            if (Chats.Count == 0)
+                            {
+                                foreach (var c in cached)
+                                {
+                                    c.Title = ResolveChatTitle(c);
+                                    Chats.Add(c);
+                                }
+                            }
+                        });
+                    }
+                }
+                catch { }
+            }
+
             if (_allContacts.Count == 0)
             {
                 await Task.Run(RebuildContactsAsync);
@@ -270,33 +299,31 @@ public partial class ChatListViewModel : ViewModelBase
                 SortChatsInPlace();
             });
 
-            // Asynchronously resolve missing profile picture URLs in the background
+            // Asynchronously resolve missing profile picture URLs in the background in parallel
             _ = Task.Run(async () =>
             {
                 if (_provider is IWhatsAppProvider waProvider)
                 {
-                    foreach (var chat in chats)
+                    var chatsNeedingPics = chats.Where(c => string.IsNullOrEmpty(c.PictureUrl)).ToList();
+                    await Parallel.ForEachAsync(chatsNeedingPics, new ParallelOptions { MaxDegreeOfParallelism = 6 }, async (chat, ct) =>
                     {
-                        if (string.IsNullOrEmpty(chat.PictureUrl))
+                        try
                         {
-                            try
+                            var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id, ct);
+                            if (!string.IsNullOrEmpty(picUrl))
                             {
-                                var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id);
-                                if (!string.IsNullOrEmpty(picUrl))
+                                _dispatcherService.Enqueue(() =>
                                 {
-                                    _dispatcherService.Enqueue(() =>
+                                    var target = Chats.FirstOrDefault(c => c.Id.Equals(chat.Id, StringComparison.OrdinalIgnoreCase));
+                                    if (target != null)
                                     {
-                                        var target = Chats.FirstOrDefault(c => c.Id.Equals(chat.Id, StringComparison.OrdinalIgnoreCase));
-                                        if (target != null)
-                                        {
-                                            target.PictureUrl = picUrl;
-                                        }
-                                    });
-                                }
+                                        target.PictureUrl = picUrl;
+                                    }
+                                });
                             }
-                            catch { }
                         }
-                    }
+                        catch { }
+                    });
                 }
             });
         }

@@ -42,7 +42,9 @@
         </Border>
 
         <!-- Messages -->
-        <RefreshContainer x:Name="MessagesRefreshContainer" Grid.Row="1" RefreshRequested="MessagesRefreshContainer_RefreshRequested">
+        <RefreshContainer x:Name="MessagesRefreshContainer" Grid.Row="1" 
+                          IsEnabled="{x:Bind ViewModel.IsNotLoadingOlder, Mode=OneWay}"
+                          RefreshRequested="MessagesRefreshContainer_RefreshRequested">
             <RefreshContainer.Visualizer>
                 <RefreshVisualizer>
                     <RefreshVisualizer.Content>

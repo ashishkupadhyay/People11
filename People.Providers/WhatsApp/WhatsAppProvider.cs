@@ -554,7 +554,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         };
     }
 
-    public async Task<IReadOnlyList<Message>> GetMessagesAsync(string chatId, int offset = 0, int limit = 50, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Message>> GetMessagesAsync(string chatId, int offset = 0, int limit = 100, CancellationToken ct = default)
     {
         if (IsTestingMode)
         {
@@ -683,19 +683,57 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
-    public async Task<IReadOnlyList<Message>> GetOlderMessagesAsync(string chatId, int count = 25, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Message>> GetOlderMessagesAsync(string chatId, int count = 25, DateTimeOffset? beforeTimestamp = null, CancellationToken ct = default)
     {
         if (IsTestingMode)
         {
             return Array.Empty<Message>();
         }
 
-        if (_clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
+        if (string.IsNullOrEmpty(chatId))
         {
             return Array.Empty<Message>();
         }
 
-        // Get current local message count before requesting from phone
+        // 1. FIRST check SQLite! Do we already have older messages stored locally in SQLite?
+        if (_messageRepository != null && beforeTimestamp.HasValue)
+        {
+            try
+            {
+                var localOlder = await _messageRepository.GetOlderMessagesBeforeAsync(chatId, beforeTimestamp.Value, count);
+                if (localOlder.Count > 0)
+                {
+                    _logger?.LogInformation("Loaded {Count} older messages from local SQLite storage.", localOlder.Count);
+                    return localOlder;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load older messages from SQLite for {ChatId}", chatId);
+            }
+        }
+
+        if (_clientPtr == IntPtr.Zero)
+        {
+            return Array.Empty<Message>();
+        }
+
+        // 2. Check if native bridge in-memory cache has messages before beforeTimestamp
+        long beforeUnix = beforeTimestamp?.ToUnixTimeSeconds() ?? 0;
+        var nativeCached = await FetchMessagesFromNativeAsync(chatId, beforeUnix, count, ct);
+        if (nativeCached.Count > 0)
+        {
+            if (_messageRepository != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await _messageRepository.SaveManyAsync(nativeCached); } catch { }
+                }, ct);
+            }
+            return nativeCached;
+        }
+
+        // 3. Local storage & bridge cache exhausted -> request on-demand PDO from phone
         int initialCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
 
         // Fire PDO on-demand request to the phone
@@ -715,16 +753,16 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        // Fetch all messages from bridge, save newly synced ones to SQLite, return
-        var allMsgs = await GetAllMessagesRaw(chatId, ct);
-        if (_messageRepository != null && allMsgs.Count > 0)
+        // Fetch newly arrived messages from bridge, save to SQLite, return
+        var newlyFetched = await FetchMessagesFromNativeAsync(chatId, beforeUnix, count, ct);
+        if (_messageRepository != null && newlyFetched.Count > 0)
         {
             _ = Task.Run(async () =>
             {
-                try { await _messageRepository.SaveManyAsync(allMsgs); } catch { }
+                try { await _messageRepository.SaveManyAsync(newlyFetched); } catch { }
             }, ct);
         }
-        return allMsgs;
+        return newlyFetched;
     }
 
     private async Task<IReadOnlyList<Message>> GetAllMessagesRaw(string chatId, CancellationToken ct)

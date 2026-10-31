@@ -26,7 +26,10 @@ public partial class ConversationViewModel : ViewModelBase
     public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotLoadingOlder))]
     public partial bool IsLoadingOlder { get; set; }
+
+    public bool IsNotLoadingOlder => !IsLoadingOlder;
 
     public ConversationViewModel(IMessagingProvider provider, IDispatcherService dispatcherService)
     {
@@ -76,7 +79,7 @@ public partial class ConversationViewModel : ViewModelBase
 
         try
         {
-            var older = await _provider.GetOlderMessagesAsync(CurrentChat.Id, 25);
+            var older = await _provider.GetOlderMessagesAsync(CurrentChat.Id, 25, anchor?.Timestamp);
             _dispatcherService.Enqueue(() =>
             {
                 bool addedAny = false;
