@@ -22,18 +22,34 @@ public class MessageRepository : IMessageRepository
     public async Task<IReadOnlyList<Message>> GetByChatIdAsync(string chatId, int offset = 0, int limit = 50)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        return await context.Messages
+        var msgs = await context.Messages
             .Where(m => m.ChatId == chatId)
             .OrderByDescending(m => m.Timestamp)
             .Skip(offset)
             .Take(limit)
             .AsNoTracking()
             .ToListAsync();
+        msgs.Reverse();
+        return msgs;
+    }
+
+    public async Task<IReadOnlyList<Message>> GetOlderMessagesBeforeAsync(string chatId, DateTimeOffset beforeTimestamp, int limit = 25)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var msgs = await context.Messages
+            .Where(m => m.ChatId == chatId && m.Timestamp < beforeTimestamp)
+            .OrderByDescending(m => m.Timestamp)
+            .Take(limit)
+            .AsNoTracking()
+            .ToListAsync();
+        msgs.Reverse();
+        return msgs;
     }
 
     public async Task SaveAsync(Message message)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
+        message.Chat = null;
         var existing = await context.Messages.FindAsync(message.Id);
         
         if (existing == null)
@@ -53,6 +69,7 @@ public class MessageRepository : IMessageRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         foreach (var message in messages)
         {
+            message.Chat = null;
             var existing = await context.Messages.FindAsync(message.Id);
             if (existing == null)
             {

@@ -37,6 +37,7 @@ public class PeopleDbContext : DbContext
         modelBuilder.Entity<Chat>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.PlatformId, e.LastMessageTime });
             entity.HasMany(e => e.Participants)
                   .WithMany();
             entity.HasOne(e => e.LastMessage)
@@ -48,6 +49,7 @@ public class PeopleDbContext : DbContext
         modelBuilder.Entity<Message>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ChatId, e.Timestamp });
             entity.HasOne(e => e.Chat)
                   .WithMany(c => c.Messages)
                   .HasForeignKey(e => e.ChatId)
@@ -57,6 +59,11 @@ public class PeopleDbContext : DbContext
                   .HasConversion(
                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                       v => JsonSerializer.Deserialize<MessageContent>(v, (JsonSerializerOptions?)null) ?? new MessageContent());
+
+            entity.Property(e => e.Reactions)
+                  .HasConversion(
+                      v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                      v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
         });
     }
 }

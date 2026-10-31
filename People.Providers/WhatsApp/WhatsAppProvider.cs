@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -8,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using People.Core.Interfaces;
+using People.Core.Interfaces.Repositories;
 using People.Core.Models;
 using People.Interop;
 
@@ -45,6 +47,9 @@ public class WhatsAppProvider : IWhatsAppProvider
     private IntPtr _clientPtr = IntPtr.Zero;
     private readonly ILogger<WhatsAppProvider>? _logger;
     private readonly ISettingsService? _settingsService;
+    private readonly IChatRepository? _chatRepository;
+    private readonly IMessageRepository? _messageRepository;
+    private readonly IContactRepository? _contactRepository;
 
     // Static instance pointer for unmanaged C callbacks
     private static WhatsAppProvider? _activeInstance;
@@ -52,10 +57,18 @@ public class WhatsAppProvider : IWhatsAppProvider
     // In-memory testing messages cache so sent messages persist during session
     private readonly List<Message> _testingMessages = new();
 
-    public WhatsAppProvider(ILogger<WhatsAppProvider>? logger = null, ISettingsService? settingsService = null)
+    public WhatsAppProvider(
+        ILogger<WhatsAppProvider>? logger = null, 
+        ISettingsService? settingsService = null,
+        IChatRepository? chatRepository = null,
+        IMessageRepository? messageRepository = null,
+        IContactRepository? contactRepository = null)
     {
         _logger = logger;
         _settingsService = settingsService;
+        _chatRepository = chatRepository;
+        _messageRepository = messageRepository;
+        _contactRepository = contactRepository;
         _activeInstance = this;
     }
 
@@ -231,7 +244,29 @@ public class WhatsAppProvider : IWhatsAppProvider
     {
         if (_activeInstance == null) return;
         _activeInstance._logger?.LogInformation("WhatsApp chats updated notification from backend.");
-        _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_activeInstance._chatRepository != null && _activeInstance._clientPtr != IntPtr.Zero)
+                {
+                    var chats = await _activeInstance.FetchChatsFromNativeAsync();
+                    if (chats.Count > 0)
+                    {
+                        await _activeInstance._chatRepository.SaveManyAsync(chats);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _activeInstance._logger?.LogError(ex, "Failed to persist updated chats to SQLite repository.");
+            }
+            finally
+            {
+                _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
+            }
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -255,6 +290,15 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
 
+                string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? string.Empty : string.Empty;
+                string mediaType = root.TryGetProperty("mediaType", out var mediaProp) ? mediaProp.GetString() ?? "text" : "text";
+
+                // Filter out empty protocol / stub messages
+                if (mediaType == "text" && string.IsNullOrWhiteSpace(text))
+                {
+                    return;
+                }
+
                 var msg = new Message
                 {
                     Id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? Guid.NewGuid().ToString() : Guid.NewGuid().ToString(),
@@ -262,7 +306,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     SenderId = root.TryGetProperty("senderId", out var senderProp) ? senderProp.GetString() ?? string.Empty : string.Empty,
                     SenderName = root.TryGetProperty("senderName", out var sNameProp) ? sNameProp.GetString() : null,
                     PlatformId = "WhatsApp",
-                    Content = new MessageContent { Text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? string.Empty : string.Empty },
+                    Content = new MessageContent { Text = text },
                     Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
                     Status = MessageStatus.Delivered,
                     IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
@@ -270,6 +314,33 @@ public class WhatsAppProvider : IWhatsAppProvider
                     QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
                     Reactions = reactionsList
                 };
+
+                // Persist to SQLite repository
+                if (_activeInstance._messageRepository != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _activeInstance._messageRepository.SaveAsync(msg);
+                            if (_activeInstance._chatRepository != null)
+                            {
+                                var existingChat = await _activeInstance._chatRepository.GetByIdAsync(msg.ChatId);
+                                if (existingChat != null)
+                                {
+                                    existingChat.LastMessage = msg;
+                                    existingChat.LastMessageTime = msg.Timestamp;
+                                    await _activeInstance._chatRepository.SaveAsync(existingChat);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _activeInstance._logger?.LogError(ex, "Failed to persist live message to SQLite.");
+                        }
+                    });
+                }
+
                 _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
             }
             catch (Exception ex)
@@ -298,10 +369,61 @@ public class WhatsAppProvider : IWhatsAppProvider
             return GetTestingChats();
         }
 
+        // 1. Try SQLite first (instant startup, sub-millisecond retrieval)
+        if (_chatRepository != null)
+        {
+            try
+            {
+                var localChats = await _chatRepository.GetByPlatformAsync(PlatformId, offset, limit);
+                if (localChats.Count > 0)
+                {
+                    // Refresh in background if native bridge is connected
+                    if (_clientPtr != IntPtr.Zero)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var remoteChats = await FetchChatsFromNativeAsync(ct);
+                                if (remoteChats.Count > 0)
+                                {
+                                    await _chatRepository.SaveManyAsync(remoteChats);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.LogDebug(ex, "Background chat sync to SQLite completed with warning.");
+                            }
+                        }, ct);
+                    }
+                    return localChats;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to read chats from SQLite repository.");
+            }
+        }
+
         if (_clientPtr == IntPtr.Zero)
         {
             return Array.Empty<Chat>();
         }
+
+        var chats = await FetchChatsFromNativeAsync(ct);
+        if (_chatRepository != null && chats.Count > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await _chatRepository.SaveManyAsync(chats); } catch { }
+            }, ct);
+        }
+        return chats;
+    }
+
+    private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)
+    {
+        if (_clientPtr == IntPtr.Zero) return Array.Empty<Chat>();
 
         return await Task.Run(() =>
         {
@@ -331,7 +453,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                             : DateTimeOffset.UtcNow
                     };
 
-                    if (dto.LastMessage != null)
+                    if (dto.LastMessage != null && !string.IsNullOrWhiteSpace(dto.LastMessage.Text))
                     {
                         chat.LastMessage = new Message
                         {
@@ -454,12 +576,44 @@ public class WhatsAppProvider : IWhatsAppProvider
             return Array.Empty<Message>();
         }
 
+        // 1. Try SQLite first (instant indexed retrieval)
+        if (_messageRepository != null)
+        {
+            try
+            {
+                var localMsgs = await _messageRepository.GetByChatIdAsync(chatId, offset, limit);
+                if (localMsgs.Count > 0)
+                {
+                    return localMsgs;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load messages from SQLite for {ChatId}", chatId);
+            }
+        }
+
+        if (_clientPtr == IntPtr.Zero) return Array.Empty<Message>();
+
+        // 2. Fallback to native bridge if SQLite has no messages for this chat yet
+        var bridgeMsgs = await FetchMessagesFromNativeAsync(chatId, 0, limit, ct);
+        if (_messageRepository != null && bridgeMsgs.Count > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await _messageRepository.SaveManyAsync(bridgeMsgs); } catch { }
+            }, ct);
+        }
+        return bridgeMsgs;
+    }
+
+    private async Task<IReadOnlyList<Message>> FetchMessagesFromNativeAsync(string chatId, long beforeTs, int limit, CancellationToken ct = default)
+    {
         if (_clientPtr == IntPtr.Zero) return Array.Empty<Message>();
 
         return await Task.Run(() =>
         {
-            // Use paginated API: beforeTs=0 means "from the end" (newest messages)
-            var ptr = WhatsAppNative.wa_get_messages_paginated(_clientPtr, chatId, 0, limit);
+            var ptr = WhatsAppNative.wa_get_messages_paginated(_clientPtr, chatId, beforeTs, limit);
             if (ptr == IntPtr.Zero) return (IReadOnlyList<Message>)new List<Message>();
 
             try
@@ -473,6 +627,12 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var messages = new List<Message>();
                 foreach (var dto in dtos)
                 {
+                    // Filter empty protocol messages
+                    if (dto.MediaType == "text" && string.IsNullOrWhiteSpace(dto.Text))
+                    {
+                        continue;
+                    }
+
                     messages.Add(new Message
                     {
                         Id = dto.Id ?? Guid.NewGuid().ToString(),
@@ -521,32 +681,35 @@ public class WhatsAppProvider : IWhatsAppProvider
         // Get current local message count before requesting from phone
         int initialCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
 
-        // Fire PDO on-demand request to the phone (async, fire-and-forget on Rust side)
+        // Fire PDO on-demand request to the phone
         await Task.Run(() =>
         {
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, chatId, count);
         }, ct);
 
-        // Poll for up to 8 seconds waiting for phone to respond with history sync
+        // Poll for phone response
         for (int i = 0; i < 40; i++)
         {
             await Task.Delay(200, ct);
             int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
             if (currentCount > initialCount)
             {
-                // New messages arrived — return all messages for caller to merge
-                return await GetAllMessagesRaw(chatId, ct);
+                break;
             }
         }
 
-        // Return whatever we have (may not have received new ones)
-        return await GetAllMessagesRaw(chatId, ct);
+        // Fetch all messages from bridge, save newly synced ones to SQLite, return
+        var allMsgs = await GetAllMessagesRaw(chatId, ct);
+        if (_messageRepository != null && allMsgs.Count > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await _messageRepository.SaveManyAsync(allMsgs); } catch { }
+            }, ct);
+        }
+        return allMsgs;
     }
 
-    /// <summary>
-    /// Internal: returns ALL messages for a chat (not paginated). Used only by GetOlderMessagesAsync
-    /// so the ViewModel can merge any newly-arrived older messages.
-    /// </summary>
     private async Task<IReadOnlyList<Message>> GetAllMessagesRaw(string chatId, CancellationToken ct)
     {
         return await Task.Run(() =>
@@ -565,6 +728,12 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var messages = new List<Message>();
                 foreach (var dto in dtos)
                 {
+                    // Filter empty protocol messages
+                    if (dto.MediaType == "text" && string.IsNullOrWhiteSpace(dto.Text))
+                    {
+                        continue;
+                    }
+
                     messages.Add(new Message
                     {
                         Id = dto.Id ?? Guid.NewGuid().ToString(),
@@ -618,6 +787,28 @@ public class WhatsAppProvider : IWhatsAppProvider
             return msg;
         }
 
+        if (_messageRepository != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _messageRepository.SaveAsync(msg);
+                    if (_chatRepository != null)
+                    {
+                        var chat = await _chatRepository.GetByIdAsync(chatId);
+                        if (chat != null)
+                        {
+                            chat.LastMessage = msg;
+                            chat.LastMessageTime = msg.Timestamp;
+                            await _chatRepository.SaveAsync(chat);
+                        }
+                    }
+                }
+                catch { }
+            }, ct);
+        }
+
         if (_clientPtr != IntPtr.Zero)
         {
             await Task.Run(() =>
@@ -634,6 +825,75 @@ public class WhatsAppProvider : IWhatsAppProvider
         return Task.CompletedTask;
     }
 
+    public async Task<IReadOnlyList<Contact>> GetContactsAsync(CancellationToken ct = default)
+    {
+        if (_clientPtr == IntPtr.Zero)
+        {
+            return Array.Empty<Contact>();
+        }
+
+        return await Task.Run(async () =>
+        {
+            var ptr = WhatsAppNative.wa_get_contacts(_clientPtr);
+            if (ptr == IntPtr.Zero)
+            {
+                return (IReadOnlyList<Contact>)Array.Empty<Contact>();
+            }
+
+            try
+            {
+                var json = Marshal.PtrToStringUTF8(ptr);
+                if (string.IsNullOrEmpty(json))
+                {
+                    return (IReadOnlyList<Contact>)Array.Empty<Contact>();
+                }
+
+                var nativeContacts = JsonSerializer.Deserialize<List<NativeContactDto>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (nativeContacts == null || nativeContacts.Count == 0)
+                {
+                    return (IReadOnlyList<Contact>)Array.Empty<Contact>();
+                }
+
+                var result = new List<Contact>();
+                foreach (var nc in nativeContacts)
+                {
+                    if (string.IsNullOrEmpty(nc.Id) || string.IsNullOrEmpty(nc.Name)) continue;
+                    var contact = new Contact
+                    {
+                        Id = nc.Id,
+                        Name = nc.Name,
+                        PhoneNumber = nc.PhoneNumber,
+                        PlatformId = "WhatsApp"
+                    };
+                    result.Add(contact);
+                }
+
+                // Persist to IContactRepository
+                try
+                {
+                    if (_contactRepository != null)
+                    {
+                        foreach (var c in result)
+                        {
+                            await _contactRepository.SaveAsync(c);
+                        }
+                    }
+                }
+                catch { }
+
+                return (IReadOnlyList<Contact>)result;
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }, ct);
+    }
+
     protected virtual void OnConnectionStateChanged(ConnectionState state)
     {
         ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(PlatformId, state));
@@ -642,6 +902,14 @@ public class WhatsAppProvider : IWhatsAppProvider
     public void Dispose()
     {
         _ = DisconnectAsync();
+    }
+
+    private class NativeContactDto
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? PlatformId { get; set; }
     }
 
     private class NativeChatDto

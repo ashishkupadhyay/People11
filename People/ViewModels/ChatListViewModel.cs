@@ -366,6 +366,24 @@ public partial class ChatListViewModel : ViewModelBase
             // Windows Contacts store access may be restricted
         }
 
+        // 2.5. Load synced contacts from WhatsApp Provider
+        if (_provider is IWhatsAppProvider waProvider)
+        {
+            try
+            {
+                var waContacts = await waProvider.GetContactsAsync();
+                foreach (var c in waContacts)
+                {
+                    if (!string.IsNullOrWhiteSpace(c.Name) && c.Name != "WhatsApp Contact")
+                    {
+                        var key = !string.IsNullOrWhiteSpace(c.PhoneNumber) ? c.PhoneNumber : c.Id;
+                        contactsMap[key] = c;
+                    }
+                }
+            }
+            catch { }
+        }
+
         // 3. Extract 1-on-1 contacts from chats
         foreach (var chat in Chats)
         {

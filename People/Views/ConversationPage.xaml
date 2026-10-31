@@ -39,11 +39,7 @@
         <!-- Messages -->
         <RefreshContainer x:Name="MessagesRefreshContainer" Grid.Row="1" RefreshRequested="MessagesRefreshContainer_RefreshRequested">
             <RefreshContainer.Visualizer>
-                <RefreshVisualizer>
-                    <RefreshVisualizer.Content>
-                        <ProgressRing IsActive="True" Width="24" Height="24" IsIndeterminate="True" />
-                    </RefreshVisualizer.Content>
-                </RefreshVisualizer>
+                <RefreshVisualizer />
             </RefreshContainer.Visualizer>
             <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
                 <ListView.Header>

@@ -61,9 +61,34 @@ public class ChatRepository : IChatRepository
         else
         {
             context.Entry(existing).CurrentValues.SetValues(chat);
-            // Updating relationships requires more complex logic in a real app
+            if (chat.LastMessage != null)
+            {
+                existing.LastMessage = chat.LastMessage;
+            }
         }
         
+        await context.SaveChangesAsync();
+    }
+
+    public async Task SaveManyAsync(IEnumerable<Chat> chats)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        foreach (var chat in chats)
+        {
+            var existing = await context.Chats.FindAsync(chat.Id);
+            if (existing == null)
+            {
+                context.Chats.Add(chat);
+            }
+            else
+            {
+                context.Entry(existing).CurrentValues.SetValues(chat);
+                if (chat.LastMessage != null)
+                {
+                    existing.LastMessage = chat.LastMessage;
+                }
+            }
+        }
         await context.SaveChangesAsync();
     }
 
