@@ -458,7 +458,8 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         return await Task.Run(() =>
         {
-            var ptr = WhatsAppNative.wa_get_messages(_clientPtr, chatId);
+            // Use paginated API: beforeTs=0 means "from the end" (newest messages)
+            var ptr = WhatsAppNative.wa_get_messages_paginated(_clientPtr, chatId, 0, limit);
             if (ptr == IntPtr.Zero) return (IReadOnlyList<Message>)new List<Message>();
 
             try
@@ -517,25 +518,84 @@ public class WhatsAppProvider : IWhatsAppProvider
             return Array.Empty<Message>();
         }
 
-        var initialMsgs = await GetMessagesAsync(chatId, 0, 100, ct);
-        int initialCount = initialMsgs.Count;
+        // Get current local message count before requesting from phone
+        int initialCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
 
+        // Fire PDO on-demand request to the phone (async, fire-and-forget on Rust side)
         await Task.Run(() =>
         {
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, chatId, count);
         }, ct);
 
-        for (int i = 0; i < 20; i++)
+        // Poll for up to 8 seconds waiting for phone to respond with history sync
+        for (int i = 0; i < 40; i++)
         {
             await Task.Delay(200, ct);
-            var currentMsgs = await GetMessagesAsync(chatId, 0, 100, ct);
-            if (currentMsgs.Count > initialCount)
+            int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
+            if (currentCount > initialCount)
             {
-                return currentMsgs;
+                // New messages arrived — return all messages for caller to merge
+                return await GetAllMessagesRaw(chatId, ct);
             }
         }
 
-        return await GetMessagesAsync(chatId, 0, 100, ct);
+        // Return whatever we have (may not have received new ones)
+        return await GetAllMessagesRaw(chatId, ct);
+    }
+
+    /// <summary>
+    /// Internal: returns ALL messages for a chat (not paginated). Used only by GetOlderMessagesAsync
+    /// so the ViewModel can merge any newly-arrived older messages.
+    /// </summary>
+    private async Task<IReadOnlyList<Message>> GetAllMessagesRaw(string chatId, CancellationToken ct)
+    {
+        return await Task.Run(() =>
+        {
+            var ptr = WhatsAppNative.wa_get_messages(_clientPtr, chatId);
+            if (ptr == IntPtr.Zero) return (IReadOnlyList<Message>)new List<Message>();
+
+            try
+            {
+                var json = Marshal.PtrToStringUTF8(ptr);
+                if (string.IsNullOrEmpty(json)) return new List<Message>();
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var dtos = JsonSerializer.Deserialize<List<NativeMessageDto>>(json, options) ?? new List<NativeMessageDto>();
+
+                var messages = new List<Message>();
+                foreach (var dto in dtos)
+                {
+                    messages.Add(new Message
+                    {
+                        Id = dto.Id ?? Guid.NewGuid().ToString(),
+                        ChatId = dto.ChatId ?? chatId,
+                        PlatformId = "WhatsApp",
+                        SenderId = dto.SenderId ?? string.Empty,
+                        SenderName = dto.SenderName,
+                        IsOutgoing = dto.IsOutgoing,
+                        Content = new MessageContent { Text = dto.Text ?? string.Empty },
+                        Timestamp = dto.Timestamp > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
+                            : DateTimeOffset.UtcNow,
+                        Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                        QuotedText = dto.QuotedText,
+                        QuotedSender = dto.QuotedSender,
+                        Reactions = dto.Reactions ?? new()
+                    });
+                }
+
+                return (IReadOnlyList<Message>)messages;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to deserialize messages from native bridge.");
+                return new List<Message>();
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }, ct);
     }
 
     public async Task<Message> SendMessageAsync(string chatId, MessageContent content, CancellationToken ct = default)

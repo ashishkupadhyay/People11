@@ -140,7 +140,8 @@ public partial class ConversationViewModel : ViewModelBase
         if (CurrentChat == null) return;
         try
         {
-            var msgs = await _provider.GetMessagesAsync(CurrentChat.Id);
+            // Use a larger limit to catch newly-synced messages beyond the initial page
+            var msgs = await _provider.GetMessagesAsync(CurrentChat.Id, 0, 100);
             _dispatcherService.Enqueue(() =>
             {
                 foreach (var msg in msgs)
