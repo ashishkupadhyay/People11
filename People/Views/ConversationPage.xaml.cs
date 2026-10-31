@@ -27,6 +27,15 @@ public sealed partial class ConversationPage : Page
                 }
             }
         };
+
+        ViewModel.OlderMessagesLoaded += (s, anchor) =>
+        {
+            if (anchor != null)
+            {
+                MessagesListView.UpdateLayout();
+                MessagesListView.ScrollIntoView(anchor, ScrollIntoViewAlignment.Leading);
+            }
+        };
     }
 
     private async void MessagesRefreshContainer_RefreshRequested(RefreshContainer sender, RefreshRequestedEventArgs args)
@@ -34,7 +43,13 @@ public sealed partial class ConversationPage : Page
         using var deferral = args.GetDeferral();
         if (ViewModel != null)
         {
+            var anchor = ViewModel.Messages.FirstOrDefault();
             await ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
+            if (anchor != null)
+            {
+                MessagesListView.UpdateLayout();
+                MessagesListView.ScrollIntoView(anchor, ScrollIntoViewAlignment.Leading);
+            }
         }
     }
 

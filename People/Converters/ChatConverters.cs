@@ -165,3 +165,38 @@ public class OutgoingSubtextColorConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
+
+public class StringToImageSourceConverter : IValueConverter
+{
+    public object? Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is string url && !string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(uri);
+        }
+        return null;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class PersonPictureDisplayNameConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is string title && !string.IsNullOrWhiteSpace(title))
+        {
+            var trimmed = title.Trim();
+            // If it's an unsaved number (starts with '+' or consists almost entirely of digits and separators)
+            if (trimmed.StartsWith('+') || trimmed.All(c => char.IsDigit(c) || char.IsWhiteSpace(c) || c == '-' || c == '(' || c == ')'))
+            {
+                // Return empty string so PersonPicture displays the native person glyph rather than digit initials
+                return string.Empty;
+            }
+            return title;
+        }
+        return string.Empty;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}

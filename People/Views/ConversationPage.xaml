@@ -18,6 +18,8 @@
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
         <converters:CollectionToVisibilityConverter x:Key="CollectionToVisibilityConverter" />
         <converters:GroupSenderVisibilityConverter x:Key="GroupSenderVisibilityConverter" />
+        <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
+        <converters:PersonPictureDisplayNameConverter x:Key="PersonPictureDisplayNameConverter" />
         <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
     </Page.Resources>
 
@@ -31,7 +33,10 @@
         <!-- Header -->
         <Border Grid.Row="0" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="12">
-                <PersonPicture DisplayName="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" Width="40" Height="40" />
+                <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                               IsGroup="{x:Bind ViewModel.CurrentChat.IsGroup, Mode=OneWay}"
+                               DisplayName="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}"
+                               Width="40" Height="40" />
                 <TextBlock Text="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}" />
             </StackPanel>
         </Border>
@@ -39,7 +44,11 @@
         <!-- Messages -->
         <RefreshContainer x:Name="MessagesRefreshContainer" Grid.Row="1" RefreshRequested="MessagesRefreshContainer_RefreshRequested">
             <RefreshContainer.Visualizer>
-                <RefreshVisualizer />
+                <RefreshVisualizer>
+                    <RefreshVisualizer.Content>
+                        <ProgressRing IsActive="True" Width="24" Height="24" />
+                    </RefreshVisualizer.Content>
+                </RefreshVisualizer>
             </RefreshContainer.Visualizer>
             <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
                 <ListView.Header>

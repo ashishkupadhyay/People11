@@ -1,15 +1,32 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace People.Core.Models;
 
-public class Chat
+public partial class Chat : ObservableObject
 {
-    public string Id { get; set; } = string.Empty;
-    public string PlatformId { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public bool IsGroup { get; set; }
-    public string? PictureUrl { get; set; }
-    public int UnreadCount { get; set; }
-    public DateTimeOffset LastMessageTime { get; set; }
-    public Message? LastMessage { get; set; }
+    [ObservableProperty]
+    private string _id = string.Empty;
+
+    [ObservableProperty]
+    private string _platformId = string.Empty;
+
+    [ObservableProperty]
+    private string _title = string.Empty;
+
+    [ObservableProperty]
+    private bool _isGroup;
+
+    [ObservableProperty]
+    private string? _pictureUrl;
+
+    [ObservableProperty]
+    private int _unreadCount;
+
+    [ObservableProperty]
+    private DateTimeOffset _lastMessageTime;
+
+    [ObservableProperty]
+    private Message? _lastMessage;
     
     // For EF Core
     public ICollection<Contact> Participants { get; set; } = new List<Contact>();

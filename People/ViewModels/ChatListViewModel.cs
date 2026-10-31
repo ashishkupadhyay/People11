@@ -218,26 +218,110 @@ public partial class ChatListViewModel : ViewModelBase
         {
             if (_allContacts.Count == 0)
             {
-                await RebuildContactsAsync();
+                await Task.Run(RebuildContactsAsync);
             }
 
             var chats = await _provider.GetChatsAsync();
-            _dispatcherService.Enqueue(async () =>
+            _dispatcherService.Enqueue(() =>
             {
-                Chats.Clear();
-                foreach (var chat in chats)
+                var newChatIds = new HashSet<string>(chats.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+
+                // Remove chats that no longer exist
+                for (int i = Chats.Count - 1; i >= 0; i--)
                 {
-                    chat.Title = ResolveChatTitle(chat);
-                    Chats.Add(chat);
+                    if (!newChatIds.Contains(Chats[i].Id))
+                    {
+                        Chats.RemoveAt(i);
+                    }
                 }
 
-                // Refresh contacts list for New Chat flyout
-                await RebuildContactsAsync();
+                // Update existing or add new
+                foreach (var incoming in chats)
+                {
+                    incoming.Title = ResolveChatTitle(incoming);
+
+                    var existing = Chats.FirstOrDefault(c => c.Id.Equals(incoming.Id, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
+                    {
+                        if (existing.Title != incoming.Title && incoming.Title != "WhatsApp Contact")
+                        {
+                            existing.Title = incoming.Title;
+                        }
+                        if (existing.LastMessageTime != incoming.LastMessageTime)
+                        {
+                            existing.LastMessageTime = incoming.LastMessageTime;
+                        }
+                        if (incoming.LastMessage != null)
+                        {
+                            existing.LastMessage = incoming.LastMessage;
+                        }
+                        existing.UnreadCount = incoming.UnreadCount;
+                        if (!string.IsNullOrEmpty(incoming.PictureUrl) && existing.PictureUrl != incoming.PictureUrl)
+                        {
+                            existing.PictureUrl = incoming.PictureUrl;
+                        }
+                    }
+                    else
+                    {
+                        Chats.Add(incoming);
+                    }
+                }
+
+                SortChatsInPlace();
+            });
+
+            // Asynchronously resolve missing profile picture URLs in the background
+            _ = Task.Run(async () =>
+            {
+                if (_provider is IWhatsAppProvider waProvider)
+                {
+                    foreach (var chat in chats)
+                    {
+                        if (string.IsNullOrEmpty(chat.PictureUrl))
+                        {
+                            try
+                            {
+                                var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id);
+                                if (!string.IsNullOrEmpty(picUrl))
+                                {
+                                    _dispatcherService.Enqueue(() =>
+                                    {
+                                        var target = Chats.FirstOrDefault(c => c.Id.Equals(chat.Id, StringComparison.OrdinalIgnoreCase));
+                                        if (target != null)
+                                        {
+                                            target.PictureUrl = picUrl;
+                                        }
+                                    });
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
             });
         }
         catch (Exception)
         {
             _dispatcherService.Enqueue(() => LoadMockData());
+        }
+    }
+
+    private void SortChatsInPlace()
+    {
+        for (int i = 0; i < Chats.Count - 1; i++)
+        {
+            int maxIdx = i;
+            for (int j = i + 1; j < Chats.Count; j++)
+            {
+                if (Chats[j].LastMessageTime > Chats[maxIdx].LastMessageTime)
+                {
+                    maxIdx = j;
+                }
+            }
+            if (maxIdx != i)
+            {
+                Chats.Move(maxIdx, i);
+            }
         }
     }
 
@@ -419,7 +503,7 @@ public partial class ChatListViewModel : ViewModelBase
 
         _allContacts.Clear();
         _allContacts.AddRange(contactsMap.Values.OrderBy(c => c.Name));
-        FilterContacts(string.Empty);
+        _dispatcherService.Enqueue(() => FilterContacts(string.Empty));
     }
 
     public void FilterContacts(string query)

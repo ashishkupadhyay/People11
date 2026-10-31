@@ -239,34 +239,50 @@ public class WhatsAppProvider : IWhatsAppProvider
         _activeInstance.SyncProgressChanged?.Invoke(_activeInstance, progress);
     }
 
+    private static readonly object _chatsUpdateLock = new();
+    private static CancellationTokenSource? _chatsUpdateDebounceCts;
+
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static void OnNativeChatsUpdated()
     {
         if (_activeInstance == null) return;
         _activeInstance._logger?.LogInformation("WhatsApp chats updated notification from backend.");
 
-        _ = Task.Run(async () =>
+        lock (_chatsUpdateLock)
         {
-            try
+            _chatsUpdateDebounceCts?.Cancel();
+            _chatsUpdateDebounceCts?.Dispose();
+            _chatsUpdateDebounceCts = new CancellationTokenSource();
+            var token = _chatsUpdateDebounceCts.Token;
+
+            _ = Task.Run(async () =>
             {
-                if (_activeInstance._chatRepository != null && _activeInstance._clientPtr != IntPtr.Zero)
+                try
                 {
-                    var chats = await _activeInstance.FetchChatsFromNativeAsync();
-                    if (chats.Count > 0)
+                    await Task.Delay(400, token);
+                    if (token.IsCancellationRequested) return;
+
+                    if (_activeInstance._chatRepository != null && _activeInstance._clientPtr != IntPtr.Zero)
                     {
-                        await _activeInstance._chatRepository.SaveManyAsync(chats);
+                        var chats = await _activeInstance.FetchChatsFromNativeAsync(token);
+                        if (chats.Count > 0 && !token.IsCancellationRequested)
+                        {
+                            await _activeInstance._chatRepository.SaveManyAsync(chats);
+                        }
+                    }
+
+                    if (!token.IsCancellationRequested)
+                    {
+                        _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _activeInstance._logger?.LogError(ex, "Failed to persist updated chats to SQLite repository.");
-            }
-            finally
-            {
-                _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
-            }
-        });
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    _activeInstance._logger?.LogError(ex, "Failed to persist updated chats to SQLite repository.");
+                }
+            }, token);
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -448,6 +464,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Title = dto.Title ?? string.Empty,
                         IsGroup = dto.IsGroup,
                         UnreadCount = dto.UnreadCount,
+                        PictureUrl = dto.PictureUrl,
                         LastMessageTime = dto.LastMessageTimestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessageTimestamp)
                             : DateTimeOffset.UtcNow
@@ -687,8 +704,8 @@ public class WhatsAppProvider : IWhatsAppProvider
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, chatId, count);
         }, ct);
 
-        // Poll for phone response
-        for (int i = 0; i < 40; i++)
+        // Poll for phone response (up to 3 seconds)
+        for (int i = 0; i < 15; i++)
         {
             await Task.Delay(200, ct);
             int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
@@ -894,6 +911,48 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
+    public async Task<string?> GetProfilePictureUrlAsync(string chatId, CancellationToken ct = default)
+    {
+        if (IsTestingMode || _clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
+        {
+            return null;
+        }
+
+        return await Task.Run(async () =>
+        {
+            var ptr = WhatsAppNative.wa_get_profile_picture(_clientPtr, chatId, true);
+            if (ptr == IntPtr.Zero) return null;
+
+            try
+            {
+                var url = Marshal.PtrToStringUTF8(ptr);
+                if (!string.IsNullOrWhiteSpace(url))
+                {
+                    if (_chatRepository != null)
+                    {
+                        var chat = await _chatRepository.GetByIdAsync(chatId);
+                        if (chat != null && chat.PictureUrl != url)
+                        {
+                            chat.PictureUrl = url;
+                            await _chatRepository.SaveAsync(chat);
+                        }
+                    }
+                    return url;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to resolve profile picture for chat {ChatId}", chatId);
+                return null;
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }, ct);
+    }
+
     protected virtual void OnConnectionStateChanged(ConnectionState state)
     {
         ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(PlatformId, state));
@@ -921,6 +980,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         public int UnreadCount { get; set; }
         public long LastMessageTimestamp { get; set; }
         public NativeMessageDto? LastMessage { get; set; }
+        public string? PictureUrl { get; set; }
     }
 
     private class NativeMessageDto

@@ -14,6 +14,8 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageSourceConverter" />
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+        <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
+        <converters:PersonPictureDisplayNameConverter x:Key="PersonPictureDisplayNameConverter" />
     </Page.Resources>
 
     <Grid x:Name="RootGrid">
@@ -113,7 +115,10 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <PersonPicture Grid.Column="0" DisplayName="{x:Bind Name, Mode=OneTime}" Width="36" Height="36" Margin="0,0,10,0"/>
+                                                    <PersonPicture Grid.Column="0" 
+                                                                   ProfilePicture="{x:Bind ProfilePictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                                                   DisplayName="{x:Bind Name, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
+                                                                   Width="36" Height="36" Margin="0,0,10,0"/>
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                         <TextBlock Text="{x:Bind Name, Mode=OneTime}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{x:Bind PhoneNumber, Mode=OneTime}" 
@@ -161,11 +166,15 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             
-                            <PersonPicture Grid.Column="0" DisplayName="{x:Bind Title, Mode=OneTime}" Width="48" Height="48" Margin="0,0,12,0"/>
+                            <PersonPicture Grid.Column="0" 
+                                           ProfilePicture="{x:Bind PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                           IsGroup="{x:Bind IsGroup, Mode=OneWay}"
+                                           DisplayName="{x:Bind Title, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
+                                           Width="48" Height="48" Margin="0,0,12,0"/>
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind Title, Mode=OneTime}" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneTime, FallbackValue=''}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneWay, FallbackValue=''}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
                             </StackPanel>
                         </Grid>
                     </DataTemplate>

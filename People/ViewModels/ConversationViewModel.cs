@@ -36,6 +36,8 @@ public partial class ConversationViewModel : ViewModelBase
         _provider.ChatUpdated += OnChatUpdated;
     }
 
+    public event EventHandler<Message>? OlderMessagesLoaded;
+
     public async void LoadChat(Chat chat)
     {
         CurrentChat = chat;
@@ -53,12 +55,6 @@ public partial class ConversationViewModel : ViewModelBase
                     Messages.Add(msg);
                 }
                 IsLoading = false;
-
-                // If chat has few or no messages, automatically fetch older messages from phone
-                if (Messages.Count < 10)
-                {
-                    _ = LoadOlderMessagesAsync();
-                }
             });
         }
         catch
@@ -76,12 +72,14 @@ public partial class ConversationViewModel : ViewModelBase
         if (CurrentChat == null || IsLoadingOlder) return;
 
         IsLoadingOlder = true;
+        var anchor = Messages.FirstOrDefault();
 
         try
         {
             var older = await _provider.GetOlderMessagesAsync(CurrentChat.Id, 25);
             _dispatcherService.Enqueue(() =>
             {
+                bool addedAny = false;
                 foreach (var msg in older)
                 {
                     if (!Messages.Any(m => m.Id == msg.Id))
@@ -92,9 +90,15 @@ public partial class ConversationViewModel : ViewModelBase
                             index++;
                         }
                         Messages.Insert(index, msg);
+                        addedAny = true;
                     }
                 }
                 IsLoadingOlder = false;
+
+                if (addedAny && anchor != null)
+                {
+                    OlderMessagesLoaded?.Invoke(this, anchor);
+                }
             });
         }
         catch
