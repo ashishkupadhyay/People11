@@ -65,6 +65,25 @@ public partial class ConversationViewModel : ViewModelBase
         UpdateChatDateString();
         UpdateSenderPushName();
 
+        if (string.IsNullOrEmpty(chat.PictureUrl) && _provider is IWhatsAppProvider waProvider)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id);
+                    if (!string.IsNullOrEmpty(picUrl))
+                    {
+                        _dispatcherService.Enqueue(() =>
+                        {
+                            chat.PictureUrl = picUrl;
+                        });
+                    }
+                }
+                catch { }
+            });
+        }
+
         try
         {
             var msgs = await _provider.GetMessagesAsync(chat.Id, 0, 30);

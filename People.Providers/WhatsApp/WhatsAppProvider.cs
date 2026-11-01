@@ -482,7 +482,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         PictureUrl = dto.PictureUrl,
                         LastMessageTime = dto.LastMessageTimestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessageTimestamp)
-                            : DateTimeOffset.UtcNow
+                            : DateTimeOffset.MinValue
                     };
 
                     if (dto.LastMessage != null && !string.IsNullOrWhiteSpace(dto.LastMessage.Text))
@@ -498,7 +498,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                             Content = new MessageContent { Text = dto.LastMessage.Text ?? string.Empty },
                             Timestamp = dto.LastMessage.Timestamp > 0
                                 ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
-                                : chat.LastMessageTime,
+                                : (chat.LastMessageTime != DateTimeOffset.MinValue ? chat.LastMessageTime : DateTimeOffset.UnixEpoch),
                             Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
                             QuotedText = dto.LastMessage.QuotedText,
                             QuotedSender = dto.LastMessage.QuotedSender,
@@ -676,7 +676,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Content = new MessageContent { Text = dto.Text ?? string.Empty },
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
-                            : DateTimeOffset.UtcNow,
+                            : DateTimeOffset.UnixEpoch,
                         Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
                         QuotedText = dto.QuotedText,
                         QuotedSender = dto.QuotedSender,
@@ -815,7 +815,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Content = new MessageContent { Text = dto.Text ?? string.Empty },
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
-                            : DateTimeOffset.UtcNow,
+                            : DateTimeOffset.UnixEpoch,
                         Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
                         QuotedText = dto.QuotedText,
                         QuotedSender = dto.QuotedSender,

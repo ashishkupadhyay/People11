@@ -19,6 +19,7 @@
         <converters:ChatTimestampConverter x:Key="ChatTimestampConverter" />
         <converters:ChatLastMessagePreviewConverter x:Key="ChatLastMessagePreviewConverter" />
         <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
+        <converters:UnreadToTimestampBrushConverter x:Key="UnreadToTimestampBrushConverter" />
     </Page.Resources>
 
     <Grid x:Name="RootGrid">
@@ -188,7 +189,7 @@
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4" Margin="8,0,0,0">
                                 <TextBlock Text="{x:Bind LastMessageTime, Mode=OneWay, Converter={StaticResource ChatTimestampConverter}}" 
                                            Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                           Foreground="{x:Bind UnreadCount, Mode=OneWay, Converter={StaticResource UnreadToTimestampBrushConverter}}" 
                                            HorizontalAlignment="Right" />
                                 
                                 <Border Background="{ThemeResource AppAccentBrush}" 

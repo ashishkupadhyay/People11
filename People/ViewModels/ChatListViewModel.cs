@@ -46,6 +46,10 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly IDispatcherService _dispatcherService;
     private readonly IChatRepository? _chatRepository;
     private readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _contactNamesByPhoneDigits = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _contactNamesById = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _reloadLock = new();
+    private CancellationTokenSource? _chatUpdateDebounceCts;
     private int _isLoadingChats;
     private volatile bool _needsReloadChats;
 
@@ -181,10 +185,25 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
-        _dispatcherService.Enqueue(() =>
+        lock (_reloadLock)
         {
-            _ = LoadChatsAsync();
-        });
+            _chatUpdateDebounceCts?.Cancel();
+            _chatUpdateDebounceCts = new CancellationTokenSource();
+            var token = _chatUpdateDebounceCts.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(300, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        await LoadChatsAsync();
+                    }
+                }
+                catch (OperationCanceledException) { }
+            }, token);
+        }
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
@@ -273,11 +292,11 @@ public partial class ChatListViewModel : ViewModelBase
                 try
                 {
                     var cached = await _chatRepository.GetAllAsync(0, 100);
-                    // Filter out any phantom empty non-group chat stubs
-                    var validCached = cached.Where(c => c.IsGroup || (c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
+                    // Filter out phantom empty chat stubs: must have a non-empty last message
+                    var validCached = cached.Where(c => c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text)).ToList();
 
                     // Prune phantom stubs in the background
-                    var phantoms = cached.Where(c => !c.IsGroup && (c.LastMessage == null || string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
+                    var phantoms = cached.Where(c => c.LastMessage == null || string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text)).ToList();
                     if (phantoms.Count > 0)
                     {
                         _ = Task.Run(async () =>
@@ -291,14 +310,18 @@ public partial class ChatListViewModel : ViewModelBase
 
                     if (validCached.Count > 0 && Chats.Count == 0)
                     {
+                        foreach (var c in validCached)
+                        {
+                            c.Title = ResolveChatTitle(c);
+                        }
+                        var sortedCached = validCached.OrderByDescending(c => c.LastMessageTime).ToList();
+
                         _dispatcherService.Enqueue(() =>
                         {
                             if (Chats.Count == 0)
                             {
-                                var sorted = validCached.OrderByDescending(c => c.LastMessageTime).ToList();
-                                foreach (var c in sorted)
+                                foreach (var c in sortedCached)
                                 {
-                                    c.Title = ResolveChatTitle(c);
                                     Chats.Add(c);
                                 }
                             }
@@ -315,7 +338,13 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chats = await _provider.GetChatsAsync();
-            var validChats = chats.Where(c => c.IsGroup || (c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
+            var validChats = chats.Where(c => c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text)).ToList();
+
+            // Resolve titles on background thread BEFORE dispatching to UI
+            foreach (var incoming in validChats)
+            {
+                incoming.Title = ResolveChatTitle(incoming);
+            }
             var sortedIncoming = validChats.OrderByDescending(c => c.LastMessageTime).ToList();
 
             _dispatcherService.Enqueue(() =>
@@ -324,7 +353,6 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     foreach (var incoming in sortedIncoming)
                     {
-                        incoming.Title = ResolveChatTitle(incoming);
                         Chats.Add(incoming);
                     }
                 }
@@ -347,8 +375,6 @@ public partial class ChatListViewModel : ViewModelBase
                     // Update existing or add new
                     foreach (var incoming in validChats)
                     {
-                        incoming.Title = ResolveChatTitle(incoming);
-
                         var existing = Chats.FirstOrDefault(c => c.Id.Equals(incoming.Id, StringComparison.OrdinalIgnoreCase));
                         if (existing != null)
                         {
@@ -380,14 +406,14 @@ public partial class ChatListViewModel : ViewModelBase
                 }
             });
 
-            // Asynchronously resolve missing profile picture URLs in the background (bounded to top 15 most active chats)
+            // Asynchronously resolve missing profile picture URLs in the background (bounded to top 25 most active chats)
             _ = Task.Run(async () =>
             {
                 if (_provider is IWhatsAppProvider waProvider)
                 {
                     var chatsNeedingPics = validChats
                         .Where(c => string.IsNullOrEmpty(c.PictureUrl) && !_failedPictureJids.Contains(c.Id))
-                        .Take(15)
+                        .Take(25)
                         .ToList();
 
                     if (chatsNeedingPics.Count == 0) return;
@@ -447,6 +473,17 @@ public partial class ChatListViewModel : ViewModelBase
     private void SortChatsInPlace()
     {
         var targetOrder = Chats.OrderByDescending(c => c.LastMessageTime).ToList();
+        bool isAlreadySorted = true;
+        for (int i = 0; i < targetOrder.Count; i++)
+        {
+            if (!ReferenceEquals(Chats[i], targetOrder[i]))
+            {
+                isAlreadySorted = false;
+                break;
+            }
+        }
+        if (isAlreadySorted) return;
+
         for (int i = 0; i < targetOrder.Count; i++)
         {
             var item = targetOrder[i];
@@ -462,50 +499,43 @@ public partial class ChatListViewModel : ViewModelBase
     {
         if (chat.IsGroup) return chat.Title;
 
-        var candidateNumbers = new List<string>();
+        if (!string.IsNullOrEmpty(chat.Id))
+        {
+            lock (_contactNamesById)
+            {
+                if (_contactNamesById.TryGetValue(chat.Id, out var name))
+                {
+                    return name;
+                }
+            }
+        }
+
+        var candidateDigits = new List<string>();
         if (!string.IsNullOrEmpty(chat.Title) && (chat.Title.StartsWith('+') || chat.Title.All(char.IsDigit)))
         {
             var tDigits = new string(chat.Title.Where(char.IsDigit).ToArray());
-            if (!string.IsNullOrEmpty(tDigits))
-            {
-                candidateNumbers.Add(tDigits);
-            }
+            if (tDigits.Length >= 7) candidateDigits.Add(tDigits);
         }
 
         if (!string.IsNullOrEmpty(chat.Id) && !chat.Id.EndsWith("@lid", StringComparison.OrdinalIgnoreCase))
         {
             var userPart = chat.Id.Contains('@') ? chat.Id.Split('@')[0] : chat.Id;
             var idDigits = new string(userPart.Where(char.IsDigit).ToArray());
-            if (!string.IsNullOrEmpty(idDigits))
-            {
-                candidateNumbers.Add(idDigits);
-            }
+            if (idDigits.Length >= 7) candidateDigits.Add(idDigits);
         }
 
-        foreach (var c in _allContacts)
+        lock (_contactNamesByPhoneDigits)
         {
-            if (string.IsNullOrWhiteSpace(c.Name)) continue;
-
-            if (!string.IsNullOrWhiteSpace(c.PhoneNumber))
+            foreach (var num in candidateDigits)
             {
-                var cDigits = new string(c.PhoneNumber.Where(char.IsDigit).ToArray());
-                if (!string.IsNullOrEmpty(cDigits))
+                if (_contactNamesByPhoneDigits.TryGetValue(num, out var name))
                 {
-                    foreach (var num in candidateNumbers)
-                    {
-                        if (cDigits == num ||
-                            (cDigits.Length >= 10 && num.Length >= 10 &&
-                             (cDigits.EndsWith(num.Substring(num.Length - 10)) || num.EndsWith(cDigits.Substring(cDigits.Length - 10)))))
-                        {
-                            return c.Name;
-                        }
-                    }
+                    return name;
                 }
-            }
-
-            if (c.Id.Equals(chat.Id, StringComparison.OrdinalIgnoreCase))
-            {
-                return c.Name;
+                if (num.Length > 10 && _contactNamesByPhoneDigits.TryGetValue(num.Substring(num.Length - 10), out var n10))
+                {
+                    return n10;
+                }
             }
         }
 
@@ -607,6 +637,43 @@ public partial class ChatListViewModel : ViewModelBase
 
         // Note: We deliberately do NOT extract unsaved phone numbers from chats here,
         // so the new chat flyout only contains saved contacts from address book & WhatsApp.
+
+        var byDigits = new Dictionary<string, string>(StringComparer.Ordinal);
+        var byId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var c in contactsMap.Values)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Name))
+            {
+                if (!string.IsNullOrWhiteSpace(c.Id))
+                {
+                    byId[c.Id] = c.Name;
+                }
+                if (!string.IsNullOrWhiteSpace(c.PhoneNumber))
+                {
+                    var digits = new string(c.PhoneNumber.Where(char.IsDigit).ToArray());
+                    if (digits.Length >= 7)
+                    {
+                        byDigits[digits] = c.Name;
+                        if (digits.Length > 10)
+                        {
+                            byDigits[digits.Substring(digits.Length - 10)] = c.Name;
+                        }
+                    }
+                }
+            }
+        }
+
+        lock (_contactNamesById)
+        {
+            _contactNamesById.Clear();
+            foreach (var kvp in byId) _contactNamesById[kvp.Key] = kvp.Value;
+        }
+        lock (_contactNamesByPhoneDigits)
+        {
+            _contactNamesByPhoneDigits.Clear();
+            foreach (var kvp in byDigits) _contactNamesByPhoneDigits[kvp.Key] = kvp.Value;
+        }
 
         _allContacts.Clear();
         _allContacts.AddRange(contactsMap.Values.OrderBy(c => c.Name));
