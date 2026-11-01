@@ -47,6 +47,29 @@ public sealed partial class MainWindow : Window
         return isVisible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     }
 
+    [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    private const int DWMWA_CLOAK = 13;
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+    private IntPtr _hwnd = IntPtr.Zero;
+    private bool _isUncloaked = false;
+
+    private void OnFirstFrameRendered(object? sender, Microsoft.UI.Xaml.Media.RenderedEventArgs e)
+    {
+        Microsoft.UI.Xaml.Media.CompositionTarget.Rendered -= OnFirstFrameRendered;
+        UncloakWindow();
+    }
+
+    private void UncloakWindow()
+    {
+        if (_isUncloaked || _hwnd == IntPtr.Zero) return;
+        _isUncloaked = true;
+        int uncloak = 0;
+        DwmSetWindowAttribute(_hwnd, DWMWA_CLOAK, ref uncloak, sizeof(int));
+    }
+
     public MainWindow()
     {
         ViewModel = App.Current.Services.GetRequiredService<MainWindowViewModel>();
@@ -89,6 +112,40 @@ public sealed partial class MainWindow : Window
         };
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _hwnd = hwnd;
+
+        // 1. Force DWM to use immersive dark mode frame
+        int darkMode = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+
+        // 2. Cloak window from DWM composition to suppress the unrendered black frame
+        int cloak = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, ref cloak, sizeof(int));
+
+        // 3. Register first-frame render hook to uncloak smoothly once pixels are drawn
+        if (this.Content is FrameworkElement contentElement)
+        {
+            if (!contentElement.IsLoaded)
+            {
+                contentElement.Loaded += (s, e) =>
+                {
+                    Microsoft.UI.Xaml.Media.CompositionTarget.Rendered += OnFirstFrameRendered;
+                };
+            }
+            else
+            {
+                Microsoft.UI.Xaml.Media.CompositionTarget.Rendered += OnFirstFrameRendered;
+            }
+        }
+
+        // 4. Fallback timer (150ms) to ensure window always uncloaks under any condition
+        var uncloakFallbackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        uncloakFallbackTimer.Tick += (s, e) =>
+        {
+            uncloakFallbackTimer.Stop();
+            UncloakWindow();
+        };
+        uncloakFallbackTimer.Start();
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
         
@@ -180,6 +237,7 @@ public sealed partial class MainWindow : Window
 
     private async void DismissSplashAsync()
     {
+        UncloakWindow();
         // Allow a brief moment for the initial page to measure, layout, and render
         await Task.Delay(350);
 
