@@ -12,6 +12,36 @@ public sealed partial class MainWindow : Window
 {
     public MainWindowViewModel ViewModel { get; }
 
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource WhatsAppDarkSource =
+        new(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource WhatsAppLightSource =
+        new(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource TelegramDarkSource =
+        new(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource TelegramLightSource =
+        new(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource SignalDarkSource =
+        new(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource SignalLightSource =
+        new(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource DiscordDarkSource =
+        new(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource DiscordLightSource =
+        new(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+
+    private void UpdateSidebarIcons(ElementTheme theme)
+    {
+        bool isDark = IsDarkTheme(theme);
+        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = isDark ? WhatsAppDarkSource : WhatsAppLightSource;
+        if (NavTelegramIcon != null) NavTelegramIcon.Source = isDark ? TelegramDarkSource : TelegramLightSource;
+        if (NavSignalIcon != null) NavSignalIcon.Source = isDark ? SignalDarkSource : SignalLightSource;
+        if (NavDiscordIcon != null) NavDiscordIcon.Source = isDark ? DiscordDarkSource : DiscordLightSource;
+    }
+
+
     public Microsoft.UI.Xaml.Visibility ConvertBoolToVisibility(bool isVisible)
     {
         return isVisible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
@@ -64,6 +94,8 @@ public sealed partial class MainWindow : Window
         
         if (this.Content is FrameworkElement rootElement)
         {
+            UpdateSidebarIcons(rootElement.ActualTheme);
+
             if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
             {
                 var titleBar = appWindow.TitleBar;
@@ -75,6 +107,7 @@ public sealed partial class MainWindow : Window
 
             rootElement.ActualThemeChanged += (s, args) => 
             {
+                UpdateSidebarIcons(rootElement.ActualTheme);
                 if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
                 {
                     UpdateTitleBarColors(appWindow.TitleBar, rootElement.ActualTheme);

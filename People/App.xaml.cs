@@ -87,15 +87,17 @@ public partial class App : Application
     {
         try
         {
+            // Activate MainWindow immediately so the native splash screen transitions seamlessly
+            // into MainWindow with SplashOverlay (matching #202020 background).
+            MainWindow = Services.GetRequiredService<MainWindow>();
+            MainWindow.Activate();
+
             var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
             if (dbFactory != null)
             {
                 using var db = dbFactory.CreateDbContext();
                 db.Database.EnsureCreated();
             }
-
-            MainWindow = Services.GetRequiredService<MainWindow>();
-            MainWindow.Activate();
 
             var trayService = Services.GetRequiredService<ITrayIconService>();
             trayService.Initialize();
