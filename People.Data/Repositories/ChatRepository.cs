@@ -72,21 +72,29 @@ public class ChatRepository : IChatRepository
 
     public async Task SaveManyAsync(IEnumerable<Chat> chats)
     {
+        var chatList = chats.ToList();
+        if (chatList.Count == 0) return;
+
         using var context = await _contextFactory.CreateDbContextAsync();
-        foreach (var chat in chats)
+        var ids = chatList.Select(c => c.Id).Distinct().ToList();
+        var existingDict = await context.Chats
+            .Include(c => c.LastMessage)
+            .Where(c => ids.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id);
+
+        foreach (var chat in chatList)
         {
-            var existing = await context.Chats.FindAsync(chat.Id);
-            if (existing == null)
-            {
-                context.Chats.Add(chat);
-            }
-            else
+            if (existingDict.TryGetValue(chat.Id, out var existing))
             {
                 context.Entry(existing).CurrentValues.SetValues(chat);
                 if (chat.LastMessage != null)
                 {
                     existing.LastMessage = chat.LastMessage;
                 }
+            }
+            else
+            {
+                context.Chats.Add(chat);
             }
         }
         await context.SaveChangesAsync();

@@ -33,6 +33,9 @@ public partial class SettingsViewModel : ViewModelBase
     public partial bool WhatsAppAutoDownloadDocuments { get; set; } = true;
 
     [ObservableProperty]
+    public partial bool EnterSendsMessage { get; set; } = true;
+
+    [ObservableProperty]
     public partial string WhatsAppBubbleColorOption { get; set; } = "Accent";
 
     [ObservableProperty]
@@ -233,6 +236,7 @@ public partial class SettingsViewModel : ViewModelBase
         WhatsAppAutoDownloadPhotos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadPhotos", true);
         WhatsAppAutoDownloadVideos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadVideos", false);
         WhatsAppAutoDownloadDocuments = _settingsService.GetValue<bool>("WhatsAppAutoDownloadDocuments", true);
+        EnterSendsMessage = _settingsService.GetValue<bool>("EnterSendsMessage", true);
         IsFlyoutEnabled = _settingsService.GetValue<bool>("FlyoutEnabled", true);
         ShowUnreadBadge = _settingsService.GetValue<bool>("ShowUnreadBadge", true);
         WhatsAppBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_WhatsApp", false) ? "Brand" : "Accent";
@@ -257,6 +261,8 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnWhatsAppAutoDownloadVideosChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppAutoDownloadVideos", value); }
 
     partial void OnWhatsAppAutoDownloadDocumentsChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppAutoDownloadDocuments", value); }
+
+    partial void OnEnterSendsMessageChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("EnterSendsMessage", value); }
 
     partial void OnIsFlyoutEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("FlyoutEnabled", value); }
 

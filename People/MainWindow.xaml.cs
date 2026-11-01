@@ -85,7 +85,7 @@ public sealed partial class MainWindow : Window
 
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            presenter.PreferredMinimumWidth = (int)(480 * scalingFactor);
+            presenter.PreferredMinimumWidth = (int)(360 * scalingFactor);
             presenter.PreferredMinimumHeight = (int)(480 * scalingFactor);
         }
 
@@ -98,17 +98,44 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            int defaultWidth = (int)(1020 * scalingFactor);
-            int defaultHeight = (int)(780 * scalingFactor);
+            int defaultWidth = (int)(1120 * scalingFactor);
+            int defaultHeight = (int)(680 * scalingFactor);
             appWindow.Resize(new Windows.Graphics.SizeInt32(defaultWidth, defaultHeight));
+        }
+
+        int savedX = settingsService.GetValue<int>("WindowPositionX", int.MinValue);
+        int savedY = settingsService.GetValue<int>("WindowPositionY", int.MinValue);
+
+        if (savedX != int.MinValue && savedY != int.MinValue)
+        {
+            appWindow.Move(new Windows.Graphics.PointInt32(savedX, savedY));
+        }
+        else
+        {
+            // First launch: center on display work area
+            var displayArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(windowId, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
+            if (displayArea != null)
+            {
+                int centerX = displayArea.WorkArea.X + Math.Max(0, (displayArea.WorkArea.Width - appWindow.Size.Width) / 2);
+                int centerY = displayArea.WorkArea.Y + Math.Max(0, (displayArea.WorkArea.Height - appWindow.Size.Height) / 2);
+                appWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
+            }
         }
 
         appWindow.Changed += (s, args) =>
         {
-            if (args.DidSizeChange && appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p && p.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored)
+            if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p && p.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored)
             {
-                settingsService.SetValue("WindowWidth", appWindow.Size.Width);
-                settingsService.SetValue("WindowHeight", appWindow.Size.Height);
+                if (args.DidSizeChange)
+                {
+                    settingsService.SetValue("WindowWidth", appWindow.Size.Width);
+                    settingsService.SetValue("WindowHeight", appWindow.Size.Height);
+                }
+                if (args.DidPositionChange)
+                {
+                    settingsService.SetValue("WindowPositionX", appWindow.Position.X);
+                    settingsService.SetValue("WindowPositionY", appWindow.Position.Y);
+                }
             }
         };
 

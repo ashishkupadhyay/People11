@@ -1,8 +1,12 @@
+using System;
 using System.Collections.Specialized;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using People.Core.Interfaces;
 using People.Core.Models;
 using People.ViewModels;
 
@@ -11,11 +15,19 @@ namespace People.Views;
 public sealed partial class ConversationPage : Page
 {
     public ConversationViewModel ViewModel { get; }
+    private readonly DispatcherTimer _pillHideTimer = new() { Interval = TimeSpan.FromMilliseconds(1500) };
+    private bool _isPillVisible;
 
     public ConversationPage()
     {
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
+
+        _pillHideTimer.Tick += (s, e) =>
+        {
+            _pillHideTimer.Stop();
+            HideFloatingDatePill();
+        };
 
         ViewModel.Messages.CollectionChanged += (s, e) =>
         {
@@ -73,6 +85,71 @@ public sealed partial class ConversationPage : Page
         }
 
         UpdateFloatingDatePill();
+        ShowFloatingDatePill();
+        _pillHideTimer.Stop();
+        _pillHideTimer.Start();
+    }
+
+    private void ShowFloatingDatePill()
+    {
+        if (_isPillVisible) return;
+        _isPillVisible = true;
+        AnimatePill(0, 1.0);
+    }
+
+    private void HideFloatingDatePill()
+    {
+        if (!_isPillVisible) return;
+        _isPillVisible = false;
+        AnimatePill(-40, 0.0);
+    }
+
+    private void AnimatePill(double targetY, double targetOpacity)
+    {
+        if (FloatingDatePill == null || PillTransform == null) return;
+        var animY = new DoubleAnimation
+        {
+            To = targetY,
+            Duration = TimeSpan.FromMilliseconds(250),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        var animOp = new DoubleAnimation
+        {
+            To = targetOpacity,
+            Duration = TimeSpan.FromMilliseconds(200)
+        };
+        var sb = new Storyboard();
+        Storyboard.SetTarget(animY, PillTransform);
+        Storyboard.SetTargetProperty(animY, "Y");
+        Storyboard.SetTarget(animOp, FloatingDatePill);
+        Storyboard.SetTargetProperty(animOp, "Opacity");
+        sb.Children.Add(animY);
+        sb.Children.Add(animOp);
+        sb.Begin();
+    }
+
+    private void MessageInputBox_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            var settingsService = App.Current.Services.GetRequiredService<ISettingsService>();
+            bool enterSendsMessage = settingsService.GetValue<bool>("EnterSendsMessage", true);
+
+            if (enterSendsMessage)
+            {
+                var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+                bool isShiftDown = (shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+                if (!isShiftDown)
+                {
+                    e.Handled = true;
+                    if (ViewModel.SendMessageCommand.CanExecute(null))
+                    {
+                        ViewModel.SendMessageCommand.Execute(null);
+                    }
+                }
+            }
+        }
     }
 
     private void UpdateFloatingDatePill()

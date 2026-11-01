@@ -39,6 +39,9 @@ public partial class ConversationViewModel : ViewModelBase
     [ObservableProperty]
     public partial string CurrentChatDateString { get; set; } = "Today";
 
+    [ObservableProperty]
+    public partial string? SenderPushName { get; set; }
+
     public bool HasMoreOlderMessages { get; set; } = true;
 
     public event EventHandler? InitialMessagesLoaded;
@@ -60,6 +63,7 @@ public partial class ConversationViewModel : ViewModelBase
         IsLoading = true;
         HasMoreOlderMessages = true;
         UpdateChatDateString();
+        UpdateSenderPushName();
 
         try
         {
@@ -73,6 +77,7 @@ public partial class ConversationViewModel : ViewModelBase
                 }
                 RecalculateDateSeparators();
                 UpdateChatDateString();
+                UpdateSenderPushName();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
             });
@@ -215,6 +220,7 @@ public partial class ConversationViewModel : ViewModelBase
                     Messages.Add(e.Message);
                     RecalculateDateSeparators();
                     UpdateChatDateString();
+                    UpdateSenderPushName();
                 }
             });
         }
@@ -238,6 +244,34 @@ public partial class ConversationViewModel : ViewModelBase
                 msg.ShowDateSeparator = false;
                 msg.DateSeparatorText = null;
             }
+        }
+    }
+
+    public void UpdateSenderPushName()
+    {
+        if (CurrentChat == null || CurrentChat.IsGroup)
+        {
+            SenderPushName = null;
+            return;
+        }
+
+        bool isPhoneNumber = CurrentChat.Title.StartsWith('+') || CurrentChat.Title.All(c => char.IsDigit(c) || c == ' ' || c == '-');
+        if (!isPhoneNumber)
+        {
+            SenderPushName = null;
+            return;
+        }
+
+        var incomingMsg = Messages.LastOrDefault(m => !m.IsOutgoing && !string.IsNullOrWhiteSpace(m.SenderName));
+        if (incomingMsg != null && !string.IsNullOrWhiteSpace(incomingMsg.SenderName))
+        {
+            var name = incomingMsg.SenderName.Trim();
+            if (!name.StartsWith('~')) name = $"~{name}";
+            SenderPushName = name;
+        }
+        else
+        {
+            SenderPushName = null;
         }
     }
 

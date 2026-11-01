@@ -45,6 +45,7 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly IMessagingProvider _provider;
     private readonly IDispatcherService _dispatcherService;
     private readonly IChatRepository? _chatRepository;
+    private readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
     private int _isLoadingChats;
     private volatile bool _needsReloadChats;
 
@@ -315,67 +316,85 @@ public partial class ChatListViewModel : ViewModelBase
 
             var chats = await _provider.GetChatsAsync();
             var validChats = chats.Where(c => c.IsGroup || (c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
+            var sortedIncoming = validChats.OrderByDescending(c => c.LastMessageTime).ToList();
 
             _dispatcherService.Enqueue(() =>
             {
-                var newChatIds = new HashSet<string>(validChats.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
-
-                // Remove chats that no longer exist ONLY if the provider returned chats
-                if (validChats.Count > 0)
+                if (Chats.Count == 0)
                 {
-                    for (int i = Chats.Count - 1; i >= 0; i--)
+                    foreach (var incoming in sortedIncoming)
                     {
-                        if (!newChatIds.Contains(Chats[i].Id))
-                        {
-                            Chats.RemoveAt(i);
-                        }
-                    }
-                }
-
-                // Update existing or add new
-                foreach (var incoming in validChats)
-                {
-                    incoming.Title = ResolveChatTitle(incoming);
-
-                    var existing = Chats.FirstOrDefault(c => c.Id.Equals(incoming.Id, StringComparison.OrdinalIgnoreCase));
-                    if (existing != null)
-                    {
-                        if (existing.Title != incoming.Title && incoming.Title != "WhatsApp Contact")
-                        {
-                            existing.Title = incoming.Title;
-                        }
-                        if (existing.LastMessageTime != incoming.LastMessageTime)
-                        {
-                            existing.LastMessageTime = incoming.LastMessageTime;
-                        }
-                        if (incoming.LastMessage != null)
-                        {
-                            existing.LastMessage = incoming.LastMessage;
-                        }
-                        existing.UnreadCount = incoming.UnreadCount;
-                        if (!string.IsNullOrEmpty(incoming.PictureUrl) && existing.PictureUrl != incoming.PictureUrl)
-                        {
-                            existing.PictureUrl = incoming.PictureUrl;
-                        }
-                    }
-                    else
-                    {
+                        incoming.Title = ResolveChatTitle(incoming);
                         Chats.Add(incoming);
                     }
                 }
+                else
+                {
+                    var newChatIds = new HashSet<string>(validChats.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
 
-                SortChatsInPlace();
+                    // Remove chats that no longer exist
+                    if (validChats.Count > 0)
+                    {
+                        for (int i = Chats.Count - 1; i >= 0; i--)
+                        {
+                            if (!newChatIds.Contains(Chats[i].Id))
+                            {
+                                Chats.RemoveAt(i);
+                            }
+                        }
+                    }
+
+                    // Update existing or add new
+                    foreach (var incoming in validChats)
+                    {
+                        incoming.Title = ResolveChatTitle(incoming);
+
+                        var existing = Chats.FirstOrDefault(c => c.Id.Equals(incoming.Id, StringComparison.OrdinalIgnoreCase));
+                        if (existing != null)
+                        {
+                            if (existing.Title != incoming.Title && incoming.Title != "WhatsApp Contact")
+                            {
+                                existing.Title = incoming.Title;
+                            }
+                            if (existing.LastMessageTime != incoming.LastMessageTime)
+                            {
+                                existing.LastMessageTime = incoming.LastMessageTime;
+                            }
+                            if (incoming.LastMessage != null)
+                            {
+                                existing.LastMessage = incoming.LastMessage;
+                            }
+                            existing.UnreadCount = incoming.UnreadCount;
+                            if (!string.IsNullOrEmpty(incoming.PictureUrl) && existing.PictureUrl != incoming.PictureUrl)
+                            {
+                                existing.PictureUrl = incoming.PictureUrl;
+                            }
+                        }
+                        else
+                        {
+                            Chats.Add(incoming);
+                        }
+                    }
+
+                    SortChatsInPlace();
+                }
             });
 
-            // Asynchronously resolve missing profile picture URLs in the background
+            // Asynchronously resolve missing profile picture URLs in the background (bounded to top 15 most active chats)
             _ = Task.Run(async () =>
             {
                 if (_provider is IWhatsAppProvider waProvider)
                 {
-                    var chatsNeedingPics = validChats.Where(c => string.IsNullOrEmpty(c.PictureUrl)).ToList();
+                    var chatsNeedingPics = validChats
+                        .Where(c => string.IsNullOrEmpty(c.PictureUrl) && !_failedPictureJids.Contains(c.Id))
+                        .Take(15)
+                        .ToList();
+
+                    if (chatsNeedingPics.Count == 0) return;
+
                     var updatedWithPics = new System.Collections.Concurrent.ConcurrentBag<Chat>();
 
-                    await Parallel.ForEachAsync(chatsNeedingPics, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async (chat, ct) =>
+                    await Parallel.ForEachAsync(chatsNeedingPics, new ParallelOptions { MaxDegreeOfParallelism = 2 }, async (chat, ct) =>
                     {
                         try
                         {
@@ -394,8 +413,21 @@ public partial class ChatListViewModel : ViewModelBase
                                 chat.PictureUrl = picUrl;
                                 updatedWithPics.Add(chat);
                             }
+                            else
+                            {
+                                lock (_failedPictureJids)
+                                {
+                                    _failedPictureJids.Add(chat.Id);
+                                }
+                            }
                         }
-                        catch { }
+                        catch
+                        {
+                            lock (_failedPictureJids)
+                            {
+                                _failedPictureJids.Add(chat.Id);
+                            }
+                        }
                     });
 
                     // Batch persist profile pictures to SQLite in a single transaction
@@ -414,19 +446,14 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void SortChatsInPlace()
     {
-        for (int i = 0; i < Chats.Count - 1; i++)
+        var targetOrder = Chats.OrderByDescending(c => c.LastMessageTime).ToList();
+        for (int i = 0; i < targetOrder.Count; i++)
         {
-            int maxIdx = i;
-            for (int j = i + 1; j < Chats.Count; j++)
+            var item = targetOrder[i];
+            int currentIdx = Chats.IndexOf(item);
+            if (currentIdx != i && currentIdx >= 0)
             {
-                if (Chats[j].LastMessageTime > Chats[maxIdx].LastMessageTime)
-                {
-                    maxIdx = j;
-                }
-            }
-            if (maxIdx != i)
-            {
-                Chats.Move(maxIdx, i);
+                Chats.Move(currentIdx, i);
             }
         }
     }

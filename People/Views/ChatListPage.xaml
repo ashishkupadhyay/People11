@@ -16,6 +16,9 @@
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
         <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
         <converters:PersonPictureDisplayNameConverter x:Key="PersonPictureDisplayNameConverter" />
+        <converters:ChatTimestampConverter x:Key="ChatTimestampConverter" />
+        <converters:ChatLastMessagePreviewConverter x:Key="ChatLastMessagePreviewConverter" />
+        <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
     </Page.Resources>
 
     <Grid x:Name="RootGrid">
@@ -160,10 +163,11 @@
                 </ListView.ItemContainerTransitions>
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="models:Chat">
-                        <Grid Padding="0,12">
+                        <Grid Padding="0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             
                             <PersonPicture Grid.Column="0" 
@@ -172,9 +176,35 @@
                                            DisplayName="{x:Bind Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
                                            Width="48" Height="48" Margin="0,0,12,0"/>
                             
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" />
-                                <TextBlock Text="{x:Bind LastMessage.Content.Text, Mode=OneWay, FallbackValue=''}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind Mode=OneWay, Converter={StaticResource ChatLastMessagePreviewConverter}}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                           TextTrimming="CharacterEllipsis" 
+                                           MaxLines="1" />
+                            </StackPanel>
+
+                            <!-- Right-aligned timestamp and unread badge -->
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4" Margin="8,0,0,0">
+                                <TextBlock Text="{x:Bind LastMessageTime, Mode=OneWay, Converter={StaticResource ChatTimestampConverter}}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                           HorizontalAlignment="Right" />
+                                
+                                <Border Background="{ThemeResource AppAccentBrush}" 
+                                        CornerRadius="10" 
+                                        Padding="6,1" 
+                                        MinHeight="18" 
+                                        MinWidth="18" 
+                                        HorizontalAlignment="Right"
+                                        Visibility="{x:Bind UnreadCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind UnreadCount, Mode=OneWay}" 
+                                               FontSize="11" 
+                                               FontWeight="SemiBold" 
+                                               Foreground="White" 
+                                               HorizontalAlignment="Center" 
+                                               VerticalAlignment="Center" />
+                                </Border>
                             </StackPanel>
                         </Grid>
                     </DataTemplate>

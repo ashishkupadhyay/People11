@@ -1,6 +1,10 @@
+using System;
+using System.IO;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace People.Converters;
 
@@ -14,10 +18,7 @@ public class OutgoingAlignmentConverter : IValueConverter
         return HorizontalAlignment.Left;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
 public class OutgoingBackgroundConverter : IValueConverter
@@ -64,7 +65,7 @@ public class OutgoingBackgroundConverter : IValueConverter
                 if (normalizedPlatformId == "WhatsApp") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
                 if (normalizedPlatformId == "Telegram") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
                 if (normalizedPlatformId == "Discord") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
-                if (normalizedPlatformId == "Matrix") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0)); // Or Matrix green
+                if (normalizedPlatformId == "Matrix") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0));
                 if (normalizedPlatformId == "Signal") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
                 if (normalizedPlatformId == "SMS") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 120, 212));
             }
@@ -73,15 +74,12 @@ public class OutgoingBackgroundConverter : IValueConverter
         }
         else
         {
-            // Incoming message background - use ControlFillColorDefaultBrush so it's visible in light mode
+            // Incoming message background
             return App.Current.Resources["ControlFillColorDefaultBrush"] as SolidColorBrush ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
         }
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
 public class BoolToVisibilityConverter : IValueConverter
@@ -94,17 +92,68 @@ public class BoolToVisibilityConverter : IValueConverter
         return Visibility.Collapsed;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
+
 
 public class StringToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        return !string.IsNullOrWhiteSpace(value as string) ? Visibility.Visible : Visibility.Collapsed;
+        if (value is string str && !string.IsNullOrWhiteSpace(str))
+        {
+            return Visibility.Visible;
+        }
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class StringToImageSourceConverter : IValueConverter
+{
+    public object? Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is string url && !string.IsNullOrWhiteSpace(url))
+        {
+            try
+            {
+                return new BitmapImage(new Uri(url));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class OutgoingTextColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool isOutgoing && isOutgoing)
+        {
+            return new SolidColorBrush(Microsoft.UI.Colors.White);
+        }
+        return App.Current.Resources["TextFillColorPrimaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class OutgoingSubtextColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool isOutgoing && isOutgoing)
+        {
+            return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(200, 255, 255, 255));
+        }
+        return App.Current.Resources["TextFillColorSecondaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
@@ -138,55 +187,12 @@ public class GroupSenderVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class OutgoingTextColorConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        if (value is bool isOutgoing && isOutgoing)
-        {
-            return App.Current.Resources["TextOnAccentFillColorPrimaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White);
-        }
-        return App.Current.Resources["TextFillColorPrimaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-}
-
-public class OutgoingSubtextColorConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        if (value is bool isOutgoing && isOutgoing)
-        {
-            return App.Current.Resources["TextOnAccentFillColorSecondaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(200, 255, 255, 255));
-        }
-        return App.Current.Resources["TextFillColorSecondaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-}
-
-public class StringToImageSourceConverter : IValueConverter
-{
-    public object? Convert(object value, Type targetType, object parameter, string language)
-    {
-        if (value is string url && !string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(uri);
-        }
-        return null;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-}
-
 public class PersonPictureDisplayNameConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is People.Core.Models.Chat chat)
         {
-            // For group chats, return empty string so PersonPicture displays the native group icon glyph instead of initials
             if (chat.IsGroup)
             {
                 return string.Empty;
@@ -209,15 +215,94 @@ public class PersonPictureDisplayNameConverter : IValueConverter
         if (value is string titleStr && !string.IsNullOrWhiteSpace(titleStr))
         {
             var trimmed = titleStr.Trim();
-            // If it's an unsaved number (starts with '+' or consists almost entirely of digits and separators)
             if (trimmed.StartsWith('+') || trimmed.All(c => char.IsDigit(c) || char.IsWhiteSpace(c) || c == '-' || c == '(' || c == ')'))
             {
-                // Return empty string so PersonPicture displays the native person glyph rather than digit initials
                 return string.Empty;
             }
             return titleStr;
         }
         return string.Empty;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class ChatTimestampConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is DateTimeOffset dto)
+        {
+            var local = dto.ToLocalTime();
+            var today = DateTime.Today;
+            if (local.Date == today)
+            {
+                return local.ToString("HH:mm");
+            }
+            if (local.Date == today.AddDays(-1))
+            {
+                return "Yesterday";
+            }
+            return local.ToString("dd/MM/yy");
+        }
+        return string.Empty;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class ChatLastMessagePreviewConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is People.Core.Models.Chat chat)
+        {
+            var msg = chat.LastMessage;
+            if (msg == null || string.IsNullOrWhiteSpace(msg.Content?.Text))
+            {
+                return string.Empty;
+            }
+
+            var text = msg.Content.Text.Trim();
+
+            if (chat.IsGroup)
+            {
+                if (msg.IsOutgoing)
+                {
+                    return $"You: {text}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(msg.SenderName))
+                {
+                    var sender = msg.SenderName.Trim();
+                    return $"{sender}: {text}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(msg.SenderId))
+                {
+                    var user = msg.SenderId.Contains('@') ? msg.SenderId.Split('@')[0] : msg.SenderId;
+                    return $"~{user}: {text}";
+                }
+            }
+
+            return text;
+        }
+
+        return string.Empty;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class IntToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is int count && count > 0)
+        {
+            return Visibility.Visible;
+        }
+        return Visibility.Collapsed;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

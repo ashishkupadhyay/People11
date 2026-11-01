@@ -108,11 +108,17 @@
                             <ui:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE896;" />
                             </ui:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" Spacing="16">
+                            <StackPanel Orientation="Vertical" Spacing="8">
                                 <CheckBox Content="Photos" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadPhotos, Mode=TwoWay}" AutomationProperties.Name="Auto download photos" />
                                 <CheckBox Content="Videos" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadVideos, Mode=TwoWay}" AutomationProperties.Name="Auto download videos" />
                                 <CheckBox Content="Documents" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadDocuments, Mode=TwoWay}" AutomationProperties.Name="Auto download documents" />
                             </StackPanel>
+                        </ui:SettingsCard>
+                        <ui:SettingsCard Header="Enter sends the message" Description="Press Enter to send, Shift + Enter for a new line">
+                            <ui:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE751;" />
+                            </ui:SettingsCard.HeaderIcon>
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.EnterSendsMessage, Mode=TwoWay}" AutomationProperties.Name="Enter sends the message" AutomationProperties.AutomationId="EnterSendsMessageToggle" />
                         </ui:SettingsCard>
                         <ui:SettingsCard x:Uid="WhatsAppAccentColorCard" Header="Accent colour">
                             <ui:SettingsCard.HeaderIcon>

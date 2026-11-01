@@ -410,7 +410,24 @@ public class WhatsAppProvider : IWhatsAppProvider
             return GetTestingChats();
         }
 
-        // 1. Try SQLite first (instant startup, sub-millisecond retrieval)
+        // 1. If native bridge is connected, fetch chats from native cache (resolves latest group titles and previews)
+        if (_clientPtr != IntPtr.Zero)
+        {
+            var remoteChats = await FetchChatsFromNativeAsync(ct);
+            if (remoteChats.Count > 0)
+            {
+                if (_chatRepository != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try { await _chatRepository.SaveManyAsync(remoteChats); } catch { }
+                    }, ct);
+                }
+                return remoteChats;
+            }
+        }
+
+        // 2. Fallback to SQLite if native client is not ready
         if (_chatRepository != null)
         {
             try
@@ -418,25 +435,6 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var localChats = await _chatRepository.GetByPlatformAsync(PlatformId, offset, limit);
                 if (localChats.Count > 0)
                 {
-                    // Refresh in background if native bridge is connected
-                    if (_clientPtr != IntPtr.Zero)
-                    {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                var remoteChats = await FetchChatsFromNativeAsync(ct);
-                                if (remoteChats.Count > 0)
-                                {
-                                    await _chatRepository.SaveManyAsync(remoteChats);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger?.LogDebug(ex, "Background chat sync to SQLite completed with warning.");
-                            }
-                        }, ct);
-                    }
                     return localChats;
                 }
             }
@@ -446,20 +444,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        if (_clientPtr == IntPtr.Zero)
-        {
-            return Array.Empty<Chat>();
-        }
-
-        var chats = await FetchChatsFromNativeAsync(ct);
-        if (_chatRepository != null && chats.Count > 0)
-        {
-            _ = Task.Run(async () =>
-            {
-                try { await _chatRepository.SaveManyAsync(chats); } catch { }
-            }, ct);
-        }
-        return chats;
+        return Array.Empty<Chat>();
     }
 
     private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)
