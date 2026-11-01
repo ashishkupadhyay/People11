@@ -42,37 +42,28 @@
         </Border>
 
         <!-- Messages -->
-        <RefreshContainer x:Name="MessagesRefreshContainer" Grid.Row="1" 
-                          IsEnabled="{x:Bind ViewModel.IsNotLoadingOlder, Mode=OneWay}"
-                          RefreshRequested="MessagesRefreshContainer_RefreshRequested">
-            <RefreshContainer.Visualizer>
-                <RefreshVisualizer>
-                    <RefreshVisualizer.Content>
-                        <ProgressRing IsActive="True" Width="24" Height="24" />
-                    </RefreshVisualizer.Content>
-                </RefreshVisualizer>
-            </RefreshContainer.Visualizer>
-            <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
-                <ListView.Header>
-                    <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay}"
-                                  Visibility="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                  HorizontalAlignment="Center"
-                                  Width="24" Height="24" Margin="0,8"
-                                  AutomationProperties.Name="Loading older messages" />
-                </ListView.Header>
-                <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                    <Setter Property="Padding" Value="0" />
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemContainerTransitions>
-                <TransitionCollection>
-                    <AddDeleteThemeTransition />
-                    <ReorderThemeTransition />
-                </TransitionCollection>
-            </ListView.ItemContainerTransitions>
-            <ListView.ItemTemplate>
+        <Grid Grid.Row="1">
+            <RefreshContainer x:Name="MessagesRefreshContainer" 
+                              IsEnabled="{x:Bind ViewModel.IsNotLoadingOlder, Mode=OneWay}"
+                              RefreshRequested="MessagesRefreshContainer_RefreshRequested">
+                <RefreshContainer.Visualizer>
+                    <RefreshVisualizer />
+                </RefreshContainer.Visualizer>
+                <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,40,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+                    <ListView.Header>
+                        <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay}"
+                                      Visibility="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      HorizontalAlignment="Center"
+                                      Width="24" Height="24" Margin="0,8"
+                                      AutomationProperties.Name="Loading older messages" />
+                    </ListView.Header>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Padding" Value="0" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
                 <DataTemplate x:DataType="models:Message">
                     <Grid Margin="0,4" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">
                         <StackPanel MaxWidth="480" Spacing="2">
@@ -156,6 +147,22 @@
             </ListView.ItemTemplate>
         </ListView>
         </RefreshContainer>
+
+        <!-- Date Context Pill Button -->
+        <Button HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,8,0,0"
+                Padding="12,4"
+                CornerRadius="12"
+                Style="{ThemeResource SubtleButtonStyle}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                Canvas.ZIndex="10"
+                Content="{x:Bind ViewModel.CurrentChatDateString, Mode=OneWay}"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
 
         <!-- Input Area -->
         <Grid Grid.Row="2" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">

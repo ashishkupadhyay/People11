@@ -200,6 +200,29 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
     }
 
+    public async Task ReauthenticateAsync(CancellationToken ct = default)
+    {
+        _logger?.LogInformation("Starting WhatsApp reauthentication: cleaning session and restarting QR flow.");
+        await DisconnectAsync();
+
+        try
+        {
+            var dbPath = GetSessionDbPath();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+            if (File.Exists(dbPath + "-shm")) File.Delete(dbPath + "-shm");
+            if (File.Exists(dbPath + "-wal")) File.Delete(dbPath + "-wal");
+            var cachePath = dbPath + ".cache.json";
+            if (File.Exists(cachePath)) File.Delete(cachePath);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to clean some WhatsApp session files.");
+        }
+
+        await ConnectAsync(ct);
+        await AuthenticateAsync(ct);
+    }
+
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static void OnNativeError(IntPtr errPtr)
     {
@@ -457,6 +480,11 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var chats = new List<Chat>();
                 foreach (var dto in dtos)
                 {
+                    // Filter out phantom empty non-group chat stubs (no messages and timestamp <= 0)
+                    if (!dto.IsGroup && dto.LastMessage == null && dto.LastMessageTimestamp <= 0)
+                    {
+                        continue;
+                    }
                     var chat = new Chat
                     {
                         Id = dto.Id ?? string.Empty,

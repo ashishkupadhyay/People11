@@ -114,9 +114,15 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void Reauthenticate()
+    private async Task ReauthenticateAsync()
     {
-        // TODO: Trigger re-authentication flow
+        var provider = App.Current.Services.GetService<IMessagingProvider>();
+        if (provider is IWhatsAppProvider waProvider)
+        {
+            await waProvider.ReauthenticateAsync();
+            var navService = App.Current.Services.GetRequiredService<INavigationService>();
+            navService.NavigateTo("Chats", "WhatsApp");
+        }
     }
 
     [RelayCommand]

@@ -31,6 +31,13 @@ public partial class ConversationViewModel : ViewModelBase
 
     public bool IsNotLoadingOlder => !IsLoadingOlder;
 
+    [ObservableProperty]
+    public partial string CurrentChatDateString { get; set; } = "Today";
+
+    public bool HasMoreOlderMessages { get; set; } = true;
+
+    public event EventHandler? InitialMessagesLoaded;
+
     public ConversationViewModel(IMessagingProvider provider, IDispatcherService dispatcherService)
     {
         _provider = provider;
@@ -46,10 +53,12 @@ public partial class ConversationViewModel : ViewModelBase
         CurrentChat = chat;
         Messages.Clear();
         IsLoading = true;
+        HasMoreOlderMessages = true;
+        UpdateChatDateString();
 
         try
         {
-            var msgs = await _provider.GetMessagesAsync(chat.Id);
+            var msgs = await _provider.GetMessagesAsync(chat.Id, 0, 30);
             _dispatcherService.Enqueue(() =>
             {
                 Messages.Clear();
@@ -57,7 +66,9 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     Messages.Add(msg);
                 }
+                UpdateChatDateString();
                 IsLoading = false;
+                InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
             });
         }
         catch
@@ -72,7 +83,7 @@ public partial class ConversationViewModel : ViewModelBase
     [RelayCommand]
     public async Task LoadOlderMessagesAsync()
     {
-        if (CurrentChat == null || IsLoadingOlder) return;
+        if (CurrentChat == null || IsLoadingOlder || !HasMoreOlderMessages) return;
 
         IsLoadingOlder = true;
         var anchor = Messages.FirstOrDefault();
@@ -82,6 +93,11 @@ public partial class ConversationViewModel : ViewModelBase
             var older = await _provider.GetOlderMessagesAsync(CurrentChat.Id, 25, anchor?.Timestamp);
             _dispatcherService.Enqueue(() =>
             {
+                if (older.Count == 0)
+                {
+                    HasMoreOlderMessages = false;
+                }
+
                 bool addedAny = false;
                 foreach (var msg in older)
                 {
@@ -97,6 +113,7 @@ public partial class ConversationViewModel : ViewModelBase
                     }
                 }
                 IsLoadingOlder = false;
+                UpdateChatDateString();
 
                 if (addedAny && anchor != null)
                 {
@@ -163,6 +180,7 @@ public partial class ConversationViewModel : ViewModelBase
                         Messages.Insert(index, msg);
                     }
                 }
+                UpdateChatDateString();
             });
         }
         catch
@@ -180,8 +198,36 @@ public partial class ConversationViewModel : ViewModelBase
                 if (!Messages.Any(m => m.Id == e.Message.Id))
                 {
                     Messages.Add(e.Message);
+                    UpdateChatDateString();
                 }
             });
         }
+    }
+
+    public void UpdateChatDateString()
+    {
+        if (Messages.Count == 0)
+        {
+            CurrentChatDateString = "Today";
+            return;
+        }
+
+        var latestDate = Messages[^1].Timestamp;
+        CurrentChatDateString = FormatChatDate(latestDate);
+    }
+
+    public static string FormatChatDate(DateTimeOffset date)
+    {
+        var localDate = date.ToLocalTime().Date;
+        var today = DateTime.Today;
+        if (localDate == today) return "Today";
+        if (localDate == today.AddDays(-1)) return "Yesterday";
+
+        int day = localDate.Day;
+        string suffix = (day % 10 == 1 && day != 11) ? "st" :
+                        (day % 10 == 2 && day != 12) ? "nd" :
+                        (day % 10 == 3 && day != 13) ? "rd" : "th";
+
+        return $"{day}{suffix} {localDate:MMMM yyyy}";
     }
 }
