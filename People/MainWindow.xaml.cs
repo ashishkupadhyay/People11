@@ -4,29 +4,12 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using People.ViewModels;
 using System;
+using System.Threading.Tasks;
 
 namespace People;
 
 public sealed partial class MainWindow : Window
 {
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_whatsAppWhite = new(() => new(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_whatsAppBlack = new(() => new(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_telegramWhite = new(() => new(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_telegramBlack = new(() => new(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_signalWhite = new(() => new(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_signalBlack = new(() => new(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_discordWhite = new(() => new(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-    private static readonly Lazy<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> s_discordBlack = new(() => new(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 });
-
-    static MainWindow()
-    {
-        // Pre-warm the dark/white theme icons on UI thread so background rasterization begins immediately
-        _ = s_whatsAppWhite.Value;
-        _ = s_telegramWhite.Value;
-        _ = s_signalWhite.Value;
-        _ = s_discordWhite.Value;
-    }
-
     public MainWindowViewModel ViewModel { get; }
 
     public Microsoft.UI.Xaml.Visibility ConvertBoolToVisibility(bool isVisible)
@@ -71,6 +54,8 @@ public sealed partial class MainWindow : Window
                 navServiceCore.NavigateTo("Chats", platformId);
             else
                 navServiceCore.NavigateTo("Chats");
+
+            DismissSplashAsync();
         };
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -88,15 +73,12 @@ public sealed partial class MainWindow : Window
                 UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
             }
 
-            UpdateSidebarIcons(rootElement.ActualTheme);
-
             rootElement.ActualThemeChanged += (s, args) => 
             {
                 if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
                 {
                     UpdateTitleBarColors(appWindow.TitleBar, rootElement.ActualTheme);
                 }
-                UpdateSidebarIcons(rootElement.ActualTheme);
             };
         }
 
@@ -163,6 +145,35 @@ public sealed partial class MainWindow : Window
         NavView.SizeChanged += NavView_SizeChanged;
     }
 
+    private async void DismissSplashAsync()
+    {
+        // Allow a brief moment for the initial page to measure, layout, and render
+        await Task.Delay(350);
+
+        if (SplashOverlay == null || SplashOverlay.Visibility == Visibility.Collapsed)
+            return;
+
+        var fadeAnimation = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = 1.0,
+            To = 0.0,
+            Duration = new Duration(TimeSpan.FromMilliseconds(250)),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+        };
+
+        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeAnimation, SplashOverlay);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeAnimation, "Opacity");
+        storyboard.Children.Add(fadeAnimation);
+
+        storyboard.Completed += (s, e) =>
+        {
+            SplashOverlay.Visibility = Visibility.Collapsed;
+        };
+
+        storyboard.Begin();
+    }
+
     private static bool IsDarkTheme(ElementTheme theme)
     {
         if (theme == ElementTheme.Dark) return true;
@@ -187,23 +198,6 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonHoverForegroundColor = foregroundColor;
         titleBar.ButtonPressedForegroundColor = foregroundColor;
         titleBar.ButtonInactiveForegroundColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150) : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
-    }
-
-    private string? _currentThemeSuffix;
-
-    private void UpdateSidebarIcons(ElementTheme theme)
-    {
-        bool isDark = IsDarkTheme(theme);
-        string suffix = isDark ? "White" : "Black";
-        if (_currentThemeSuffix == suffix)
-            return;
-
-        _currentThemeSuffix = suffix;
-
-        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = isDark ? s_whatsAppWhite.Value : s_whatsAppBlack.Value;
-        if (NavTelegramIcon != null) NavTelegramIcon.Source = isDark ? s_telegramWhite.Value : s_telegramBlack.Value;
-        if (NavSignalIcon != null) NavSignalIcon.Source = isDark ? s_signalWhite.Value : s_signalBlack.Value;
-        if (NavDiscordIcon != null) NavDiscordIcon.Source = isDark ? s_discordWhite.Value : s_discordBlack.Value;
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
