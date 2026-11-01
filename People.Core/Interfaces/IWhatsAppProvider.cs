@@ -14,4 +14,5 @@ public interface IWhatsAppProvider : IMessagingProvider
     Task ReauthenticateAsync(CancellationToken ct = default);
     Task<System.Collections.Generic.IReadOnlyList<Contact>> GetContactsAsync(CancellationToken ct = default);
     Task<string?> GetProfilePictureUrlAsync(string chatId, CancellationToken ct = default);
+    Task MarkChatAsReadAsync(string chatId, CancellationToken ct = default);
 }

@@ -75,6 +75,11 @@ public partial class ConversationViewModel : ViewModelBase
             }
         }
 
+        if (_provider is IWhatsAppProvider waMarkProvider)
+        {
+            _ = waMarkProvider.MarkChatAsReadAsync(chat.Id);
+        }
+
         Messages.Clear();
         IsLoading = true;
         HasMoreOlderMessages = true;
@@ -121,6 +126,11 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateSenderPushName();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+
+                if (msgs.Count <= 3 && HasMoreOlderMessages)
+                {
+                    _ = LoadOlderMessagesAsync();
+                }
             });
         }
         catch

@@ -49,7 +49,15 @@ public sealed partial class ConversationPage : Page
             if (ViewModel.Messages.Count > 0)
             {
                 MessagesListView.UpdateLayout();
-                MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
+                var unreadTarget = ViewModel.Messages.FirstOrDefault(m => m.ShowUnreadSeparator);
+                if (unreadTarget != null)
+                {
+                    MessagesListView.ScrollIntoView(unreadTarget, ScrollIntoViewAlignment.Leading);
+                }
+                else
+                {
+                    MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
+                }
             }
         };
 
@@ -71,6 +79,22 @@ public sealed partial class ConversationPage : Page
         if (_messagesScrollViewer != null)
         {
             _messagesScrollViewer.ViewChanged += MessagesScrollViewer_ViewChanged;
+        }
+        MessagesListView.PointerWheelChanged += MessagesListView_PointerWheelChanged;
+    }
+
+    private void MessagesListView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (ViewModel == null || ViewModel.IsLoadingOlder || !ViewModel.HasMoreOlderMessages || ViewModel.Messages.Count == 0) return;
+
+        var pointerPoint = e.GetCurrentPoint(MessagesListView);
+        int delta = pointerPoint.Properties.MouseWheelDelta;
+        if (delta > 0) // Scrolling up
+        {
+            if (_messagesScrollViewer == null || _messagesScrollViewer.VerticalOffset <= 5)
+            {
+                _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
+            }
         }
     }
 

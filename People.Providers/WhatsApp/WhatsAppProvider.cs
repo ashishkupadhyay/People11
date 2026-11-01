@@ -424,12 +424,17 @@ public class WhatsAppProvider : IWhatsAppProvider
                         var picMap = localChats
                             .Where(c => !string.IsNullOrEmpty(c.PictureUrl))
                             .ToDictionary(c => c.Id, c => c.PictureUrl);
+                        var unreadMap = localChats.ToDictionary(c => c.Id, c => c.UnreadCount);
 
                         foreach (var rc in remoteChats)
                         {
                             if (string.IsNullOrEmpty(rc.PictureUrl) && picMap.TryGetValue(rc.Id, out var cachedPic))
                             {
                                 rc.PictureUrl = cachedPic;
+                            }
+                            if (unreadMap.TryGetValue(rc.Id, out var localUnread) && localUnread == 0 && rc.UnreadCount > 0)
+                            {
+                                rc.UnreadCount = 0;
                             }
                         }
                     }
@@ -766,19 +771,20 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
 
         // 3. Local storage & bridge cache exhausted -> request on-demand PDO from phone
-        int initialCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        int initialCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, cleanId), ct);
 
         // Fire PDO on-demand request to the phone
         await Task.Run(() =>
         {
-            WhatsAppNative.wa_fetch_older_messages(_clientPtr, chatId, count);
+            WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count);
         }, ct);
 
         // Poll for phone response (up to 3 seconds)
         for (int i = 0; i < 15; i++)
         {
             await Task.Delay(200, ct);
-            int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, chatId), ct);
+            int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, cleanId), ct);
             if (currentCount > initialCount)
             {
                 break;
@@ -988,9 +994,11 @@ public class WhatsAppProvider : IWhatsAppProvider
             return null;
         }
 
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+
         return await Task.Run(async () =>
         {
-            var ptr = WhatsAppNative.wa_get_profile_picture(_clientPtr, chatId, true);
+            var ptr = WhatsAppNative.wa_get_profile_picture(_clientPtr, cleanId, true);
             if (ptr == IntPtr.Zero) return null;
 
             try
@@ -1021,6 +1029,34 @@ public class WhatsAppProvider : IWhatsAppProvider
                 WhatsAppNative.wa_free_string(ptr);
             }
         }, ct);
+    }
+
+    public async Task MarkChatAsReadAsync(string chatId, CancellationToken ct = default)
+    {
+        if (IsTestingMode || string.IsNullOrWhiteSpace(chatId)) return;
+
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        if (_clientPtr != IntPtr.Zero)
+        {
+            await Task.Run(() => WhatsAppNative.wa_mark_chat_read(_clientPtr, cleanId), ct);
+        }
+
+        if (_chatRepository != null)
+        {
+            try
+            {
+                var chat = await _chatRepository.GetByIdAsync(chatId);
+                if (chat != null && chat.UnreadCount > 0)
+                {
+                    chat.UnreadCount = 0;
+                    await _chatRepository.SaveAsync(chat);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to persist chat read state to SQLite for {ChatId}", chatId);
+            }
+        }
     }
 
     protected virtual void OnConnectionStateChanged(ConnectionState state)

@@ -49,7 +49,7 @@
 
         <!-- Messages -->
         <Grid Grid.Row="1">
-            <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,40,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+            <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,8,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
                     <ListView.ItemContainerTransitions>
                         <TransitionCollection />
                     </ListView.ItemContainerTransitions>
