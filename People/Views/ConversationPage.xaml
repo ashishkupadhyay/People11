@@ -50,6 +50,9 @@
         <!-- Messages -->
         <Grid Grid.Row="1">
             <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,40,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+                    <ListView.ItemContainerTransitions>
+                        <TransitionCollection />
+                    </ListView.ItemContainerTransitions>
                     <ListView.Header>
                         <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay}"
                                       Visibility="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -71,21 +74,36 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <!-- Inline Date Separator Pill Button -->
-                                <Border Grid.Row="0"
-                                        HorizontalAlignment="Center"
-                                        Margin="0,8,0,10"
-                                        Padding="12,4"
-                                        CornerRadius="12"
-                                        Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
-                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                        BorderThickness="1"
-                                        Visibility="{x:Bind ShowDateSeparator, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock Text="{x:Bind DateSeparatorText, Mode=OneWay}"
-                                               FontSize="12"
-                                               FontWeight="SemiBold"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </Border>
+                                <!-- Separators Stack -->
+                                <StackPanel Grid.Row="0" HorizontalAlignment="Center" Spacing="6" Margin="0,8,0,10">
+                                    <!-- Inline Date Separator Pill Button -->
+                                    <Border HorizontalAlignment="Center"
+                                            Padding="12,4"
+                                            CornerRadius="12"
+                                            Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            Visibility="{x:Bind ShowDateSeparator, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind DateSeparatorText, Mode=OneWay}"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </Border>
+
+                                    <!-- Unread Messages Separator Badge -->
+                                    <Border HorizontalAlignment="Center"
+                                            Padding="14,4"
+                                            CornerRadius="12"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource AppAccentBrush}"
+                                            BorderThickness="1"
+                                            Visibility="{x:Bind ShowUnreadSeparator, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind UnreadSeparatorText, Mode=OneWay}"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource AppAccentBrush}" />
+                                    </Border>
+                                </StackPanel>
 
                                 <!-- Message Bubble -->
                                 <Grid Grid.Row="1" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">

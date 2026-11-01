@@ -242,4 +242,10 @@ public sealed partial class ConversationPage : Page
         }
         base.OnNavigatedTo(e);
     }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        ViewModel.ClearUnreadSeparators();
+        base.OnNavigatedFrom(e);
+    }
 }

@@ -418,6 +418,23 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 if (_chatRepository != null)
                 {
+                    try
+                    {
+                        var localChats = await _chatRepository.GetByPlatformAsync(PlatformId, 0, 500);
+                        var picMap = localChats
+                            .Where(c => !string.IsNullOrEmpty(c.PictureUrl))
+                            .ToDictionary(c => c.Id, c => c.PictureUrl);
+
+                        foreach (var rc in remoteChats)
+                        {
+                            if (string.IsNullOrEmpty(rc.PictureUrl) && picMap.TryGetValue(rc.Id, out var cachedPic))
+                            {
+                                rc.PictureUrl = cachedPic;
+                            }
+                        }
+                    }
+                    catch { }
+
                     _ = Task.Run(async () =>
                     {
                         try { await _chatRepository.SaveManyAsync(remoteChats); } catch { }

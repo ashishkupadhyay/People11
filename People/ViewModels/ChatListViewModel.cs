@@ -42,6 +42,15 @@ public partial class ChatListViewModel : ViewModelBase
     [ObservableProperty]
     public partial string SyncStatusText { get; set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial bool IsInitialSyncing { get; set; }
+
+    [ObservableProperty]
+    public partial int InitialSyncProgress { get; set; }
+
+    [ObservableProperty]
+    public partial string InitialSyncText { get; set; } = "Downloading your recent messages...";
+
     private readonly IMessagingProvider _provider;
     private readonly IDispatcherService _dispatcherService;
     private readonly IChatRepository? _chatRepository;
@@ -167,18 +176,39 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnSyncProgressChanged(object? sender, int progress)
     {
-        _dispatcherService.Enqueue(() =>
+        _dispatcherService.Enqueue(async () =>
         {
             SyncProgress = progress;
-            if (progress >= 100 || progress < 0)
+            if (IsInitialSyncing)
             {
-                IsSyncing = false;
-                SyncStatusText = string.Empty;
+                if (progress >= 100)
+                {
+                    InitialSyncProgress = 100;
+                    InitialSyncText = "Finishing sync...";
+                    IsInitialSyncing = false;
+                    IsSyncing = false;
+                    await LoadChatsAsync();
+                }
+                else
+                {
+                    InitialSyncProgress = Math.Max(0, progress);
+                    InitialSyncText = $"Downloading your recent messages ({InitialSyncProgress}%)...";
+                }
             }
             else
             {
-                IsSyncing = true;
-                SyncStatusText = $"Syncing chats ({progress}%)...";
+                if (progress >= 100 || progress < 0)
+                {
+                    IsSyncing = false;
+                    SyncStatusText = string.Empty;
+                    await LoadChatsAsync();
+                }
+                else if (Chats.Count == 0)
+                {
+                    IsInitialSyncing = true;
+                    InitialSyncProgress = Math.Max(0, progress);
+                    InitialSyncText = $"Downloading your recent messages ({InitialSyncProgress}%)...";
+                }
             }
         });
     }
@@ -232,7 +262,13 @@ public partial class ChatListViewModel : ViewModelBase
             _dispatcherService.Enqueue(() =>
             {
                 IsConnecting = false;
-                ShowQrCode = false;
+                if (ShowQrCode)
+                {
+                    ShowQrCode = false;
+                    IsInitialSyncing = true;
+                    InitialSyncProgress = 0;
+                    InitialSyncText = "Downloading your recent messages (0%)...";
+                }
                 HasError = false;
             });
             _ = LoadChatsAsync();
@@ -243,6 +279,7 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 IsConnecting = false;
                 IsSyncing = false;
+                IsInitialSyncing = false;
                 HasError = true;
                 if (string.IsNullOrEmpty(ErrorMessage))
                 {
@@ -256,6 +293,7 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 IsConnecting = false;
                 IsSyncing = false;
+                IsInitialSyncing = false;
             });
         }
     }
@@ -470,7 +508,7 @@ public partial class ChatListViewModel : ViewModelBase
         }
     }
 
-    private void SortChatsInPlace()
+    public void SortChatsInPlace()
     {
         var targetOrder = Chats.OrderByDescending(c => c.LastMessageTime).ToList();
         bool isAlreadySorted = true;
@@ -734,7 +772,6 @@ public partial class ChatListViewModel : ViewModelBase
             UnreadCount = 0
         };
 
-        Chats.Insert(0, newChat);
         return newChat;
     }
 

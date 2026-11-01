@@ -69,6 +69,36 @@ public class Message : INotifyPropertyChanged
         }
     }
 
+    private bool _showUnreadSeparator;
+    [NotMapped]
+    public bool ShowUnreadSeparator
+    {
+        get => _showUnreadSeparator;
+        set
+        {
+            if (_showUnreadSeparator != value)
+            {
+                _showUnreadSeparator = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private string? _unreadSeparatorText;
+    [NotMapped]
+    public string? UnreadSeparatorText
+    {
+        get => _unreadSeparatorText;
+        set
+        {
+            if (_unreadSeparatorText != value)
+            {
+                _unreadSeparatorText = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

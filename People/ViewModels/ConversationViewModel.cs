@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using People.Core.Interfaces;
+using People.Core.Interfaces.Repositories;
 using People.Core.Models;
 using System;
 using System.Collections.ObjectModel;
@@ -59,6 +61,20 @@ public partial class ConversationViewModel : ViewModelBase
     public async void LoadChat(Chat chat)
     {
         CurrentChat = chat;
+        int unreadCount = chat.UnreadCount;
+        if (unreadCount > 0)
+        {
+            chat.UnreadCount = 0;
+            var chatRepo = App.Current.Services.GetService<IChatRepository>();
+            if (chatRepo != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await chatRepo.SaveAsync(chat); } catch { }
+                });
+            }
+        }
+
         Messages.Clear();
         IsLoading = true;
         HasMoreOlderMessages = true;
@@ -94,6 +110,12 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     Messages.Add(msg);
                 }
+                if (unreadCount > 0 && Messages.Count > 0)
+                {
+                    int unreadIndex = Math.Max(0, Messages.Count - unreadCount);
+                    Messages[unreadIndex].ShowUnreadSeparator = true;
+                    Messages[unreadIndex].UnreadSeparatorText = $"{unreadCount} unread message" + (unreadCount > 1 ? "s" : "");
+                }
                 RecalculateDateSeparators();
                 UpdateChatDateString();
                 UpdateSenderPushName();
@@ -107,6 +129,18 @@ public partial class ConversationViewModel : ViewModelBase
             {
                 IsLoading = false;
             });
+        }
+    }
+
+    public void ClearUnreadSeparators()
+    {
+        foreach (var msg in Messages)
+        {
+            if (msg.ShowUnreadSeparator)
+            {
+                msg.ShowUnreadSeparator = false;
+                msg.UnreadSeparatorText = null;
+            }
         }
     }
 
@@ -171,6 +205,34 @@ public partial class ConversationViewModel : ViewModelBase
 
         var content = new MessageContent { Text = text, Type = MessageContentType.Text };
         var sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
+
+        CurrentChat.LastMessage = sentMsg;
+        CurrentChat.LastMessageTime = sentMsg.Timestamp;
+
+        var chatRepo = App.Current.Services.GetService<IChatRepository>();
+        if (chatRepo != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await chatRepo.SaveAsync(CurrentChat); } catch { }
+            });
+        }
+
+        var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
+        if (chatListVm != null)
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                if (!chatListVm.Chats.Any(c => c.Id == CurrentChat.Id))
+                {
+                    chatListVm.Chats.Insert(0, CurrentChat);
+                }
+                else
+                {
+                    chatListVm.SortChatsInPlace();
+                }
+            });
+        }
 
         _dispatcherService.Enqueue(() =>
         {
@@ -281,17 +343,24 @@ public partial class ConversationViewModel : ViewModelBase
             return;
         }
 
-        var incomingMsg = Messages.LastOrDefault(m => !m.IsOutgoing && !string.IsNullOrWhiteSpace(m.SenderName));
+        // Only pick an incoming sender name that is a real name (NOT another phone number)
+        var incomingMsg = Messages.LastOrDefault(m =>
+            !m.IsOutgoing &&
+            !string.IsNullOrWhiteSpace(m.SenderName) &&
+            !m.SenderName.StartsWith('+') &&
+            !m.SenderName.TrimStart('~').All(c => char.IsDigit(c) || c == ' ' || c == '-'));
+
         if (incomingMsg != null && !string.IsNullOrWhiteSpace(incomingMsg.SenderName))
         {
-            var name = incomingMsg.SenderName.Trim();
-            if (!name.StartsWith('~')) name = $"~{name}";
-            SenderPushName = name;
+            var name = incomingMsg.SenderName.Trim().TrimStart('~').Trim();
+            if (!string.IsNullOrEmpty(name))
+            {
+                SenderPushName = $"~{name}";
+                return;
+            }
         }
-        else
-        {
-            SenderPushName = null;
-        }
+
+        SenderPushName = null;
     }
 
     public void UpdateChatDateString()

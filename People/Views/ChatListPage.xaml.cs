@@ -18,6 +18,7 @@ public sealed partial class ChatListPage : Page
         
         DetailFrame.Navigated += DetailFrame_Navigated;
         this.SizeChanged += ChatListPage_SizeChanged;
+        this.Loaded += (s, e) => UpdateEmptyStateAnimation(_platformId);
         this.ActualThemeChanged += (s, e) => UpdateEmptyStateAnimation(_platformId);
         NewChatFlyout.Opened += (s, e) =>
         {
@@ -110,6 +111,12 @@ public sealed partial class ChatListPage : Page
         }
         
         _ = EmptyStatePlayer.PlayAsync(0, 1, false);
+
+        if (InitialSyncPlayer != null)
+        {
+            InitialSyncPlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
+            _ = InitialSyncPlayer.PlayAsync(0, 1, true);
+        }
     }
     
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)

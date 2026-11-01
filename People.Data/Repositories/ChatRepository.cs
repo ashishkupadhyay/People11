@@ -60,7 +60,12 @@ public class ChatRepository : IChatRepository
         }
         else
         {
+            var preservedPic = existing.PictureUrl;
             context.Entry(existing).CurrentValues.SetValues(chat);
+            if (string.IsNullOrEmpty(chat.PictureUrl) && !string.IsNullOrEmpty(preservedPic))
+            {
+                existing.PictureUrl = preservedPic;
+            }
             if (chat.LastMessage != null)
             {
                 existing.LastMessage = chat.LastMessage;
@@ -86,7 +91,12 @@ public class ChatRepository : IChatRepository
         {
             if (existingDict.TryGetValue(chat.Id, out var existing))
             {
+                var preservedPic = existing.PictureUrl;
                 context.Entry(existing).CurrentValues.SetValues(chat);
+                if (string.IsNullOrEmpty(chat.PictureUrl) && !string.IsNullOrEmpty(preservedPic))
+                {
+                    existing.PictureUrl = preservedPic;
+                }
                 if (chat.LastMessage != null)
                 {
                     existing.LastMessage = chat.LastMessage;

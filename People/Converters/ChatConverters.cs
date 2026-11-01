@@ -281,7 +281,8 @@ public class ChatLastMessagePreviewConverter : IValueConverter
                 if (!string.IsNullOrWhiteSpace(msg.SenderId))
                 {
                     var user = msg.SenderId.Contains('@') ? msg.SenderId.Split('@')[0] : msg.SenderId;
-                    return $"~{user}: {text}";
+                    var phone = user.StartsWith('+') ? user : $"+{user}";
+                    return $"{phone}: {text}";
                 }
             }
 
