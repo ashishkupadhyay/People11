@@ -60,6 +60,9 @@ public class PeopleDbContext : DbContext
                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                       v => JsonSerializer.Deserialize<MessageContent>(v, (JsonSerializerOptions?)null) ?? new MessageContent());
 
+            entity.Ignore(e => e.ShowDateSeparator);
+            entity.Ignore(e => e.DateSeparatorText);
+
             entity.Property(e => e.Reactions)
                   .HasConversion(
                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),

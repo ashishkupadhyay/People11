@@ -26,8 +26,8 @@ public sealed partial class MainWindow : Window
         
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
         themeService.Initialize();
-        
-                themeService.ApplyToWindow(this);
+        themeService.ApplyToWindow(this);
+
         var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
         if (navServiceCore is People.Services.NavigationService navService)
         {
@@ -63,8 +63,6 @@ public sealed partial class MainWindow : Window
         {
             var titleBar = appWindow.TitleBar;
             titleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
-            titleBar.ButtonHoverBackgroundColor = Microsoft.UI.Colors.Transparent;
-            titleBar.ButtonPressedBackgroundColor = Microsoft.UI.Colors.Transparent;
             titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
             titleBar.IconShowOptions = Microsoft.UI.Windowing.IconShowOptions.HideIconAndSystemMenu;
             
@@ -72,6 +70,7 @@ public sealed partial class MainWindow : Window
             {
                 UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
                 UpdateSidebarIcons(rootElement.ActualTheme);
+                rootElement.Loaded += (s, args) => UpdateSidebarIcons(rootElement.ActualTheme);
                 rootElement.ActualThemeChanged += (s, args) => 
                 {
                     UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
@@ -80,20 +79,61 @@ public sealed partial class MainWindow : Window
             }
         }
 
+        var settingsService = App.Current.Services.GetRequiredService<People.Core.Interfaces.ISettingsService>();
+        uint dpi = GetDpiForWindow(hwnd);
+        float scalingFactor = dpi / 96f;
+
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            uint dpi = GetDpiForWindow(hwnd);
-            float scalingFactor = dpi / 96f;
             presenter.PreferredMinimumWidth = (int)(480 * scalingFactor);
             presenter.PreferredMinimumHeight = (int)(480 * scalingFactor);
         }
 
+        int savedWidth = settingsService.GetValue<int>("WindowWidth", 0);
+        int savedHeight = settingsService.GetValue<int>("WindowHeight", 0);
+
+        if (savedWidth > 0 && savedHeight > 0)
+        {
+            appWindow.Resize(new Windows.Graphics.SizeInt32(savedWidth, savedHeight));
+        }
+        else
+        {
+            int defaultWidth = (int)(1020 * scalingFactor);
+            int defaultHeight = (int)(780 * scalingFactor);
+            appWindow.Resize(new Windows.Graphics.SizeInt32(defaultWidth, defaultHeight));
+        }
+
+        appWindow.Changed += (s, args) =>
+        {
+            if (args.DidSizeChange && appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p && p.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored)
+            {
+                settingsService.SetValue("WindowWidth", appWindow.Size.Width);
+                settingsService.SetValue("WindowHeight", appWindow.Size.Height);
+            }
+        };
+
         NavView.SizeChanged += NavView_SizeChanged;
+    }
+
+    private static bool IsDarkTheme(ElementTheme theme)
+    {
+        if (theme == ElementTheme.Dark) return true;
+        if (theme == ElementTheme.Light) return false;
+        try
+        {
+            var uiSettings = new Windows.UI.ViewManagement.UISettings();
+            var bg = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
+            return bg.R < 128;
+        }
+        catch
+        {
+            return Application.Current.RequestedTheme == ApplicationTheme.Dark;
+        }
     }
 
     private void UpdateTitleBarColors(Microsoft.UI.Windowing.AppWindowTitleBar titleBar, ElementTheme theme)
     {
-        bool isDark = theme == ElementTheme.Dark || (theme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        bool isDark = IsDarkTheme(theme);
         var foregroundColor = isDark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
         titleBar.ButtonForegroundColor = foregroundColor;
         titleBar.ButtonHoverForegroundColor = foregroundColor;
@@ -103,16 +143,14 @@ public sealed partial class MainWindow : Window
 
     private void UpdateSidebarIcons(ElementTheme theme)
     {
-        bool isDark = theme == ElementTheme.Dark || (theme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        bool isDark = IsDarkTheme(theme);
         string suffix = isDark ? "White" : "Black";
         
-        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/WhatsApp-Logo-{suffix}.svg"));
-        if (NavTelegramIcon != null) NavTelegramIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Telegram-Logo-{suffix}.svg"));
-        if (NavSignalIcon != null) NavSignalIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Signal-Logo-{suffix}.svg"));
-        if (NavDiscordIcon != null) NavDiscordIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Discord-Logo-{suffix}.svg"));
+        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/WhatsApp-Logo-{suffix}.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        if (NavTelegramIcon != null) NavTelegramIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Telegram-Logo-{suffix}.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        if (NavSignalIcon != null) NavSignalIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Signal-Logo-{suffix}.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        if (NavDiscordIcon != null) NavDiscordIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri($"ms-appx:///Assets/Icons/Discord-Logo-{suffix}.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
     }
-
-
 
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
@@ -190,7 +228,7 @@ public sealed partial class MainWindow : Window
         // Handle UI updates based on display mode if necessary
     }
 
-        private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
+    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
         ViewModel.IsBackEnabled = ContentFrame.CanGoBack;
 
@@ -212,7 +250,4 @@ public sealed partial class MainWindow : Window
             themeService.ClearActivePlatform();
         }
     }
-
 }
-
-

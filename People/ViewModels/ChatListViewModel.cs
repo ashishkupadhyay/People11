@@ -46,6 +46,7 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly IDispatcherService _dispatcherService;
     private readonly IChatRepository? _chatRepository;
     private int _isLoadingChats;
+    private volatile bool _needsReloadChats;
 
     public ChatListViewModel(
         IMessagingProvider provider, 
@@ -57,8 +58,9 @@ public partial class ChatListViewModel : ViewModelBase
         _chatRepository = chatRepository;
         _provider.ConnectionStateChanged += OnConnectionStateChanged;
         _provider.ChatUpdated += OnChatUpdated;
+        _provider.MessageReceived += OnMessageReceived;
 
-        _ = RebuildContactsAsync();
+        _ = Task.Run(RebuildContactsAsync);
 
         if (_provider is IWhatsAppProvider waProvider)
         {
@@ -91,7 +93,7 @@ public partial class ChatListViewModel : ViewModelBase
             });
 
             // Immediately load any cached chats
-            await LoadChatsAsync();
+            _ = LoadChatsAsync();
 
             try
             {
@@ -106,6 +108,8 @@ public partial class ChatListViewModel : ViewModelBase
                     ErrorMessage = ex.Message;
                 });
             }
+
+            await LoadChatsAsync();
             return;
         }
 
@@ -161,7 +165,7 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             SyncProgress = progress;
-            if (progress >= 100 || progress <= 0)
+            if (progress >= 100 || progress < 0)
             {
                 IsSyncing = false;
                 SyncStatusText = string.Empty;
@@ -182,6 +186,25 @@ public partial class ChatListViewModel : ViewModelBase
         });
     }
 
+    private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
+    {
+        _dispatcherService.Enqueue(() =>
+        {
+            var msg = e.Message;
+            var chat = Chats.FirstOrDefault(c => c.Id.Equals(msg.ChatId, StringComparison.OrdinalIgnoreCase));
+            if (chat != null)
+            {
+                chat.LastMessage = msg;
+                chat.LastMessageTime = msg.Timestamp;
+                SortChatsInPlace();
+            }
+            else
+            {
+                _ = LoadChatsAsync();
+            }
+        });
+    }
+
     private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
     {
         if (e.State == ConnectionState.Connected)
@@ -191,8 +214,6 @@ public partial class ChatListViewModel : ViewModelBase
                 IsConnecting = false;
                 ShowQrCode = false;
                 HasError = false;
-                IsSyncing = false;
-                SyncStatusText = string.Empty;
             });
             _ = LoadChatsAsync();
         }
@@ -223,9 +244,26 @@ public partial class ChatListViewModel : ViewModelBase
     {
         if (System.Threading.Interlocked.Exchange(ref _isLoadingChats, 1) != 0)
         {
+            _needsReloadChats = true;
             return;
         }
 
+        try
+        {
+            do
+            {
+                _needsReloadChats = false;
+                await ExecuteLoadChatsAsync();
+            } while (_needsReloadChats);
+        }
+        finally
+        {
+            System.Threading.Interlocked.Exchange(ref _isLoadingChats, 0);
+        }
+    }
+
+    private async Task ExecuteLoadChatsAsync()
+    {
         try
         {
             // 1. Show cached chats immediately from SQLite
@@ -235,10 +273,10 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     var cached = await _chatRepository.GetAllAsync(0, 100);
                     // Filter out any phantom empty non-group chat stubs
-                    var validCached = cached.Where(c => c.IsGroup || c.LastMessage != null || c.LastMessageTime > DateTimeOffset.FromUnixTimeSeconds(0)).ToList();
+                    var validCached = cached.Where(c => c.IsGroup || (c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
 
                     // Prune phantom stubs in the background
-                    var phantoms = cached.Where(c => !c.IsGroup && c.LastMessage == null && c.LastMessageTime <= DateTimeOffset.FromUnixTimeSeconds(0)).ToList();
+                    var phantoms = cached.Where(c => !c.IsGroup && (c.LastMessage == null || string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
                     if (phantoms.Count > 0)
                     {
                         _ = Task.Run(async () =>
@@ -256,7 +294,8 @@ public partial class ChatListViewModel : ViewModelBase
                         {
                             if (Chats.Count == 0)
                             {
-                                foreach (var c in validCached)
+                                var sorted = validCached.OrderByDescending(c => c.LastMessageTime).ToList();
+                                foreach (var c in sorted)
                                 {
                                     c.Title = ResolveChatTitle(c);
                                     Chats.Add(c);
@@ -275,18 +314,21 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chats = await _provider.GetChatsAsync();
-            var validChats = chats.Where(c => c.IsGroup || c.LastMessage != null || c.LastMessageTime > DateTimeOffset.FromUnixTimeSeconds(0)).ToList();
+            var validChats = chats.Where(c => c.IsGroup || (c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text))).ToList();
 
             _dispatcherService.Enqueue(() =>
             {
                 var newChatIds = new HashSet<string>(validChats.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
 
-                // Remove chats that no longer exist
-                for (int i = Chats.Count - 1; i >= 0; i--)
+                // Remove chats that no longer exist ONLY if the provider returned chats
+                if (validChats.Count > 0)
                 {
-                    if (!newChatIds.Contains(Chats[i].Id))
+                    for (int i = Chats.Count - 1; i >= 0; i--)
                     {
-                        Chats.RemoveAt(i);
+                        if (!newChatIds.Contains(Chats[i].Id))
+                        {
+                            Chats.RemoveAt(i);
+                        }
                     }
                 }
 
@@ -325,13 +367,15 @@ public partial class ChatListViewModel : ViewModelBase
                 SortChatsInPlace();
             });
 
-            // Asynchronously resolve missing profile picture URLs in the background in parallel
+            // Asynchronously resolve missing profile picture URLs in the background
             _ = Task.Run(async () =>
             {
                 if (_provider is IWhatsAppProvider waProvider)
                 {
                     var chatsNeedingPics = validChats.Where(c => string.IsNullOrEmpty(c.PictureUrl)).ToList();
-                    await Parallel.ForEachAsync(chatsNeedingPics, new ParallelOptions { MaxDegreeOfParallelism = 6 }, async (chat, ct) =>
+                    var updatedWithPics = new System.Collections.Concurrent.ConcurrentBag<Chat>();
+
+                    await Parallel.ForEachAsync(chatsNeedingPics, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async (chat, ct) =>
                     {
                         try
                         {
@@ -347,26 +391,24 @@ public partial class ChatListViewModel : ViewModelBase
                                     }
                                 });
 
-                                // Persist profile picture to SQLite so next launch is instant
-                                if (_chatRepository != null)
-                                {
-                                    chat.PictureUrl = picUrl;
-                                    try { await _chatRepository.SaveAsync(chat); } catch { }
-                                }
+                                chat.PictureUrl = picUrl;
+                                updatedWithPics.Add(chat);
                             }
                         }
                         catch { }
                     });
+
+                    // Batch persist profile pictures to SQLite in a single transaction
+                    if (_chatRepository != null && !updatedWithPics.IsEmpty)
+                    {
+                        try { await _chatRepository.SaveManyAsync(updatedWithPics.ToList()); } catch { }
+                    }
                 }
             });
         }
         catch (Exception)
         {
             _dispatcherService.Enqueue(() => LoadMockData());
-        }
-        finally
-        {
-            System.Threading.Interlocked.Exchange(ref _isLoadingChats, 0);
         }
     }
 

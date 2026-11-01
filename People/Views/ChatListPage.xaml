@@ -169,7 +169,7 @@
                             <PersonPicture Grid.Column="0" 
                                            ProfilePicture="{x:Bind PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                            IsGroup="{x:Bind IsGroup, Mode=OneWay}"
-                                           DisplayName="{x:Bind Title, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
+                                           DisplayName="{x:Bind Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
                                            Width="48" Height="48" Margin="0,0,12,0"/>
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">

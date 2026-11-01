@@ -184,16 +184,38 @@ public class PersonPictureDisplayNameConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is string title && !string.IsNullOrWhiteSpace(title))
+        if (value is People.Core.Models.Chat chat)
         {
-            var trimmed = title.Trim();
+            // For group chats, return empty string so PersonPicture displays the native group icon glyph instead of initials
+            if (chat.IsGroup)
+            {
+                return string.Empty;
+            }
+
+            var title = chat.Title;
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                var trimmed = title.Trim();
+                // If it's an unsaved number, return empty string so PersonPicture displays the native person glyph rather than digit initials
+                if (trimmed.StartsWith('+') || trimmed.All(c => char.IsDigit(c) || char.IsWhiteSpace(c) || c == '-' || c == '(' || c == ')'))
+                {
+                    return string.Empty;
+                }
+                return title;
+            }
+            return string.Empty;
+        }
+
+        if (value is string titleStr && !string.IsNullOrWhiteSpace(titleStr))
+        {
+            var trimmed = titleStr.Trim();
             // If it's an unsaved number (starts with '+' or consists almost entirely of digits and separators)
             if (trimmed.StartsWith('+') || trimmed.All(c => char.IsDigit(c) || char.IsWhiteSpace(c) || c == '-' || c == '(' || c == ')'))
             {
                 // Return empty string so PersonPicture displays the native person glyph rather than digit initials
                 return string.Empty;
             }
-            return title;
+            return titleStr;
         }
         return string.Empty;
     }

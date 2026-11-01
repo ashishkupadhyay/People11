@@ -17,19 +17,24 @@ public partial class ConversationViewModel : ViewModelBase
     [ObservableProperty]
     public partial Chat? CurrentChat { get; set; }
 
-    public ObservableCollection<Message> Messages { get; } = new();
-
     [ObservableProperty]
     public partial string MessageText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial ObservableCollection<Message> Messages { get; set; } = new();
 
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotLoadingOlder))]
     public partial bool IsLoadingOlder { get; set; }
 
     public bool IsNotLoadingOlder => !IsLoadingOlder;
+
+    partial void OnIsLoadingOlderChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsNotLoadingOlder));
+    }
 
     [ObservableProperty]
     public partial string CurrentChatDateString { get; set; } = "Today";
@@ -66,6 +71,7 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     Messages.Add(msg);
                 }
+                RecalculateDateSeparators();
                 UpdateChatDateString();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
@@ -113,6 +119,7 @@ public partial class ConversationViewModel : ViewModelBase
                     }
                 }
                 IsLoadingOlder = false;
+                RecalculateDateSeparators();
                 UpdateChatDateString();
 
                 if (addedAny && anchor != null)
@@ -146,6 +153,8 @@ public partial class ConversationViewModel : ViewModelBase
             if (!Messages.Any(m => m.Id == sentMsg.Id))
             {
                 Messages.Add(sentMsg);
+                RecalculateDateSeparators();
+                UpdateChatDateString();
             }
         });
     }
@@ -168,6 +177,7 @@ public partial class ConversationViewModel : ViewModelBase
             var msgs = await _provider.GetMessagesAsync(CurrentChat.Id, 0, 100);
             _dispatcherService.Enqueue(() =>
             {
+                bool anyAdded = false;
                 foreach (var msg in msgs)
                 {
                     if (!Messages.Any(m => m.Id == msg.Id))
@@ -178,9 +188,14 @@ public partial class ConversationViewModel : ViewModelBase
                             index++;
                         }
                         Messages.Insert(index, msg);
+                        anyAdded = true;
                     }
                 }
-                UpdateChatDateString();
+                if (anyAdded)
+                {
+                    RecalculateDateSeparators();
+                    UpdateChatDateString();
+                }
             });
         }
         catch
@@ -198,9 +213,31 @@ public partial class ConversationViewModel : ViewModelBase
                 if (!Messages.Any(m => m.Id == e.Message.Id))
                 {
                     Messages.Add(e.Message);
+                    RecalculateDateSeparators();
                     UpdateChatDateString();
                 }
             });
+        }
+    }
+
+    public void RecalculateDateSeparators()
+    {
+        DateTime? lastDate = null;
+        for (int i = 0; i < Messages.Count; i++)
+        {
+            var msg = Messages[i];
+            var msgDate = msg.Timestamp.ToLocalTime().Date;
+            if (lastDate == null || msgDate != lastDate.Value)
+            {
+                msg.ShowDateSeparator = true;
+                msg.DateSeparatorText = FormatChatDate(msg.Timestamp);
+                lastDate = msgDate;
+            }
+            else
+            {
+                msg.ShowDateSeparator = false;
+                msg.DateSeparatorText = null;
+            }
         }
     }
 

@@ -35,7 +35,7 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                IsGroup="{x:Bind ViewModel.CurrentChat.IsGroup, Mode=OneWay}"
-                               DisplayName="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}"
+                               DisplayName="{x:Bind ViewModel.CurrentChat, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}"
                                Width="40" Height="40" />
                 <TextBlock Text="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" VerticalAlignment="Center" Style="{ThemeResource BodyStrongTextBlockStyle}" />
             </StackPanel>
@@ -43,13 +43,7 @@
 
         <!-- Messages -->
         <Grid Grid.Row="1">
-            <RefreshContainer x:Name="MessagesRefreshContainer" 
-                              IsEnabled="{x:Bind ViewModel.IsNotLoadingOlder, Mode=OneWay}"
-                              RefreshRequested="MessagesRefreshContainer_RefreshRequested">
-                <RefreshContainer.Visualizer>
-                    <RefreshVisualizer />
-                </RefreshContainer.Visualizer>
-                <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,40,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+            <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,40,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
                     <ListView.Header>
                         <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay}"
                                       Visibility="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -64,104 +58,126 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
-                <DataTemplate x:DataType="models:Message">
-                    <Grid Margin="0,4" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">
-                        <StackPanel MaxWidth="480" Spacing="2">
-                            <!-- Message Bubble -->
-                            <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
-                                    Background="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}">
-                                <StackPanel Spacing="4">
-                                    <!-- Sender Name (for incoming messages in groups) -->
-                                    <TextBlock Text="{x:Bind SenderName, Mode=OneTime}"
-                                               FontWeight="SemiBold"
+                        <DataTemplate x:DataType="models:Message">
+                            <Grid Margin="0,4" HorizontalAlignment="Stretch">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Inline Date Separator Pill Button -->
+                                <Border Grid.Row="0"
+                                        HorizontalAlignment="Center"
+                                        Margin="0,8,0,10"
+                                        Padding="12,4"
+                                        CornerRadius="12"
+                                        Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        Visibility="{x:Bind ShowDateSeparator, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind DateSeparatorText, Mode=OneWay}"
                                                FontSize="12"
-                                               Foreground="{ThemeResource AppAccentBrush}"
-                                               Visibility="{x:Bind Converter={StaticResource GroupSenderVisibilityConverter}}"
-                                               TextTrimming="CharacterEllipsis" />
+                                               FontWeight="SemiBold"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Border>
 
-                                    <!-- Quoted / Reply Preview -->
-                                    <Border Visibility="{x:Bind QuotedText, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
-                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                            BorderBrush="{ThemeResource AppAccentBrush}"
-                                            BorderThickness="3,0,0,0"
-                                            CornerRadius="4"
-                                            Padding="8,4"
-                                            Margin="0,0,0,4">
-                                        <StackPanel Spacing="2">
-                                            <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="11"
-                                                       Foreground="{ThemeResource AppAccentBrush}"
-                                                       Visibility="{x:Bind QuotedSender, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{x:Bind QuotedText, Mode=OneTime}"
-                                                       FontSize="12"
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                       MaxLines="2"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                    </Border>
+                                <!-- Message Bubble -->
+                                <Grid Grid.Row="1" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">
+                                    <StackPanel MaxWidth="480" Spacing="2">
+                                        <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
+                                                Background="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}">
+                                            <StackPanel Spacing="4">
+                                                <!-- Sender Name (for incoming messages in groups) -->
+                                                <TextBlock Text="{x:Bind SenderName, Mode=OneTime}"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="12"
+                                                           Foreground="{ThemeResource AppAccentBrush}"
+                                                           Visibility="{x:Bind Converter={StaticResource GroupSenderVisibilityConverter}}"
+                                                           TextTrimming="CharacterEllipsis" />
 
-                                    <!-- Message Text -->
-                                    <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" 
-                                               TextWrapping="Wrap" 
-                                               Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}" />
+                                                <!-- Quoted / Reply Preview -->
+                                                <Border Visibility="{x:Bind QuotedText, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
+                                                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                        BorderBrush="{ThemeResource AppAccentBrush}"
+                                                        BorderThickness="3,0,0,0"
+                                                        CornerRadius="4"
+                                                        Padding="8,4"
+                                                        Margin="0,0,0,4">
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="11"
+                                                                   Foreground="{ThemeResource AppAccentBrush}"
+                                                                   Visibility="{x:Bind QuotedSender, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{x:Bind QuotedText, Mode=OneTime}"
+                                                                   FontSize="12"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                   MaxLines="2"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Border>
 
-                                    <!-- Timestamp and status icon -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
-                                        <TextBlock Text="{x:Bind FormattedTime, Mode=OneTime}" 
-                                                   FontSize="10" 
-                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
-                                        <FontIcon Glyph="&#xE73E;" FontSize="10"
-                                                  Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
-                                                  Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
+                                                <!-- Message Text -->
+                                                <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" 
+                                                           TextWrapping="Wrap" 
+                                                           Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}" />
 
-                            <!-- Reaction pills -->
-                            <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneTime}"
-                                          Visibility="{x:Bind Reactions, Mode=OneTime, Converter={StaticResource CollectionToVisibilityConverter}}"
-                                          HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                          Margin="4,-4,4,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="4"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="x:String">
-                                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="10"
-                                                Padding="6,2">
-                                            <TextBlock Text="{x:Bind}" FontSize="12"/>
+                                                <!-- Timestamp and status icon -->
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
+                                                    <TextBlock Text="{x:Bind FormattedTime, Mode=OneTime}" 
+                                                               FontSize="10" 
+                                                               Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
+                                                    <FontIcon Glyph="&#xE73E;" FontSize="10"
+                                                              Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                              Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                </StackPanel>
+                                            </StackPanel>
                                         </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
-        </RefreshContainer>
 
-        <!-- Date Context Pill Button -->
-        <Button HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                Margin="0,8,0,0"
-                Padding="12,4"
-                CornerRadius="12"
-                Style="{ThemeResource SubtleButtonStyle}"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                Canvas.ZIndex="10"
-                Content="{x:Bind ViewModel.CurrentChatDateString, Mode=OneWay}"
-                FontSize="12"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <!-- Reaction pills -->
+                                        <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneTime}"
+                                                      Visibility="{x:Bind Reactions, Mode=OneTime, Converter={StaticResource CollectionToVisibilityConverter}}"
+                                                      HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                                      Margin="4,-4,4,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="10"
+                                                            Padding="6,2">
+                                                        <TextBlock Text="{x:Bind}" FontSize="12"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+            <!-- Date Context Pill Button -->
+            <Button HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Margin="0,8,0,0"
+                    Padding="12,4"
+                    CornerRadius="12"
+                    Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    Canvas.ZIndex="10"
+                    Content="{x:Bind ViewModel.CurrentChatDateString, Mode=OneWay}"
+                    FontSize="12"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
 
         <!-- Input Area -->
@@ -178,4 +194,3 @@
         </Grid>
     </Grid>
 </Page>
-

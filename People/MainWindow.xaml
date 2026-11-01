@@ -40,7 +40,11 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Tag="WhatsApp" x:Uid="NavWhatsApp" AutomationProperties.AutomationId="NavWhatsApp">
                     <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavWhatsAppIcon" />
+                        <ImageIcon x:Name="NavWhatsAppIcon" Width="18" Height="18">
+                            <ImageIcon.Source>
+                                <SvgImageSource UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg" RasterizePixelWidth="36" RasterizePixelHeight="36" />
+                            </ImageIcon.Source>
+                        </ImageIcon>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="SMS" x:Uid="NavSMS" AutomationProperties.AutomationId="NavSMS">
@@ -50,17 +54,29 @@
                 </NavigationViewItem>
                 <NavigationViewItem Tag="Telegram" x:Uid="NavTelegram" AutomationProperties.AutomationId="NavTelegram">
                     <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavTelegramIcon" />
+                        <ImageIcon x:Name="NavTelegramIcon" Width="18" Height="18">
+                            <ImageIcon.Source>
+                                <SvgImageSource UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" RasterizePixelWidth="36" RasterizePixelHeight="36" />
+                            </ImageIcon.Source>
+                        </ImageIcon>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="Signal" x:Uid="NavSignal" AutomationProperties.AutomationId="NavSignal">
                     <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavSignalIcon" />
+                        <ImageIcon x:Name="NavSignalIcon" Width="18" Height="18">
+                            <ImageIcon.Source>
+                                <SvgImageSource UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" RasterizePixelWidth="36" RasterizePixelHeight="36" />
+                            </ImageIcon.Source>
+                        </ImageIcon>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="Discord" x:Uid="NavDiscord" AutomationProperties.AutomationId="NavDiscord">
                     <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavDiscordIcon" />
+                        <ImageIcon x:Name="NavDiscordIcon" Width="18" Height="18">
+                            <ImageIcon.Source>
+                                <SvgImageSource UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" RasterizePixelWidth="36" RasterizePixelHeight="36" />
+                            </ImageIcon.Source>
+                        </ImageIcon>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

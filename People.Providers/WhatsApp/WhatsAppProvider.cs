@@ -118,8 +118,9 @@ public class WhatsAppProvider : IWhatsAppProvider
                     WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
                     WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
                     WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
-                    WhatsAppNative.wa_load_cache(dbPath);
                 }
+
+                await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
 
                 if (IsAuthenticated)
                 {
@@ -252,6 +253,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         _activeInstance._logger?.LogInformation("WhatsApp authenticated successfully.");
         _activeInstance.ConnectionState = ConnectionState.Connected;
         _activeInstance.OnConnectionStateChanged(ConnectionState.Connected);
+        _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -480,8 +482,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var chats = new List<Chat>();
                 foreach (var dto in dtos)
                 {
-                    // Filter out phantom empty non-group chat stubs (no messages and timestamp <= 0)
-                    if (!dto.IsGroup && dto.LastMessage == null && dto.LastMessageTimestamp <= 0)
+                    // Filter out phantom empty non-group chat stubs (no valid last message)
+                    if (!dto.IsGroup && (dto.LastMessage == null || string.IsNullOrWhiteSpace(dto.LastMessage.Text)))
                     {
                         continue;
                     }

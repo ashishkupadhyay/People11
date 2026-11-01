@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.CompilerServices;
 
 namespace People.Core.Models;
 
@@ -12,7 +15,7 @@ public enum MessageStatus
     Failed
 }
 
-public class Message
+public class Message : INotifyPropertyChanged
 {
     public string Id { get; set; } = string.Empty;
     public string ChatId { get; set; } = string.Empty;
@@ -35,4 +38,40 @@ public class Message
     
     // For EF Core
     public Chat? Chat { get; set; }
+
+    private bool _showDateSeparator;
+    [NotMapped]
+    public bool ShowDateSeparator
+    {
+        get => _showDateSeparator;
+        set
+        {
+            if (_showDateSeparator != value)
+            {
+                _showDateSeparator = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private string? _dateSeparatorText;
+    [NotMapped]
+    public string? DateSeparatorText
+    {
+        get => _dateSeparatorText;
+        set
+        {
+            if (_dateSeparatorText != value)
+            {
+                _dateSeparatorText = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
