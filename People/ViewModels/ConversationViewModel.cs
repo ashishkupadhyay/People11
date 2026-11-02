@@ -92,6 +92,11 @@ public partial class ConversationViewModel : ViewModelBase
         UpdateChatDateString();
         UpdateSenderPushName();
 
+        if (_provider is IWhatsAppProvider waSubProvider && string.IsNullOrEmpty(SenderPushName) && !chat.IsGroup)
+        {
+            waSubProvider.SubscribePresence(chat.Id);
+        }
+
         if (string.IsNullOrEmpty(chat.PictureUrl) && _provider is IWhatsAppProvider waProvider)
         {
             _ = Task.Run(async () =>
@@ -266,6 +271,7 @@ public partial class ConversationViewModel : ViewModelBase
         if (CurrentChat == null) return;
         _dispatcherService.Enqueue(async () =>
         {
+            UpdateHeaderDetails();
             await RefreshMessagesAsync();
         });
     }
@@ -297,6 +303,7 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     RecalculateDateSeparators();
                     UpdateChatDateString();
+                    UpdateSenderPushName();
                 }
             });
         }
@@ -445,6 +452,10 @@ public partial class ConversationViewModel : ViewModelBase
                 if (string.IsNullOrEmpty(pushName) && idDigits.Length >= 5)
                 {
                     pushName = waProvider.GetPushName(idDigits);
+                    if (string.IsNullOrEmpty(pushName) && idDigits.Length == 12 && idDigits.StartsWith("91"))
+                    {
+                        pushName = waProvider.GetPushName(idDigits[2..]);
+                    }
                 }
             }
 
@@ -483,6 +494,11 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     pushName = incomingMsg.SenderName;
                 }
+            }
+
+            if (string.IsNullOrEmpty(pushName) && waProvider != null && !string.IsNullOrEmpty(chatId))
+            {
+                waProvider.SubscribePresence(chatId);
             }
 
             if (!string.IsNullOrWhiteSpace(pushName))

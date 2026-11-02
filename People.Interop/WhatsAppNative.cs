@@ -10,6 +10,9 @@ public static unsafe partial class WhatsAppNative
     [LibraryImport(DllName)]
     public static partial IntPtr wa_create_client();
 
+    [LibraryImport(DllName)]
+    public static partial int wa_is_client_ready(IntPtr clientPtr);
+
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_is_authenticated(string dbPath);
 
@@ -53,6 +56,9 @@ public static unsafe partial class WhatsAppNative
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_fetch_older_messages(IntPtr clientPtr, string chatId, int count);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_subscribe_presence(IntPtr clientPtr, string chatId);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr wa_get_messages_paginated(IntPtr clientPtr, string chatId, long beforeTs, int limit);

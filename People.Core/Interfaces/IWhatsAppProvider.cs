@@ -8,6 +8,7 @@ namespace People.Core.Interfaces;
 public interface IWhatsAppProvider : IMessagingProvider
 {
     bool IsAuthenticated { get; }
+    bool IsClientReady { get; }
     event EventHandler<string>? QrCodeReceived;
     event EventHandler<int>? SyncProgressChanged;
     Task AuthenticateAsync(CancellationToken ct = default);
@@ -19,4 +20,5 @@ public interface IWhatsAppProvider : IMessagingProvider
     string? GetPhoneNumber(string chatId);
     Task<string?> GetProfilePictureUrlAsync(string chatId, CancellationToken ct = default);
     Task MarkChatAsReadAsync(string chatId, CancellationToken ct = default);
+    void SubscribePresence(string chatId);
 }

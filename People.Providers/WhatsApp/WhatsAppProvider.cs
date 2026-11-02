@@ -38,6 +38,22 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
     }
 
+    public bool IsClientReady
+    {
+        get
+        {
+            if (IsTestingMode) return true;
+            try
+            {
+                return _clientPtr != IntPtr.Zero && WhatsAppNative.wa_is_client_ready(_clientPtr) == 1;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
     public event EventHandler<ChatUpdatedEventArgs>? ChatUpdated;
@@ -555,6 +571,18 @@ public class WhatsAppProvider : IWhatsAppProvider
         catch
         {
             return null;
+        }
+    }
+
+    public void SubscribePresence(string chatId)
+    {
+        if (IsTestingMode || _clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId)) return;
+        try
+        {
+            WhatsAppNative.wa_subscribe_presence(_clientPtr, chatId);
+        }
+        catch
+        {
         }
     }
 

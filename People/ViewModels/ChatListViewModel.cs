@@ -231,6 +231,10 @@ public partial class ChatListViewModel : ViewModelBase
                     InitialSyncText = "Finishing sync...";
                     IsInitialSyncing = false;
                     IsSyncing = false;
+                    lock (_failedPictureJids)
+                    {
+                        _failedPictureJids.Clear();
+                    }
                     await LoadChatsAsync();
                 }
                 else
@@ -259,6 +263,10 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
+        lock (_failedPictureJids)
+        {
+            _failedPictureJids.Clear();
+        }
         _ = LoadChatsAsync();
     }
 
@@ -297,6 +305,10 @@ public partial class ChatListViewModel : ViewModelBase
                 }
                 HasError = false;
             });
+            lock (_failedPictureJids)
+            {
+                _failedPictureJids.Clear();
+            }
             _ = LoadChatsAsync();
         }
         else if (e.State == ConnectionState.Error)
@@ -474,6 +486,15 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 if (_provider is IWhatsAppProvider waProvider)
                 {
+                    if (!waProvider.IsAuthenticated || IsInitialSyncing) return;
+
+                    // Wait for client to connect if app just launched
+                    for (int i = 0; i < 25 && !waProvider.IsClientReady; i++)
+                    {
+                        await Task.Delay(200);
+                    }
+                    if (!waProvider.IsClientReady) return;
+
                     var chatsNeedingPics = validChats
                         .Where(c => string.IsNullOrEmpty(c.PictureUrl) && !_failedPictureJids.Contains(c.Id))
                         .Take(25)
@@ -502,7 +523,7 @@ public partial class ChatListViewModel : ViewModelBase
                                 chat.PictureUrl = picUrl;
                                 updatedWithPics.Add(chat);
                             }
-                            else
+                            else if (waProvider.IsClientReady)
                             {
                                 lock (_failedPictureJids)
                                 {
@@ -512,9 +533,12 @@ public partial class ChatListViewModel : ViewModelBase
                         }
                         catch
                         {
-                            lock (_failedPictureJids)
+                            if (waProvider.IsClientReady)
                             {
-                                _failedPictureJids.Add(chat.Id);
+                                lock (_failedPictureJids)
+                                {
+                                    _failedPictureJids.Add(chat.Id);
+                                }
                             }
                         }
                     });
@@ -580,11 +604,18 @@ public partial class ChatListViewModel : ViewModelBase
             if (tDigits.Length >= 7) candidateDigits.Add(tDigits);
         }
 
+        string? idUserDigits = null;
         if (!string.IsNullOrEmpty(chat.Id) && !chat.Id.EndsWith("@lid", StringComparison.OrdinalIgnoreCase))
         {
             var userPart = chat.Id.Contains('@') ? chat.Id.Split('@')[0] : chat.Id;
-            var idDigits = new string(userPart.Where(char.IsDigit).ToArray());
-            if (idDigits.Length >= 7) candidateDigits.Add(idDigits);
+            var cleanPart = userPart.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? userPart[3..] : userPart;
+            var digitsOnly = cleanPart.Split(':')[0];
+            var idDigits = new string(digitsOnly.Where(char.IsDigit).ToArray());
+            if (idDigits.Length >= 7)
+            {
+                candidateDigits.Add(idDigits);
+                idUserDigits = idDigits;
+            }
         }
 
         lock (_contactNamesByPhoneDigits)
@@ -600,6 +631,31 @@ public partial class ChatListViewModel : ViewModelBase
                     return n10;
                 }
             }
+        }
+
+        // Unsaved 1-on-1 contact: format international phone number matching WhatsApp
+        string? phone = null;
+        var waProvider = _provider as IWhatsAppProvider;
+        if (waProvider != null && !string.IsNullOrEmpty(chat.Id))
+        {
+            phone = waProvider.GetPhoneNumber(chat.Id);
+        }
+        if (string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(idUserDigits))
+        {
+            phone = $"+{idUserDigits}";
+        }
+        if (string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(chat.Title))
+        {
+            var titleDigits = new string(chat.Title.Where(char.IsDigit).ToArray());
+            if (titleDigits.Length >= 7)
+            {
+                phone = chat.Title.StartsWith('+') ? chat.Title : $"+{titleDigits}";
+            }
+        }
+
+        if (!string.IsNullOrEmpty(phone))
+        {
+            return ConversationViewModel.FormatPhoneNumber(phone);
         }
 
         return chat.Title;
