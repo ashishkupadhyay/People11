@@ -391,40 +391,45 @@ public partial class ConversationViewModel : ViewModelBase
         if (waProvider != null && !string.IsNullOrEmpty(chatId))
         {
             savedName = waProvider.GetContactName(chatId);
+            if (string.IsNullOrEmpty(savedName) && idDigits.Length >= 5)
+            {
+                savedName = waProvider.GetContactName(idDigits);
+            }
         }
 
         bool isUnsaved;
         if (!string.IsNullOrWhiteSpace(savedName))
         {
+            // Definitely a saved contact from address book
             isUnsaved = false;
         }
-        else if (rawTitle.StartsWith('+') || rawTitle.StartsWith('~'))
+        else if (waProvider != null)
         {
+            // Contact is NOT in address book -> unsaved contact
             isUnsaved = true;
         }
         else
         {
-            int letterCount = rawTitle.Count(char.IsLetter);
-            int digitCount = rawTitle.Count(char.IsDigit);
-            var titleDigits = new string(rawTitle.Where(char.IsDigit).ToArray());
-
-            if (letterCount == 0 && digitCount >= 5)
-            {
-                isUnsaved = true;
-            }
-            else if (!string.IsNullOrEmpty(idDigits) && titleDigits == idDigits)
-            {
-                isUnsaved = true;
-            }
-            else if (IsPhoneNumber(rawTitle))
+            // Fallback for mock/test provider
+            if (rawTitle.StartsWith('+') || rawTitle.StartsWith('~') || IsPhoneNumber(rawTitle))
             {
                 isUnsaved = true;
             }
             else
             {
-                // Has letters and not a phone number -> user-saved address book name
-                isUnsaved = false;
-                savedName = rawTitle;
+                int letterCount = rawTitle.Count(char.IsLetter);
+                int digitCount = rawTitle.Count(char.IsDigit);
+                var titleDigits = new string(rawTitle.Where(char.IsDigit).ToArray());
+
+                if ((letterCount == 0 && digitCount >= 5) || (!string.IsNullOrEmpty(idDigits) && titleDigits == idDigits))
+                {
+                    isUnsaved = true;
+                }
+                else
+                {
+                    isUnsaved = false;
+                    savedName = rawTitle;
+                }
             }
         }
 
@@ -446,6 +451,17 @@ public partial class ConversationViewModel : ViewModelBase
             if (string.IsNullOrEmpty(pushName) && rawTitle.StartsWith('~'))
             {
                 pushName = rawTitle.TrimStart('~').Trim();
+            }
+
+            // If pushName not found from bridge, but rawTitle is a non-phone name (e.g. "Sumalatha" or "Sangeetha S"),
+            // rawTitle was set to the push name by the bridge
+            if (string.IsNullOrEmpty(pushName) && !IsPhoneNumber(rawTitle) && !rawTitle.StartsWith('+'))
+            {
+                int letters = rawTitle.Count(char.IsLetter);
+                if (letters > 0)
+                {
+                    pushName = rawTitle;
+                }
             }
 
             if (string.IsNullOrEmpty(pushName) && CurrentChat.LastMessage != null && !CurrentChat.LastMessage.IsOutgoing)
