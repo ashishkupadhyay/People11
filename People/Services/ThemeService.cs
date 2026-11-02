@@ -89,20 +89,11 @@ public class ThemeService : IThemeService
         }
         else
         {
-            if (root.IsLoaded)
+            // Only set transparent if the frame already has navigated content;
+            // otherwise keep themed background so initial window scale-in is smooth and never black.
+            if (window is MainWindow mw && mw.HasNavigatedContent)
             {
                 root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-            }
-            else
-            {
-                // Defer transparency until loaded so initial frame paints solid theme color instead of black unrendered buffer
-                RoutedEventHandler? onLoaded = null;
-                onLoaded = (s, e) =>
-                {
-                    root.Loaded -= onLoaded;
-                    root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-                };
-                root.Loaded += onLoaded;
             }
         }
     }

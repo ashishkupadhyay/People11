@@ -151,7 +151,7 @@
                       AutomationProperties.AutomationId="ChatsListView">
                 <ListView.ItemContainerTransitions>
                     <TransitionCollection>
-                        <EntranceThemeTransition IsStaggeringEnabled="False" />
+                        <EntranceThemeTransition IsStaggeringEnabled="True" />
                         <AddDeleteThemeTransition />
                         <ReorderThemeTransition />
                     </TransitionCollection>

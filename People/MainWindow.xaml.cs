@@ -11,6 +11,7 @@ namespace People;
 public sealed partial class MainWindow : Window
 {
     public MainWindowViewModel ViewModel { get; }
+    public bool HasNavigatedContent => ContentFrame?.Content != null;
 
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _whatsAppDarkSource;
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _whatsAppLightSource;
@@ -88,13 +89,6 @@ public sealed partial class MainWindow : Window
         {
             var initialItem = NavView.MenuItems[0] as NavigationViewItem;
             NavView.SelectedItem = initialItem;
-
-            var platformId = initialItem?.Tag?.ToString();
-
-            if (!string.IsNullOrWhiteSpace(platformId))
-                navServiceCore.NavigateTo("Chats", platformId);
-            else
-                navServiceCore.NavigateTo("Chats");
         }
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -293,6 +287,17 @@ public sealed partial class MainWindow : Window
     private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
         ViewModel.IsBackEnabled = ContentFrame.CanGoBack;
+
+        // When content is first navigated into the frame, make RootGrid transparent to reveal Mica backdrop
+        if (RootGrid.Background is not Microsoft.UI.Xaml.Media.SolidColorBrush scb || scb.Color != Microsoft.UI.Colors.Transparent)
+        {
+            var settingsService = App.Current.Services.GetRequiredService<People.Core.Interfaces.ISettingsService>();
+            var backdrop = settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
+            if (backdrop != "None")
+            {
+                RootGrid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+        }
 
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
         if (ContentFrame.Content is Views.SettingsPage)

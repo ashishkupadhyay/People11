@@ -56,7 +56,19 @@ public class ChatRepository : IChatRepository
         
         if (existing == null)
         {
+            var lm = chat.LastMessage;
+            if (lm != null)
+            {
+                chat.LastMessage = null;
+            }
             context.Chats.Add(chat);
+            await context.SaveChangesAsync();
+
+            if (lm != null)
+            {
+                chat.LastMessage = lm;
+                await context.SaveChangesAsync();
+            }
         }
         else
         {
@@ -70,9 +82,8 @@ public class ChatRepository : IChatRepository
             {
                 existing.LastMessage = chat.LastMessage;
             }
+            await context.SaveChangesAsync();
         }
-        
-        await context.SaveChangesAsync();
     }
 
     public async Task SaveManyAsync(IEnumerable<Chat> chats)
@@ -86,6 +97,8 @@ public class ChatRepository : IChatRepository
             .Include(c => c.LastMessage)
             .Where(c => ids.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id);
+
+        var newChatsWithLastMessage = new List<(Chat Chat, Message LastMessage)>();
 
         foreach (var chat in chatList)
         {
@@ -104,10 +117,26 @@ public class ChatRepository : IChatRepository
             }
             else
             {
+                var lm = chat.LastMessage;
+                if (lm != null)
+                {
+                    chat.LastMessage = null;
+                    newChatsWithLastMessage.Add((chat, lm));
+                }
                 context.Chats.Add(chat);
             }
         }
+
         await context.SaveChangesAsync();
+
+        if (newChatsWithLastMessage.Count > 0)
+        {
+            foreach (var (chat, lm) in newChatsWithLastMessage)
+            {
+                chat.LastMessage = lm;
+            }
+            await context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteAsync(string id)

@@ -344,7 +344,7 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chats = await _provider.GetChatsAsync();
-            var validChats = chats.Where(c => c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text)).ToList();
+            var validChats = chats.Where(c => !string.IsNullOrWhiteSpace(c.Id) && (c.IsGroup || c.LastMessage != null)).ToList();
 
             // Resolve titles on background thread BEFORE dispatching to UI
             foreach (var incoming in validChats)

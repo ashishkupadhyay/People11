@@ -88,9 +88,12 @@ public partial class App : Application
         try
         {
             // Activate MainWindow immediately so the native splash screen transitions seamlessly
-            // into MainWindow with SplashOverlay (matching #202020 background).
+            // into MainWindow with solid theme background.
             MainWindow = Services.GetRequiredService<MainWindow>();
             MainWindow.Activate();
+
+            var navService = Services.GetRequiredService<INavigationService>();
+            navService.NavigateTo("Chats", "WhatsApp");
 
             _ = System.Threading.Tasks.Task.Run(() =>
             {
