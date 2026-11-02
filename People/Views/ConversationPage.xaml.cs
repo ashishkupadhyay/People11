@@ -125,7 +125,7 @@ public sealed partial class ConversationPage : Page
     {
         if (!_isPillVisible) return;
         _isPillVisible = false;
-        AnimatePill(-40, 0.0);
+        AnimatePill(-50, 0.0);
     }
 
     private void AnimatePill(double targetY, double targetOpacity)

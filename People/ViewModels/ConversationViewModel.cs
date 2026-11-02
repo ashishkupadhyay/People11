@@ -42,6 +42,12 @@ public partial class ConversationViewModel : ViewModelBase
     public partial string CurrentChatDateString { get; set; } = "Today";
 
     [ObservableProperty]
+    public partial string HeaderTitle { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string? HeaderSubtitle { get; set; }
+
+    [ObservableProperty]
     public partial string? SenderPushName { get; set; }
 
     public bool HasMoreOlderMessages { get; set; } = true;
@@ -340,37 +346,153 @@ public partial class ConversationViewModel : ViewModelBase
 
     public void UpdateSenderPushName()
     {
-        if (CurrentChat == null || CurrentChat.IsGroup)
+        UpdateHeaderDetails();
+    }
+
+    public void UpdateHeaderDetails()
+    {
+        if (CurrentChat == null)
         {
+            HeaderTitle = string.Empty;
+            HeaderSubtitle = null;
             SenderPushName = null;
             return;
         }
 
-        bool isPhoneNumber = CurrentChat.Title.StartsWith('+') || CurrentChat.Title.All(c => char.IsDigit(c) || c == ' ' || c == '-');
-        if (!isPhoneNumber)
+        if (CurrentChat.IsGroup)
         {
+            HeaderTitle = CurrentChat.Title ?? string.Empty;
+            HeaderSubtitle = null;
             SenderPushName = null;
             return;
         }
 
-        // Only pick an incoming sender name that is a real name (NOT another phone number)
-        var incomingMsg = Messages.LastOrDefault(m =>
-            !m.IsOutgoing &&
-            !string.IsNullOrWhiteSpace(m.SenderName) &&
-            !m.SenderName.StartsWith('+') &&
-            !m.SenderName.TrimStart('~').All(c => char.IsDigit(c) || c == ' ' || c == '-'));
+        string rawTitle = CurrentChat.Title?.Trim() ?? string.Empty;
+        bool isTitlePhoneNumber = IsPhoneNumber(rawTitle);
 
-        if (incomingMsg != null && !string.IsNullOrWhiteSpace(incomingMsg.SenderName))
+        if (isTitlePhoneNumber)
         {
-            var name = incomingMsg.SenderName.Trim().TrimStart('~').Trim();
-            if (!string.IsNullOrEmpty(name))
+            // Unsaved contact: Title is phone number, Subtitle is user's provided push name
+            HeaderTitle = FormatPhoneNumber(rawTitle);
+
+            string? pushName = null;
+            if (_provider is IWhatsAppProvider waProvider && !string.IsNullOrEmpty(CurrentChat.Id))
             {
-                SenderPushName = $"~{name}";
-                return;
+                pushName = waProvider.GetPushName(CurrentChat.Id);
+            }
+
+            if (string.IsNullOrEmpty(pushName) && CurrentChat.LastMessage != null && !CurrentChat.LastMessage.IsOutgoing)
+            {
+                var sn = CurrentChat.LastMessage.SenderName;
+                if (!string.IsNullOrWhiteSpace(sn) && !IsPhoneNumber(sn))
+                {
+                    pushName = sn;
+                }
+            }
+
+            if (string.IsNullOrEmpty(pushName))
+            {
+                var incomingMsg = Messages.LastOrDefault(m =>
+                    !m.IsOutgoing &&
+                    !string.IsNullOrWhiteSpace(m.SenderName) &&
+                    !IsPhoneNumber(m.SenderName));
+                if (incomingMsg != null)
+                {
+                    pushName = incomingMsg.SenderName;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(pushName))
+            {
+                var cleaned = pushName.Trim().TrimStart('~').Trim();
+                HeaderSubtitle = !string.IsNullOrEmpty(cleaned) ? $"~{cleaned}" : null;
+            }
+            else
+            {
+                HeaderSubtitle = null;
             }
         }
+        else
+        {
+            // Saved contact: Title is saved contact name, Subtitle is phone number
+            HeaderTitle = rawTitle;
 
-        SenderPushName = null;
+            string? phone = null;
+            if (_provider is IWhatsAppProvider waProvider && !string.IsNullOrEmpty(CurrentChat.Id))
+            {
+                phone = waProvider.GetPhoneNumber(CurrentChat.Id);
+            }
+
+            if (string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(CurrentChat.Id))
+            {
+                var cleanId = CurrentChat.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase)
+                    ? CurrentChat.Id[3..]
+                    : CurrentChat.Id;
+                if (cleanId.Contains('@'))
+                {
+                    var userPart = cleanId.Split('@')[0];
+                    var digits = new string(userPart.Where(char.IsDigit).ToArray());
+                    if (digits.Length >= 5)
+                    {
+                        phone = $"+{digits}";
+                    }
+                }
+            }
+
+            HeaderSubtitle = !string.IsNullOrEmpty(phone) ? FormatPhoneNumber(phone) : null;
+        }
+
+        SenderPushName = HeaderSubtitle;
+    }
+
+    public static string FormatPhoneNumber(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var trimmed = raw.Trim();
+
+        if (trimmed.StartsWith("+") && (trimmed.Contains(' ') || trimmed.Contains('-')))
+        {
+            return trimmed;
+        }
+
+        var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+        if (digits.Length == 0) return trimmed;
+
+        if (digits.Length == 11 && digits.StartsWith("1"))
+        {
+            return $"+1 {digits.Substring(1, 3)} {digits.Substring(4, 3)} {digits.Substring(7)}";
+        }
+        if (digits.Length == 10)
+        {
+            return $"+{digits.Substring(0, 5)} {digits.Substring(5)}";
+        }
+        if (digits.Length == 12 && digits.StartsWith("91"))
+        {
+            return $"+91 {digits.Substring(2, 5)} {digits.Substring(7)}";
+        }
+        if (digits.Length == 12 && digits.StartsWith("44"))
+        {
+            return $"+44 {digits.Substring(2, 4)} {digits.Substring(6)}";
+        }
+        if (digits.Length > 10)
+        {
+            int ccLen = digits.Length > 12 ? 3 : (digits.Length > 11 ? 2 : 1);
+            return $"+{digits.Substring(0, ccLen)} {digits.Substring(ccLen, 3)} {digits.Substring(ccLen + 3, 3)} {digits.Substring(ccLen + 6)}".Trim();
+        }
+
+        return trimmed.StartsWith("+") ? trimmed : $"+{digits}";
+    }
+
+    private static bool IsPhoneNumber(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        var trimmed = s.Trim();
+        if (trimmed.StartsWith('+'))
+        {
+            return trimmed.Skip(1).All(c => char.IsDigit(c) || c == ' ' || c == '-' || c == '(' || c == ')');
+        }
+        int digitCount = trimmed.Count(char.IsDigit);
+        return digitCount >= 7 && trimmed.All(c => char.IsDigit(c) || c == ' ' || c == '-' || c == '(' || c == ')');
     }
 
     public void UpdateChatDateString()

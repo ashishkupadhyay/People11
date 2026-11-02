@@ -492,6 +492,36 @@ public class WhatsAppProvider : IWhatsAppProvider
         return Array.Empty<Chat>();
     }
 
+    public string? GetPushName(string chatId)
+    {
+        if (IsTestingMode || string.IsNullOrEmpty(chatId)) return null;
+        var ptr = WhatsAppNative.wa_get_push_name(chatId);
+        if (ptr == IntPtr.Zero) return null;
+        try
+        {
+            return Marshal.PtrToStringUTF8(ptr);
+        }
+        finally
+        {
+            WhatsAppNative.wa_free_string(ptr);
+        }
+    }
+
+    public string? GetPhoneNumber(string chatId)
+    {
+        if (IsTestingMode || string.IsNullOrEmpty(chatId)) return null;
+        var ptr = WhatsAppNative.wa_get_phone_number(chatId);
+        if (ptr == IntPtr.Zero) return null;
+        try
+        {
+            return Marshal.PtrToStringUTF8(ptr);
+        }
+        finally
+        {
+            WhatsAppNative.wa_free_string(ptr);
+        }
+    }
+
     public IReadOnlyList<Chat> GetCachedChats()
     {
         if (IsTestingMode) return GetTestingChats();

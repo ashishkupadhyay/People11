@@ -31,18 +31,18 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Canvas.ZIndex="20" Padding="16" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                IsGroup="{x:Bind ViewModel.CurrentChat.IsGroup, Mode=OneWay}"
                                DisplayName="{x:Bind ViewModel.CurrentChat, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}"
                                Width="40" Height="40" />
                 <StackPanel VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="{x:Bind ViewModel.CurrentChat.Title, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                    <TextBlock Text="{x:Bind ViewModel.SenderPushName, Mode=OneWay}" 
+                    <TextBlock Text="{x:Bind ViewModel.HeaderTitle, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                    <TextBlock Text="{x:Bind ViewModel.HeaderSubtitle, Mode=OneWay}" 
                                FontSize="12" 
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               Visibility="{x:Bind ViewModel.SenderPushName, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+                               Visibility="{x:Bind ViewModel.HeaderSubtitle, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -192,7 +192,7 @@
             <Border x:Name="FloatingDatePill"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top"
-                    Margin="0,8,0,0"
+                    Margin="0,10,0,0"
                     Padding="12,4"
                     CornerRadius="12"
                     Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
@@ -202,7 +202,7 @@
                     IsHitTestVisible="False"
                     Opacity="0">
                 <Border.RenderTransform>
-                    <TranslateTransform x:Name="PillTransform" Y="-40" />
+                    <TranslateTransform x:Name="PillTransform" Y="-50" />
                 </Border.RenderTransform>
                 <TextBlock Text="{x:Bind ViewModel.CurrentChatDateString, Mode=OneWay}"
                            FontSize="12"
