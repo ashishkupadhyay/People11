@@ -105,9 +105,25 @@ public partial class ChatListViewModel : ViewModelBase
                         c.Title = ResolveChatTitle(c);
                     }
                     var sorted = valid.OrderByDescending(c => c.LastMessageTime).ToList();
-                    foreach (var c in sorted)
+
+                    // Preload viewport batch immediately so ListView renders fully with stacking animation
+                    var viewportBatch = sorted.Take(25).ToList();
+                    foreach (var c in viewportBatch)
                     {
                         Chats.Add(c);
+                    }
+
+                    // Schedule remaining chats so initial launch and window presentation are never stalled
+                    if (sorted.Count > 25)
+                    {
+                        var remaining = sorted.Skip(25).ToList();
+                        _dispatcherService.Enqueue(() =>
+                        {
+                            foreach (var c in remaining)
+                            {
+                                Chats.Add(c);
+                            }
+                        });
                     }
                 }
             }

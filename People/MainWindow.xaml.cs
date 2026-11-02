@@ -130,35 +130,32 @@ public sealed partial class MainWindow : Window
 
         int savedWidth = settingsService.GetValue<int>("WindowWidth", 0);
         int savedHeight = settingsService.GetValue<int>("WindowHeight", 0);
-
-        if (savedWidth > 0 && savedHeight > 0)
-        {
-            appWindow.Resize(new Windows.Graphics.SizeInt32(savedWidth, savedHeight));
-        }
-        else
-        {
-            int defaultWidth = (int)(1120 * scalingFactor);
-            int defaultHeight = (int)(680 * scalingFactor);
-            appWindow.Resize(new Windows.Graphics.SizeInt32(defaultWidth, defaultHeight));
-        }
+        int targetWidth = savedWidth > 0 ? savedWidth : (int)(1120 * scalingFactor);
+        int targetHeight = savedHeight > 0 ? savedHeight : (int)(680 * scalingFactor);
 
         int savedX = settingsService.GetValue<int>("WindowPositionX", int.MinValue);
         int savedY = settingsService.GetValue<int>("WindowPositionY", int.MinValue);
+        int targetX = savedX;
+        int targetY = savedY;
 
-        if (savedX != int.MinValue && savedY != int.MinValue)
-        {
-            appWindow.Move(new Windows.Graphics.PointInt32(savedX, savedY));
-        }
-        else
+        if (targetX == int.MinValue || targetY == int.MinValue)
         {
             // First launch: center on display work area
             var displayArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(windowId, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
             if (displayArea != null)
             {
-                int centerX = displayArea.WorkArea.X + Math.Max(0, (displayArea.WorkArea.Width - appWindow.Size.Width) / 2);
-                int centerY = displayArea.WorkArea.Y + Math.Max(0, (displayArea.WorkArea.Height - appWindow.Size.Height) / 2);
-                appWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
+                targetX = displayArea.WorkArea.X + Math.Max(0, (displayArea.WorkArea.Width - targetWidth) / 2);
+                targetY = displayArea.WorkArea.Y + Math.Max(0, (displayArea.WorkArea.Height - targetHeight) / 2);
             }
+        }
+
+        if (targetX != int.MinValue && targetY != int.MinValue)
+        {
+            appWindow.MoveAndResize(new Windows.Graphics.RectInt32(targetX, targetY, targetWidth, targetHeight));
+        }
+        else
+        {
+            appWindow.Resize(new Windows.Graphics.SizeInt32(targetWidth, targetHeight));
         }
 
         appWindow.Changed += (s, args) =>
