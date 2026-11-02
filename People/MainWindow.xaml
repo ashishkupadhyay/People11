@@ -73,16 +73,5 @@
                 </Frame.ContentTransitions>
             </Frame>
         </NavigationView>
-
-        <!-- Native Fluent Launch Splash Screen Overlay -->
-        <Grid x:Name="SplashOverlay" Grid.Row="0" Grid.RowSpan="2" Canvas.ZIndex="1000"
-              Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-                <Image Source="ms-appx:///Assets/SplashScreen.scale-200.png"
-                       Width="220" Height="110" Stretch="Uniform"
-                       HorizontalAlignment="Center" />
-                <ProgressRing IsActive="True" Width="28" Height="28" HorizontalAlignment="Center" />
-            </StackPanel>
-        </Grid>
     </Grid>
 </Window>

@@ -104,17 +104,10 @@ public sealed partial class MainWindow : Window
 
             var platformId = initialItem?.Tag?.ToString();
 
-            // Defer initial page navigation to the dispatcher queue so Frame 1 (SplashOverlay)
-            // is measured, arranged, and presented to DirectX immediately without UI thread blocking.
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-            {
-                if (!string.IsNullOrWhiteSpace(platformId))
-                    navServiceCore.NavigateTo("Chats", platformId);
-                else
-                    navServiceCore.NavigateTo("Chats");
-
-                DismissSplashAsync();
-            });
+            if (!string.IsNullOrWhiteSpace(platformId))
+                navServiceCore.NavigateTo("Chats", platformId);
+            else
+                navServiceCore.NavigateTo("Chats");
         };
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -224,34 +217,6 @@ public sealed partial class MainWindow : Window
         NavView.SizeChanged += NavView_SizeChanged;
     }
 
-    private async void DismissSplashAsync()
-    {
-        // Allow a brief moment for the initial page to measure, layout, and render underneath the splash screen
-        await Task.Delay(200);
-
-        if (SplashOverlay == null || SplashOverlay.Visibility == Visibility.Collapsed)
-            return;
-
-        var fadeAnimation = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            From = 1.0,
-            To = 0.0,
-            Duration = new Duration(TimeSpan.FromMilliseconds(250)),
-            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
-        };
-
-        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeAnimation, SplashOverlay);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeAnimation, "Opacity");
-        storyboard.Children.Add(fadeAnimation);
-
-        storyboard.Completed += (s, e) =>
-        {
-            SplashOverlay.Visibility = Visibility.Collapsed;
-        };
-
-        storyboard.Begin();
-    }
 
     private static bool IsDarkTheme(ElementTheme theme)
     {
