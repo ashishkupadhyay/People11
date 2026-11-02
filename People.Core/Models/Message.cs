@@ -50,6 +50,7 @@ public class Message : INotifyPropertyChanged
             {
                 _showDateSeparator = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(HasAnySeparator));
             }
         }
     }
@@ -80,6 +81,7 @@ public class Message : INotifyPropertyChanged
             {
                 _showUnreadSeparator = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(HasAnySeparator));
             }
         }
     }
@@ -98,6 +100,9 @@ public class Message : INotifyPropertyChanged
             }
         }
     }
+
+    [NotMapped]
+    public bool HasAnySeparator => _showDateSeparator || _showUnreadSeparator;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

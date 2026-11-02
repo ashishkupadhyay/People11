@@ -75,7 +75,8 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- Separators Stack -->
-                                <StackPanel Grid.Row="0" HorizontalAlignment="Center" Spacing="6" Margin="0,8,0,10">
+                                <StackPanel Grid.Row="0" HorizontalAlignment="Center" Spacing="6" Margin="0,-2,0,10"
+                                            Visibility="{x:Bind HasAnySeparator, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <!-- Inline Date Separator Pill Button -->
                                     <Border HorizontalAlignment="Center"
                                             Padding="12,4"
