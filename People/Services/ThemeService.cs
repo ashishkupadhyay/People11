@@ -89,7 +89,21 @@ public class ThemeService : IThemeService
         }
         else
         {
-            root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            if (root.IsLoaded)
+            {
+                root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+            else
+            {
+                // Defer transparency until loaded so initial frame paints solid theme color instead of black unrendered buffer
+                RoutedEventHandler? onLoaded = null;
+                onLoaded = (s, e) =>
+                {
+                    root.Loaded -= onLoaded;
+                    root.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                };
+                root.Loaded += onLoaded;
+            }
         }
     }
 
@@ -151,13 +165,20 @@ public class ThemeService : IThemeService
             
             var backdrop = _settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
             
-            window.SystemBackdrop = backdrop switch
+            if (backdrop == "Mica" && window.SystemBackdrop is Microsoft.UI.Xaml.Media.MicaBackdrop { Kind: Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base })
             {
-                "Mica" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
-                "Mica Alt" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt },
-                "Desktop Acrylic" => new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
-                _ => null
-            };
+                // Already assigned via XAML, avoid resetting the composition controller
+            }
+            else
+            {
+                window.SystemBackdrop = backdrop switch
+                {
+                    "Mica" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
+                    "Mica Alt" => new Microsoft.UI.Xaml.Media.MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt },
+                    "Desktop Acrylic" => new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
+                    _ => null
+                };
+            }
 
             _currentBackdrop = backdrop;
 

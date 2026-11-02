@@ -58,8 +58,6 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _contactNamesByPhoneDigits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _contactNamesById = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _reloadLock = new();
-    private CancellationTokenSource? _chatUpdateDebounceCts;
     private int _isLoadingChats;
     private volatile bool _needsReloadChats;
 
@@ -91,7 +89,10 @@ public partial class ChatListViewModel : ViewModelBase
 
     private async Task ConnectAndAuthenticateAsync(IWhatsAppProvider provider)
     {
-        bool isAuth = provider.IsAuthenticated;
+        // Immediately load any cached chats so the list displays without delay
+        _ = LoadChatsAsync();
+
+        bool isAuth = await Task.Run(() => provider.IsAuthenticated);
 
         if (isAuth)
         {
@@ -107,9 +108,6 @@ public partial class ChatListViewModel : ViewModelBase
                 SyncStatusText = string.Empty;
             });
 
-            // Immediately load any cached chats
-            _ = LoadChatsAsync();
-
             try
             {
                 await provider.ConnectAsync();
@@ -124,6 +122,7 @@ public partial class ChatListViewModel : ViewModelBase
                 });
             }
 
+            // Immediately load all live/cached chats now that native client is connected
             await LoadChatsAsync();
             return;
         }
@@ -216,25 +215,7 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
-        lock (_reloadLock)
-        {
-            _chatUpdateDebounceCts?.Cancel();
-            _chatUpdateDebounceCts = new CancellationTokenSource();
-            var token = _chatUpdateDebounceCts.Token;
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(300, token);
-                    if (!token.IsCancellationRequested)
-                    {
-                        await LoadChatsAsync();
-                    }
-                }
-                catch (OperationCanceledException) { }
-            }, token);
-        }
+        _ = LoadChatsAsync();
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
@@ -331,21 +312,7 @@ public partial class ChatListViewModel : ViewModelBase
                 try
                 {
                     var cached = await _chatRepository.GetAllAsync(0, 100);
-                    // Filter out phantom empty chat stubs: must have a non-empty last message
-                    var validCached = cached.Where(c => c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text)).ToList();
-
-                    // Prune phantom stubs in the background
-                    var phantoms = cached.Where(c => c.LastMessage == null || string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text)).ToList();
-                    if (phantoms.Count > 0)
-                    {
-                        _ = Task.Run(async () =>
-                        {
-                            foreach (var p in phantoms)
-                            {
-                                try { await _chatRepository.DeleteAsync(p.Id); } catch { }
-                            }
-                        });
-                    }
+                    var validCached = cached.Where(c => !string.IsNullOrWhiteSpace(c.Id) && (c.LastMessage != null || !string.IsNullOrWhiteSpace(c.Title))).ToList();
 
                     if (validCached.Count > 0 && Chats.Count == 0)
                     {
@@ -411,8 +378,15 @@ public partial class ChatListViewModel : ViewModelBase
                         }
                     }
 
-                    // Pre-index existing chats for O(1) lookups
-                    var existingMap = Chats.ToDictionary(c => c.Id, StringComparer.OrdinalIgnoreCase);
+                    // Pre-index existing chats safely for O(1) lookups
+                    var existingMap = new Dictionary<string, Chat>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var c in Chats)
+                    {
+                        if (!string.IsNullOrEmpty(c.Id))
+                        {
+                            existingMap[c.Id] = c;
+                        }
+                    }
 
                     // Update existing or add new
                     foreach (var incoming in validChats)
@@ -440,7 +414,10 @@ public partial class ChatListViewModel : ViewModelBase
                         else
                         {
                             Chats.Add(incoming);
-                            existingMap[incoming.Id] = incoming;
+                            if (!string.IsNullOrEmpty(incoming.Id))
+                            {
+                                existingMap[incoming.Id] = incoming;
+                            }
                         }
                     }
 

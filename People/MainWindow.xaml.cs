@@ -84,10 +84,8 @@ public sealed partial class MainWindow : Window
 
         ContentFrame.Navigated += ContentFrame_Navigated;
         
-        ContentFrame.Loaded += (s, e) => {
-            if (NavView.MenuItems.Count == 0)
-                return;
-
+        if (NavView.MenuItems.Count > 0)
+        {
             var initialItem = NavView.MenuItems[0] as NavigationViewItem;
             NavView.SelectedItem = initialItem;
 
@@ -97,7 +95,7 @@ public sealed partial class MainWindow : Window
                 navServiceCore.NavigateTo("Chats", platformId);
             else
                 navServiceCore.NavigateTo("Chats");
-        };
+        }
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
@@ -301,15 +299,11 @@ public sealed partial class MainWindow : Window
         {
             themeService.ClearActivePlatform();
         }
-        else if (ContentFrame.Content is Views.ChatListPage chatList)
-        {
-            chatList.UpdateAccentColor();
-        }
         else if (ContentFrame.Content is Views.ConversationPage convPage)
         {
             themeService.SetActivePlatform(convPage.ViewModel.CurrentChat?.PlatformId);
         }
-        else
+        else if (ContentFrame.Content is not Views.ChatListPage)
         {
             themeService.ClearActivePlatform();
         }

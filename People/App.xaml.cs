@@ -96,11 +96,15 @@ public partial class App : Application
             {
                 try
                 {
-                    var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
-                    if (dbFactory != null)
+                    var dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "people.db");
+                    if (!File.Exists(dbPath))
                     {
-                        using var db = dbFactory.CreateDbContext();
-                        db.Database.EnsureCreated();
+                        var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
+                        if (dbFactory != null)
+                        {
+                            using var db = dbFactory.CreateDbContext();
+                            db.Database.EnsureCreated();
+                        }
                     }
                 }
                 catch { }
