@@ -34,6 +34,9 @@ public static unsafe partial class WhatsAppNative
     public static partial IntPtr wa_get_contacts(IntPtr clientPtr);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr wa_get_contact_name(string chatId);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr wa_get_push_name(string chatId);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]

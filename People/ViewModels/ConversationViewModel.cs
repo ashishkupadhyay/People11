@@ -367,18 +367,85 @@ public partial class ConversationViewModel : ViewModelBase
             return;
         }
 
-        string rawTitle = CurrentChat.Title?.Trim() ?? string.Empty;
-        bool isTitlePhoneNumber = IsPhoneNumber(rawTitle);
+        var waProvider = _provider as IWhatsAppProvider;
+        var chatId = CurrentChat.Id ?? string.Empty;
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var userPart = cleanId.Split('@')[0].Split(':')[0];
+        var idDigits = new string(userPart.Where(char.IsDigit).ToArray());
 
-        if (isTitlePhoneNumber)
+        // Resolve clean phone number
+        string? phone = null;
+        if (waProvider != null && !string.IsNullOrEmpty(chatId))
         {
-            // Unsaved contact: Title is phone number, Subtitle is user's provided push name
-            HeaderTitle = FormatPhoneNumber(rawTitle);
+            phone = waProvider.GetPhoneNumber(chatId);
+        }
+        if (string.IsNullOrEmpty(phone) && idDigits.Length >= 5)
+        {
+            phone = $"+{idDigits}";
+        }
+
+        string rawTitle = CurrentChat.Title?.Trim() ?? string.Empty;
+
+        // Check whether this contact is saved in the user's address book
+        string? savedName = null;
+        if (waProvider != null && !string.IsNullOrEmpty(chatId))
+        {
+            savedName = waProvider.GetContactName(chatId);
+        }
+
+        bool isUnsaved;
+        if (!string.IsNullOrWhiteSpace(savedName))
+        {
+            isUnsaved = false;
+        }
+        else if (rawTitle.StartsWith('+') || rawTitle.StartsWith('~'))
+        {
+            isUnsaved = true;
+        }
+        else
+        {
+            int letterCount = rawTitle.Count(char.IsLetter);
+            int digitCount = rawTitle.Count(char.IsDigit);
+            var titleDigits = new string(rawTitle.Where(char.IsDigit).ToArray());
+
+            if (letterCount == 0 && digitCount >= 5)
+            {
+                isUnsaved = true;
+            }
+            else if (!string.IsNullOrEmpty(idDigits) && titleDigits == idDigits)
+            {
+                isUnsaved = true;
+            }
+            else if (IsPhoneNumber(rawTitle))
+            {
+                isUnsaved = true;
+            }
+            else
+            {
+                // Has letters and not a phone number -> user-saved address book name
+                isUnsaved = false;
+                savedName = rawTitle;
+            }
+        }
+
+        if (isUnsaved)
+        {
+            // Unsaved contact: Title is formatted phone number, Subtitle is user's set push name
+            HeaderTitle = !string.IsNullOrEmpty(phone) ? FormatPhoneNumber(phone) : FormatPhoneNumber(rawTitle);
 
             string? pushName = null;
-            if (_provider is IWhatsAppProvider waProvider && !string.IsNullOrEmpty(CurrentChat.Id))
+            if (waProvider != null && !string.IsNullOrEmpty(chatId))
             {
-                pushName = waProvider.GetPushName(CurrentChat.Id);
+                pushName = waProvider.GetPushName(chatId);
+                if (string.IsNullOrEmpty(pushName) && idDigits.Length >= 5)
+                {
+                    pushName = waProvider.GetPushName(idDigits);
+                }
+            }
+
+            if (string.IsNullOrEmpty(pushName) && rawTitle.StartsWith('~'))
+            {
+                pushName = rawTitle.TrimStart('~').Trim();
             }
 
             if (string.IsNullOrEmpty(pushName) && CurrentChat.LastMessage != null && !CurrentChat.LastMessage.IsOutgoing)
@@ -414,31 +481,8 @@ public partial class ConversationViewModel : ViewModelBase
         }
         else
         {
-            // Saved contact: Title is saved contact name, Subtitle is phone number
-            HeaderTitle = rawTitle;
-
-            string? phone = null;
-            if (_provider is IWhatsAppProvider waProvider && !string.IsNullOrEmpty(CurrentChat.Id))
-            {
-                phone = waProvider.GetPhoneNumber(CurrentChat.Id);
-            }
-
-            if (string.IsNullOrEmpty(phone) && !string.IsNullOrEmpty(CurrentChat.Id))
-            {
-                var cleanId = CurrentChat.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase)
-                    ? CurrentChat.Id[3..]
-                    : CurrentChat.Id;
-                if (cleanId.Contains('@'))
-                {
-                    var userPart = cleanId.Split('@')[0];
-                    var digits = new string(userPart.Where(char.IsDigit).ToArray());
-                    if (digits.Length >= 5)
-                    {
-                        phone = $"+{digits}";
-                    }
-                }
-            }
-
+            // Saved contact: Title is saved contact name, Subtitle is formatted phone number
+            HeaderTitle = !string.IsNullOrWhiteSpace(savedName) ? savedName : rawTitle;
             HeaderSubtitle = !string.IsNullOrEmpty(phone) ? FormatPhoneNumber(phone) : null;
         }
 
@@ -487,12 +531,10 @@ public partial class ConversationViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(s)) return false;
         var trimmed = s.Trim();
-        if (trimmed.StartsWith('+'))
-        {
-            return trimmed.Skip(1).All(c => char.IsDigit(c) || c == ' ' || c == '-' || c == '(' || c == ')');
-        }
+        if (trimmed.StartsWith('+')) return true;
         int digitCount = trimmed.Count(char.IsDigit);
-        return digitCount >= 7 && trimmed.All(c => char.IsDigit(c) || c == ' ' || c == '-' || c == '(' || c == ')');
+        int letterCount = trimmed.Count(char.IsLetter);
+        return letterCount == 0 && digitCount >= 5;
     }
 
     public void UpdateChatDateString()

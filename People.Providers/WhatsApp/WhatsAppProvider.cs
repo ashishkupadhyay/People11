@@ -492,6 +492,28 @@ public class WhatsAppProvider : IWhatsAppProvider
         return Array.Empty<Chat>();
     }
 
+    public string? GetContactName(string chatId)
+    {
+        if (IsTestingMode || string.IsNullOrEmpty(chatId)) return null;
+        try
+        {
+            var ptr = WhatsAppNative.wa_get_contact_name(chatId);
+            if (ptr == IntPtr.Zero) return null;
+            try
+            {
+                return Marshal.PtrToStringUTF8(ptr);
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public string? GetPushName(string chatId)
     {
         if (IsTestingMode || string.IsNullOrEmpty(chatId)) return null;
