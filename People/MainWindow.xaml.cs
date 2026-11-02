@@ -12,35 +12,28 @@ public sealed partial class MainWindow : Window
 {
     public MainWindowViewModel ViewModel { get; }
 
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource WhatsAppDarkSource =
-        new(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource WhatsAppLightSource =
-        new(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource TelegramDarkSource =
-        new(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource TelegramLightSource =
-        new(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource SignalDarkSource =
-        new(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource SignalLightSource =
-        new(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource DiscordDarkSource =
-        new(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource DiscordLightSource =
-        new(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _telegramDarkSource;
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _telegramLightSource;
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _signalDarkSource;
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _signalLightSource;
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _discordDarkSource;
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _discordLightSource;
 
     private void UpdateSidebarIcons(ElementTheme theme)
     {
         bool isDark = IsDarkTheme(theme);
-        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = isDark ? WhatsAppDarkSource : WhatsAppLightSource;
-        if (NavTelegramIcon != null) NavTelegramIcon.Source = isDark ? TelegramDarkSource : TelegramLightSource;
-        if (NavSignalIcon != null) NavSignalIcon.Source = isDark ? SignalDarkSource : SignalLightSource;
-        if (NavDiscordIcon != null) NavDiscordIcon.Source = isDark ? DiscordDarkSource : DiscordLightSource;
-    }
+        _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        if (NavTelegramIcon != null) NavTelegramIcon.Source = isDark ? _telegramDarkSource : _telegramLightSource;
 
+        _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        if (NavSignalIcon != null) NavSignalIcon.Source = isDark ? _signalDarkSource : _signalLightSource;
+
+        _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        if (NavDiscordIcon != null) NavDiscordIcon.Source = isDark ? _discordDarkSource : _discordLightSource;
+    }
 
     public Microsoft.UI.Xaml.Visibility ConvertBoolToVisibility(bool isVisible)
     {
@@ -50,25 +43,26 @@ public sealed partial class MainWindow : Window
     [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
-    private const int DWMWA_CLOAK = 13;
+    [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+    private static extern IntPtr CreateSolidBrush(int crColor);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetClassLongPtr")]
+    private static extern IntPtr SetClassLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetClassLong")]
+    private static extern int SetClassLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    private static IntPtr SetClassLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
+    {
+        if (IntPtr.Size == 8)
+            return SetClassLongPtr64(hWnd, nIndex, dwNewLong);
+        else
+            return new IntPtr(SetClassLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+    }
+
+    private const int GCLP_HBRBACKGROUND = -10;
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-
-    private IntPtr _hwnd = IntPtr.Zero;
-    private bool _isUncloaked = false;
-
-    private void OnFirstFrameRendered(object? sender, Microsoft.UI.Xaml.Media.RenderedEventArgs e)
-    {
-        Microsoft.UI.Xaml.Media.CompositionTarget.Rendered -= OnFirstFrameRendered;
-        UncloakWindow();
-    }
-
-    private void UncloakWindow()
-    {
-        if (_isUncloaked || _hwnd == IntPtr.Zero) return;
-        _isUncloaked = true;
-        int uncloak = 0;
-        DwmSetWindowAttribute(_hwnd, DWMWA_CLOAK, ref uncloak, sizeof(int));
-    }
+    private const int DWMWA_CAPTION_COLOR = 35;
 
     public MainWindow()
     {
@@ -112,40 +106,18 @@ public sealed partial class MainWindow : Window
         };
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        _hwnd = hwnd;
 
-        // 1. Force DWM to use immersive dark mode frame
+        // 1. Force DWM to use immersive dark mode frame and dark caption
         int darkMode = 1;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+        int captionColor = 0x00202020; // COLORREF: 0x00BBGGRR -> #202020
+        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
 
-        // 2. Cloak window from DWM composition to suppress the unrendered black frame
-        int cloak = 1;
-        DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, ref cloak, sizeof(int));
-
-        // 3. Register first-frame render hook to uncloak smoothly once pixels are drawn
-        if (this.Content is FrameworkElement contentElement)
-        {
-            if (!contentElement.IsLoaded)
-            {
-                contentElement.Loaded += (s, e) =>
-                {
-                    Microsoft.UI.Xaml.Media.CompositionTarget.Rendered += OnFirstFrameRendered;
-                };
-            }
-            else
-            {
-                Microsoft.UI.Xaml.Media.CompositionTarget.Rendered += OnFirstFrameRendered;
-            }
-        }
-
-        // 4. Fallback timer (150ms) to ensure window always uncloaks under any condition
-        var uncloakFallbackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-        uncloakFallbackTimer.Tick += (s, e) =>
-        {
-            uncloakFallbackTimer.Stop();
-            UncloakWindow();
-        };
-        uncloakFallbackTimer.Start();
+        // 2. Set native Win32 window background brush to #202020
+        // This guarantees that before DirectX presents the first frame during the DWM scale-in animation,
+        // DWM composites the HWND with the #202020 dark background (zero black screen flash).
+        IntPtr darkBrush = CreateSolidBrush(0x00202020);
+        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, darkBrush);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
         
@@ -237,7 +209,6 @@ public sealed partial class MainWindow : Window
 
     private async void DismissSplashAsync()
     {
-        UncloakWindow();
         // Allow a brief moment for the initial page to measure, layout, and render
         await Task.Delay(350);
 
