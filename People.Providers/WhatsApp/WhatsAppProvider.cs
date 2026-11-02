@@ -495,30 +495,44 @@ public class WhatsAppProvider : IWhatsAppProvider
     public string? GetPushName(string chatId)
     {
         if (IsTestingMode || string.IsNullOrEmpty(chatId)) return null;
-        var ptr = WhatsAppNative.wa_get_push_name(chatId);
-        if (ptr == IntPtr.Zero) return null;
         try
         {
-            return Marshal.PtrToStringUTF8(ptr);
+            var ptr = WhatsAppNative.wa_get_push_name(chatId);
+            if (ptr == IntPtr.Zero) return null;
+            try
+            {
+                return Marshal.PtrToStringUTF8(ptr);
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
         }
-        finally
+        catch
         {
-            WhatsAppNative.wa_free_string(ptr);
+            return null;
         }
     }
 
     public string? GetPhoneNumber(string chatId)
     {
         if (IsTestingMode || string.IsNullOrEmpty(chatId)) return null;
-        var ptr = WhatsAppNative.wa_get_phone_number(chatId);
-        if (ptr == IntPtr.Zero) return null;
         try
         {
-            return Marshal.PtrToStringUTF8(ptr);
+            var ptr = WhatsAppNative.wa_get_phone_number(chatId);
+            if (ptr == IntPtr.Zero) return null;
+            try
+            {
+                return Marshal.PtrToStringUTF8(ptr);
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
         }
-        finally
+        catch
         {
-            WhatsAppNative.wa_free_string(ptr);
+            return null;
         }
     }
 
