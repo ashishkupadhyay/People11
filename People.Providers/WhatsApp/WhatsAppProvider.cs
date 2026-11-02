@@ -82,27 +82,13 @@ public class WhatsAppProvider : IWhatsAppProvider
             var dbPath = GetSessionDbPath();
             if (File.Exists(dbPath) || File.Exists(dbPath + ".cache.json"))
             {
-                if (_clientPtr == IntPtr.Zero)
-                {
-                    _clientPtr = WhatsAppNative.wa_create_client();
-                }
-
-                if (_clientPtr != IntPtr.Zero)
-                {
-                    unsafe
-                    {
-                        WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
-                        WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
-                        WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
-                    }
-
-                    WhatsAppNative.wa_load_cache(dbPath);
-                }
+                // Synchronously load memory cache from disk (~40ms); do NOT create tokio runtime here
+                WhatsAppNative.wa_load_cache(dbPath);
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to initialize native client and cache on startup.");
+            _logger?.LogWarning(ex, "Failed to initialize native cache on startup.");
         }
     }
 
@@ -509,24 +495,16 @@ public class WhatsAppProvider : IWhatsAppProvider
     public IReadOnlyList<Chat> GetCachedChats()
     {
         if (IsTestingMode) return GetTestingChats();
-        if (_clientPtr != IntPtr.Zero)
-        {
-            return ReadChatsFromNative(_clientPtr);
-        }
-        return Array.Empty<Chat>();
+        return ReadChatsFromNative(_clientPtr);
     }
 
     private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)
     {
-        if (_clientPtr == IntPtr.Zero) return Array.Empty<Chat>();
-
         return await Task.Run(() => ReadChatsFromNative(_clientPtr), ct);
     }
 
     private IReadOnlyList<Chat> ReadChatsFromNative(IntPtr clientPtr)
     {
-        if (clientPtr == IntPtr.Zero) return Array.Empty<Chat>();
-
         var ptr = WhatsAppNative.wa_get_chats(clientPtr);
         if (ptr == IntPtr.Zero) return Array.Empty<Chat>();
 
