@@ -70,6 +70,40 @@ public class WhatsAppProvider : IWhatsAppProvider
         _messageRepository = messageRepository;
         _contactRepository = contactRepository;
         _activeInstance = this;
+
+        InitializeClientAndCache();
+    }
+
+    private void InitializeClientAndCache()
+    {
+        if (IsTestingMode) return;
+        try
+        {
+            var dbPath = GetSessionDbPath();
+            if (File.Exists(dbPath) || File.Exists(dbPath + ".cache.json"))
+            {
+                if (_clientPtr == IntPtr.Zero)
+                {
+                    _clientPtr = WhatsAppNative.wa_create_client();
+                }
+
+                if (_clientPtr != IntPtr.Zero)
+                {
+                    unsafe
+                    {
+                        WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
+                        WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
+                        WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
+                    }
+
+                    WhatsAppNative.wa_load_cache(dbPath);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to initialize native client and cache on startup.");
+        }
     }
 
     private bool IsTestingMode => _settingsService?.GetValue<bool>("WhatsAppTestingMode", false) ?? false;
@@ -100,28 +134,31 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         try
         {
-            await Task.Run(() =>
+            if (_clientPtr == IntPtr.Zero)
             {
-                if (_clientPtr == IntPtr.Zero)
+                await Task.Run(() =>
                 {
                     _clientPtr = WhatsAppNative.wa_create_client();
+                }, ct);
+
+                if (_clientPtr != IntPtr.Zero)
+                {
+                    _logger?.LogInformation("Successfully created WhatsApp client backend.");
+                    var dbPath = GetSessionDbPath();
+
+                    unsafe
+                    {
+                        WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
+                        WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
+                        WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
+                    }
+
+                    await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
                 }
-            }, ct);
+            }
 
             if (_clientPtr != IntPtr.Zero)
             {
-                _logger?.LogInformation("Successfully created WhatsApp client backend.");
-                var dbPath = GetSessionDbPath();
-
-                unsafe
-                {
-                    WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
-                    WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
-                    WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
-                }
-
-                await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
-
                 if (IsAuthenticated)
                 {
                     _logger?.LogInformation("WhatsApp is already authenticated. Connected immediately.");
@@ -469,80 +506,94 @@ public class WhatsAppProvider : IWhatsAppProvider
         return Array.Empty<Chat>();
     }
 
+    public IReadOnlyList<Chat> GetCachedChats()
+    {
+        if (IsTestingMode) return GetTestingChats();
+        if (_clientPtr != IntPtr.Zero)
+        {
+            return ReadChatsFromNative(_clientPtr);
+        }
+        return Array.Empty<Chat>();
+    }
+
     private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)
     {
         if (_clientPtr == IntPtr.Zero) return Array.Empty<Chat>();
 
-        return await Task.Run(() =>
+        return await Task.Run(() => ReadChatsFromNative(_clientPtr), ct);
+    }
+
+    private IReadOnlyList<Chat> ReadChatsFromNative(IntPtr clientPtr)
+    {
+        if (clientPtr == IntPtr.Zero) return Array.Empty<Chat>();
+
+        var ptr = WhatsAppNative.wa_get_chats(clientPtr);
+        if (ptr == IntPtr.Zero) return Array.Empty<Chat>();
+
+        try
         {
-            var ptr = WhatsAppNative.wa_get_chats(_clientPtr);
-            if (ptr == IntPtr.Zero) return (IReadOnlyList<Chat>)new List<Chat>();
+            var json = Marshal.PtrToStringUTF8(ptr);
+            if (string.IsNullOrEmpty(json)) return Array.Empty<Chat>();
 
-            try
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var dtos = JsonSerializer.Deserialize<List<NativeChatDto>>(json, options) ?? new List<NativeChatDto>();
+
+            var chats = new List<Chat>(dtos.Count);
+            foreach (var dto in dtos)
             {
-                var json = Marshal.PtrToStringUTF8(ptr);
-                if (string.IsNullOrEmpty(json)) return new List<Chat>();
-
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var dtos = JsonSerializer.Deserialize<List<NativeChatDto>>(json, options) ?? new List<NativeChatDto>();
-
-                var chats = new List<Chat>();
-                foreach (var dto in dtos)
+                // Filter out phantom empty non-group chat stubs (no valid last message)
+                if (!dto.IsGroup && (dto.LastMessage == null || string.IsNullOrWhiteSpace(dto.LastMessage.Text)))
                 {
-                    // Filter out phantom empty non-group chat stubs (no valid last message)
-                    if (!dto.IsGroup && (dto.LastMessage == null || string.IsNullOrWhiteSpace(dto.LastMessage.Text)))
+                    continue;
+                }
+                var chat = new Chat
+                {
+                    Id = dto.Id ?? string.Empty,
+                    PlatformId = "WhatsApp",
+                    Title = dto.Title ?? string.Empty,
+                    IsGroup = dto.IsGroup,
+                    UnreadCount = dto.UnreadCount,
+                    PictureUrl = dto.PictureUrl,
+                    LastMessageTime = dto.LastMessageTimestamp > 0
+                        ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessageTimestamp)
+                        : DateTimeOffset.MinValue
+                };
+
+                if (dto.LastMessage != null && !string.IsNullOrWhiteSpace(dto.LastMessage.Text))
+                {
+                    chat.LastMessage = new Message
                     {
-                        continue;
-                    }
-                    var chat = new Chat
-                    {
-                        Id = dto.Id ?? string.Empty,
+                        Id = dto.LastMessage.Id ?? Guid.NewGuid().ToString(),
+                        ChatId = dto.LastMessage.ChatId ?? chat.Id,
                         PlatformId = "WhatsApp",
-                        Title = dto.Title ?? string.Empty,
-                        IsGroup = dto.IsGroup,
-                        UnreadCount = dto.UnreadCount,
-                        PictureUrl = dto.PictureUrl,
-                        LastMessageTime = dto.LastMessageTimestamp > 0
-                            ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessageTimestamp)
-                            : DateTimeOffset.MinValue
+                        SenderId = dto.LastMessage.SenderId ?? string.Empty,
+                        SenderName = dto.LastMessage.SenderName,
+                        IsOutgoing = dto.LastMessage.IsOutgoing,
+                        Content = new MessageContent { Text = dto.LastMessage.Text ?? string.Empty },
+                        Timestamp = dto.LastMessage.Timestamp > 0
+                            ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
+                            : (chat.LastMessageTime != DateTimeOffset.MinValue ? chat.LastMessageTime : DateTimeOffset.UnixEpoch),
+                        Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                        QuotedText = dto.LastMessage.QuotedText,
+                        QuotedSender = dto.LastMessage.QuotedSender,
+                        Reactions = dto.LastMessage.Reactions ?? new()
                     };
-
-                    if (dto.LastMessage != null && !string.IsNullOrWhiteSpace(dto.LastMessage.Text))
-                    {
-                        chat.LastMessage = new Message
-                        {
-                            Id = dto.LastMessage.Id ?? Guid.NewGuid().ToString(),
-                            ChatId = dto.LastMessage.ChatId ?? chat.Id,
-                            PlatformId = "WhatsApp",
-                            SenderId = dto.LastMessage.SenderId ?? string.Empty,
-                            SenderName = dto.LastMessage.SenderName,
-                            IsOutgoing = dto.LastMessage.IsOutgoing,
-                            Content = new MessageContent { Text = dto.LastMessage.Text ?? string.Empty },
-                            Timestamp = dto.LastMessage.Timestamp > 0
-                                ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
-                                : (chat.LastMessageTime != DateTimeOffset.MinValue ? chat.LastMessageTime : DateTimeOffset.UnixEpoch),
-                            Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
-                            QuotedText = dto.LastMessage.QuotedText,
-                            QuotedSender = dto.LastMessage.QuotedSender,
-                            Reactions = dto.LastMessage.Reactions ?? new()
-                        };
-                    }
-
-                    chats.Add(chat);
                 }
 
-                return (IReadOnlyList<Chat>)chats;
+                chats.Add(chat);
             }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Failed to deserialize chats from native bridge.");
-                return new List<Chat>();
-            }
-            finally
-            {
-                WhatsAppNative.wa_free_string(ptr);
-            }
-        }, ct);
+
+            return chats;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to deserialize chats from native bridge.");
+            return Array.Empty<Chat>();
+        }
+        finally
+        {
+            WhatsAppNative.wa_free_string(ptr);
+        }
     }
 
     private IReadOnlyList<Chat> GetTestingChats()

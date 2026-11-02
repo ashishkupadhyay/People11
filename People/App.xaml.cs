@@ -87,13 +87,13 @@ public partial class App : Application
     {
         try
         {
-            // Activate MainWindow immediately so the native splash screen transitions seamlessly
-            // into MainWindow with solid theme background.
+            // Pre-navigate to ChatListPage so contacts are preloaded and rendered before window activation
             MainWindow = Services.GetRequiredService<MainWindow>();
-            MainWindow.Activate();
 
             var navService = Services.GetRequiredService<INavigationService>();
             navService.NavigateTo("Chats", "WhatsApp");
+
+            MainWindow.Activate();
 
             _ = System.Threading.Tasks.Task.Run(() =>
             {

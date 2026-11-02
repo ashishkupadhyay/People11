@@ -73,6 +73,9 @@ public partial class ChatListViewModel : ViewModelBase
         _provider.ChatUpdated += OnChatUpdated;
         _provider.MessageReceived += OnMessageReceived;
 
+        // Synchronously preload cached chats so Chats is populated BEFORE page render
+        PreloadCachedChats();
+
         _ = Task.Run(RebuildContactsAsync);
 
         if (_provider is IWhatsAppProvider waProvider)
@@ -85,6 +88,31 @@ public partial class ChatListViewModel : ViewModelBase
         {
             LoadMockData();
         }
+    }
+
+    private void PreloadCachedChats()
+    {
+        try
+        {
+            if (_provider is IWhatsAppProvider waProvider && waProvider.IsAuthenticated)
+            {
+                var cached = waProvider.GetCachedChats();
+                if (cached.Count > 0)
+                {
+                    var valid = cached.Where(c => !string.IsNullOrWhiteSpace(c.Id)).ToList();
+                    foreach (var c in valid)
+                    {
+                        c.Title = ResolveChatTitle(c);
+                    }
+                    var sorted = valid.OrderByDescending(c => c.LastMessageTime).ToList();
+                    foreach (var c in sorted)
+                    {
+                        Chats.Add(c);
+                    }
+                }
+            }
+        }
+        catch { }
     }
 
     private async Task ConnectAndAuthenticateAsync(IWhatsAppProvider provider)
