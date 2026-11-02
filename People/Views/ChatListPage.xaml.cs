@@ -49,6 +49,7 @@ public sealed partial class ChatListPage : Page
     }
     
     private string? _platformId;
+    private string? _lastEmptyStateKey;
     
     public void UpdateAccentColor()
     {
@@ -87,32 +88,37 @@ public sealed partial class ChatListPage : Page
 
         string themeSuffix = isDark ? "white" : "black";
         string prefix = (platformId ?? "sms").ToLower(); 
+        string key = $"{prefix}_{themeSuffix}";
 
-        switch(prefix)
+        if (_lastEmptyStateKey != key || EmptyStatePlayer.Source == null)
         {
-            case "whatsapp": 
-                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
-                break;
-            case "sms": 
-                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
-                break;
-            case "telegram": 
-                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Telegram_animated_white() : new AnimatedVisuals.Telegram_animated_black();
-                break;
-            case "signal": 
-                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Signal_animated_reveal_white() : new AnimatedVisuals.Signal_animated_reveal_black();
-                break;
-            case "discord": 
-                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Discord_animated_reveal_filled_white() : new AnimatedVisuals.Discord_animated_reveal_filled_black();
-                break;
-            default: 
-                EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
-                break;
+            _lastEmptyStateKey = key;
+            switch(prefix)
+            {
+                case "whatsapp": 
+                    EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
+                    break;
+                case "sms": 
+                    EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
+                    break;
+                case "telegram": 
+                    EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Telegram_animated_white() : new AnimatedVisuals.Telegram_animated_black();
+                    break;
+                case "signal": 
+                    EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Signal_animated_reveal_white() : new AnimatedVisuals.Signal_animated_reveal_black();
+                    break;
+                case "discord": 
+                    EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Discord_animated_reveal_filled_white() : new AnimatedVisuals.Discord_animated_reveal_filled_black();
+                    break;
+                default: 
+                    EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
+                    break;
+            }
+            
+            _ = EmptyStatePlayer.PlayAsync(0, 1, false);
         }
-        
-        _ = EmptyStatePlayer.PlayAsync(0, 1, false);
 
-        if (InitialSyncPlayer != null)
+        if (InitialSyncPlayer != null && ViewModel.IsInitialSyncing)
         {
             InitialSyncPlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
             _ = InitialSyncPlayer.PlayAsync(0, 1, true);

@@ -21,31 +21,85 @@ public sealed partial class MainWindow : Window
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _discordDarkSource;
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _discordLightSource;
 
+    private readonly IntPtr _hwnd;
+    private readonly SubclassProc _subclassProc;
+    private bool _allowShow;
+    private bool _shown;
+    private int _renderedFrames;
+    private int _revealTicks;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _revealTimer;
+
     private void UpdateSidebarIcons(ElementTheme theme)
     {
         bool isDark = IsDarkTheme(theme);
 
-        _whatsAppDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg"));
-        _whatsAppLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg"));
-        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = isDark ? _whatsAppDarkSource : _whatsAppLightSource;
+        if (isDark)
+        {
+            _whatsAppDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg"));
+            if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = _whatsAppDarkSource;
 
-        _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg"));
-        _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg"));
-        if (NavTelegramIcon != null) NavTelegramIcon.Source = isDark ? _telegramDarkSource : _telegramLightSource;
+            _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg"));
+            if (NavTelegramIcon != null) NavTelegramIcon.Source = _telegramDarkSource;
 
-        _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg"));
-        _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg"));
-        if (NavSignalIcon != null) NavSignalIcon.Source = isDark ? _signalDarkSource : _signalLightSource;
+            _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg"));
+            if (NavSignalIcon != null) NavSignalIcon.Source = _signalDarkSource;
 
-        _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg"));
-        _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg"));
-        if (NavDiscordIcon != null) NavDiscordIcon.Source = isDark ? _discordDarkSource : _discordLightSource;
+            _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg"));
+            if (NavDiscordIcon != null) NavDiscordIcon.Source = _discordDarkSource;
+        }
+        else
+        {
+            _whatsAppLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg"));
+            if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = _whatsAppLightSource;
+
+            _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg"));
+            if (NavTelegramIcon != null) NavTelegramIcon.Source = _telegramLightSource;
+
+            _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg"));
+            if (NavSignalIcon != null) NavSignalIcon.Source = _signalLightSource;
+
+            _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg"));
+            if (NavDiscordIcon != null) NavDiscordIcon.Source = _discordLightSource;
+        }
     }
 
     public Microsoft.UI.Xaml.Visibility ConvertBoolToVisibility(bool isVisible)
     {
         return isVisible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     }
+
+    [System.Runtime.InteropServices.DllImport("comctl32.dll", SetLastError = true)]
+    private static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, nuint uIdSubclass, nuint dwRefData);
+
+    [System.Runtime.InteropServices.DllImport("comctl32.dll", SetLastError = true)]
+    private static extern bool RemoveWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, nuint uIdSubclass);
+
+    [System.Runtime.InteropServices.DllImport("comctl32.dll", SetLastError = true)]
+    private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+    private delegate IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public IntPtr hwnd;
+        public IntPtr hwndInsertAfter;
+        public int x;
+        public int y;
+        public int cx;
+        public int cy;
+        public uint flags;
+    }
+
+    private const uint WM_WINDOWPOSCHANGING = 0x0046;
+    private const uint SWP_SHOWWINDOW = 0x0040;
+    private const int SW_SHOW = 5;
 
     [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -110,25 +164,43 @@ public sealed partial class MainWindow : Window
                 navServiceCore.NavigateTo("Chats");
         };
 
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _subclassProc = new SubclassProc(SubclassCallback);
+
+        // WinUI 3 normally shows the native Win32 window immediately upon Activate(),
+        // before XAML and DirectX compositor have rendered the first frame, which causes
+        // an unsightly black rectangle and disrupts the Windows 11 scale-in animation.
+        // We intercept WM_WINDOWPOSCHANGING to hold back the initial display until XAML has
+        // rendered its initial frames, then reveal the window. This completely eliminates
+        // the black screen and preserves the smooth native Windows 11 scale-in animation.
+        SetWindowSubclass(_hwnd, _subclassProc, 1, 0);
+
+        Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += OnCompositionTargetRendering;
+
+        _revealTimer = this.DispatcherQueue.CreateTimer();
+        _revealTimer.Interval = TimeSpan.FromMilliseconds(50);
+        _revealTimer.Tick += OnRevealTimerTick;
+        _revealTimer.Start();
+
+        this.Closed += OnWindowClosed;
 
         try
         {
             // 1. Force DWM to use immersive dark mode frame and dark caption
             int darkMode = 1;
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+            DwmSetWindowAttribute(_hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
             int captionColor = 0x00202020; // COLORREF: 0x00BBGGRR -> #202020
-            DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
+            DwmSetWindowAttribute(_hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
 
             // 2. Set native Win32 window background brush to #202020
             IntPtr darkBrush = CreateSolidBrush(0x00202020);
-            SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, darkBrush);
+            SetClassLongPtr(_hwnd, GCLP_HBRBACKGROUND, darkBrush);
         }
         catch
         {
             // Fallback gracefully if OS attributes cannot be applied
         }
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(_hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
         
         if (this.Content is FrameworkElement rootElement)
@@ -155,7 +227,7 @@ public sealed partial class MainWindow : Window
         }
 
         var settingsService = App.Current.Services.GetRequiredService<People.Core.Interfaces.ISettingsService>();
-        uint dpi = GetDpiForWindow(hwnd);
+        uint dpi = GetDpiForWindow(_hwnd);
         float scalingFactor = dpi / 96f;
 
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
@@ -340,6 +412,74 @@ public sealed partial class MainWindow : Window
         else
         {
             themeService.ClearActivePlatform();
+        }
+    }
+
+    private IntPtr SubclassCallback(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
+    {
+        if (uMsg == WM_WINDOWPOSCHANGING)
+        {
+            if (!_allowShow && lParam != IntPtr.Zero)
+            {
+                var pos = System.Runtime.InteropServices.Marshal.PtrToStructure<WINDOWPOS>(lParam);
+                pos.flags &= ~SWP_SHOWWINDOW;
+                System.Runtime.InteropServices.Marshal.StructureToPtr(pos, lParam, false);
+            }
+        }
+
+        return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+    }
+
+    private void OnCompositionTargetRendering(object? sender, object e)
+    {
+        if (++_renderedFrames < 2)
+            return;
+
+        ShowWindowNow();
+    }
+
+    private void OnRevealTimerTick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object e)
+    {
+        // Safety timeout: reveal window after ~300ms if rendering events are delayed
+        if (++_revealTicks < 6)
+            return;
+
+        ShowWindowNow();
+    }
+
+    private void ShowWindowNow()
+    {
+        if (_shown)
+            return;
+        _shown = true;
+
+        Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnCompositionTargetRendering;
+
+        if (_revealTimer != null)
+        {
+            _revealTimer.Stop();
+            _revealTimer = null;
+        }
+
+        _allowShow = true;
+        ShowWindow(_hwnd, SW_SHOW);
+        SetForegroundWindow(_hwnd);
+
+        RemoveWindowSubclass(_hwnd, _subclassProc, 1);
+    }
+
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        if (!_shown)
+        {
+            _shown = true;
+            Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnCompositionTargetRendering;
+            if (_revealTimer != null)
+            {
+                _revealTimer.Stop();
+                _revealTimer = null;
+            }
+            RemoveWindowSubclass(_hwnd, _subclassProc, 1);
         }
     }
 }

@@ -13,32 +13,34 @@ public class TrayIconService : ITrayIconService
 
     public void Initialize()
     {
-        App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
-        {
-            try
+        App.Current.MainWindow?.DispatcherQueue.TryEnqueue(
+            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () =>
             {
-                _taskbarIcon = new TaskbarIcon
+                try
                 {
-                    ToolTipText = "People Messaging",
-                    ContextFlyout = CreateContextMenu(),
-                    IconSource = new H.NotifyIcon.GeneratedIconSource
+                    _taskbarIcon = new TaskbarIcon
                     {
-                        Text = "\xE716",
-                        FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
-                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
-                        FontSize = 16
-                    }
-                };
+                        ToolTipText = "People Messaging",
+                        ContextFlyout = CreateContextMenu(),
+                        IconSource = new H.NotifyIcon.GeneratedIconSource
+                        {
+                            Text = "\xE716",
+                            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
+                            FontSize = 16
+                        }
+                    };
 
-                _taskbarIcon.LeftClickCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ToggleFlyout);
-                _taskbarIcon.ForceCreate();
-            }
-            catch
-            {
-                // Ignore tray icon initialization failures for now
-                // System.Drawing.Icon conversion from PNG fails without a valid .ico file
-            }
-        });
+                    _taskbarIcon.LeftClickCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ToggleFlyout);
+                    _taskbarIcon.ForceCreate();
+                }
+                catch
+                {
+                    // Ignore tray icon initialization failures for now
+                    // System.Drawing.Icon conversion from PNG fails without a valid .ico file
+                }
+            });
     }
 
     private Microsoft.UI.Xaml.Controls.MenuFlyout CreateContextMenu()
