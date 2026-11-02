@@ -23,6 +23,15 @@ public class OutgoingAlignmentConverter : IValueConverter
 
 public class OutgoingBackgroundConverter : IValueConverter
 {
+    private static readonly SolidColorBrush s_whatsAppBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
+    private static readonly SolidColorBrush s_telegramBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
+    private static readonly SolidColorBrush s_discordBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
+    private static readonly SolidColorBrush s_matrixBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0));
+    private static readonly SolidColorBrush s_signalBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
+    private static readonly SolidColorBrush s_smsBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 0, 120, 212));
+    private static readonly SolidColorBrush s_defaultBlueBrush = new(Microsoft.UI.Colors.Blue);
+    private static readonly SolidColorBrush s_defaultGrayBrush = new(Microsoft.UI.Colors.LightGray);
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isOutgoing = false;
@@ -62,20 +71,20 @@ public class OutgoingBackgroundConverter : IValueConverter
 
             if (isBrandColor)
             {
-                if (normalizedPlatformId == "WhatsApp") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
-                if (normalizedPlatformId == "Telegram") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
-                if (normalizedPlatformId == "Discord") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
-                if (normalizedPlatformId == "Matrix") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 0, 0));
-                if (normalizedPlatformId == "Signal") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 58, 118, 240));
-                if (normalizedPlatformId == "SMS") return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0, 120, 212));
+                if (normalizedPlatformId == "WhatsApp") return s_whatsAppBrush;
+                if (normalizedPlatformId == "Telegram") return s_telegramBrush;
+                if (normalizedPlatformId == "Discord") return s_discordBrush;
+                if (normalizedPlatformId == "Matrix") return s_matrixBrush;
+                if (normalizedPlatformId == "Signal") return s_signalBrush;
+                if (normalizedPlatformId == "SMS") return s_smsBrush;
             }
 
-            return App.Current.Resources["AccentFillColorDefaultBrush"] as SolidColorBrush ?? new SolidColorBrush(Microsoft.UI.Colors.Blue);
+            return App.Current.Resources["AccentFillColorDefaultBrush"] as SolidColorBrush ?? s_defaultBlueBrush;
         }
         else
         {
             // Incoming message background
-            return App.Current.Resources["ControlFillColorDefaultBrush"] as SolidColorBrush ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
+            return App.Current.Resources["ControlFillColorDefaultBrush"] as SolidColorBrush ?? s_defaultGrayBrush;
         }
     }
 
@@ -133,13 +142,16 @@ public class StringToImageSourceConverter : IValueConverter
 
 public class OutgoingTextColorConverter : IValueConverter
 {
+    private static readonly SolidColorBrush s_white = new(Microsoft.UI.Colors.White);
+    private static readonly SolidColorBrush s_black = new(Microsoft.UI.Colors.Black);
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is bool isOutgoing && isOutgoing)
         {
-            return new SolidColorBrush(Microsoft.UI.Colors.White);
+            return s_white;
         }
-        return App.Current.Resources["TextFillColorPrimaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
+        return App.Current.Resources["TextFillColorPrimaryBrush"] as Brush ?? s_black;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
@@ -147,13 +159,16 @@ public class OutgoingTextColorConverter : IValueConverter
 
 public class OutgoingSubtextColorConverter : IValueConverter
 {
+    private static readonly SolidColorBrush s_translucentWhite = new(Microsoft.UI.ColorHelper.FromArgb(200, 255, 255, 255));
+    private static readonly SolidColorBrush s_gray = new(Microsoft.UI.Colors.Gray);
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is bool isOutgoing && isOutgoing)
         {
-            return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(200, 255, 255, 255));
+            return s_translucentWhite;
         }
-        return App.Current.Resources["TextFillColorSecondaryBrush"] as Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+        return App.Current.Resources["TextFillColorSecondaryBrush"] as Brush ?? s_gray;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

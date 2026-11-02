@@ -411,11 +411,13 @@ public partial class ChatListViewModel : ViewModelBase
                         }
                     }
 
+                    // Pre-index existing chats for O(1) lookups
+                    var existingMap = Chats.ToDictionary(c => c.Id, StringComparer.OrdinalIgnoreCase);
+
                     // Update existing or add new
                     foreach (var incoming in validChats)
                     {
-                        var existing = Chats.FirstOrDefault(c => c.Id.Equals(incoming.Id, StringComparison.OrdinalIgnoreCase));
-                        if (existing != null)
+                        if (existingMap.TryGetValue(incoming.Id, out var existing))
                         {
                             if (existing.Title != incoming.Title && incoming.Title != "WhatsApp Contact")
                             {
@@ -438,6 +440,7 @@ public partial class ChatListViewModel : ViewModelBase
                         else
                         {
                             Chats.Add(incoming);
+                            existingMap[incoming.Id] = incoming;
                         }
                     }
 
@@ -724,7 +727,10 @@ public partial class ChatListViewModel : ViewModelBase
             _allContacts.Clear();
             _allContacts.AddRange(sorted);
         }
-        _dispatcherService.Enqueue(() => FilterContacts(string.Empty));
+        if (FilteredContacts.Count > 0)
+        {
+            _dispatcherService.Enqueue(() => FilterContacts(string.Empty));
+        }
     }
 
     public void FilterContacts(string query)
