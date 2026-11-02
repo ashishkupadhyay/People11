@@ -17,6 +17,7 @@ public partial class ChatListViewModel : ViewModelBase
     public ObservableCollection<Chat> Chats { get; } = new();
     public ObservableCollection<Contact> FilteredContacts { get; } = new();
     private readonly List<Contact> _allContacts = new();
+    private readonly object _contactsLock = new();
 
     [ObservableProperty]
     public partial byte[]? QrCodeBytes { get; set; }
@@ -713,8 +714,16 @@ public partial class ChatListViewModel : ViewModelBase
             foreach (var kvp in byDigits) _contactNamesByPhoneDigits[kvp.Key] = kvp.Value;
         }
 
-        _allContacts.Clear();
-        _allContacts.AddRange(contactsMap.Values.OrderBy(c => c.Name));
+        var sorted = contactsMap.Values
+            .Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
+            .OrderBy(c => c.Name ?? string.Empty)
+            .ToList();
+
+        lock (_contactsLock)
+        {
+            _allContacts.Clear();
+            _allContacts.AddRange(sorted);
+        }
         _dispatcherService.Enqueue(() => FilterContacts(string.Empty));
     }
 
@@ -738,13 +747,26 @@ public partial class ChatListViewModel : ViewModelBase
             });
         }
 
-        foreach (var c in _allContacts)
+        List<Contact> contactsSnapshot;
+        lock (_contactsLock)
         {
-            if (string.IsNullOrEmpty(trimmed) ||
-                c.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-                (c.PhoneNumber != null && c.PhoneNumber.Contains(trimmed, StringComparison.OrdinalIgnoreCase)))
+            contactsSnapshot = _allContacts.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id)).ToList();
+        }
+
+        foreach (var c in contactsSnapshot)
+        {
+            if (c == null || string.IsNullOrWhiteSpace(c.Id)) continue;
+
+            var name = c.Name ?? string.Empty;
+            var phone = c.PhoneNumber ?? string.Empty;
+
+            bool matches = string.IsNullOrEmpty(trimmed) ||
+                name.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(phone) && phone.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
+
+            if (matches)
             {
-                if (!FilteredContacts.Any(existing => existing.Id == c.Id))
+                if (!FilteredContacts.Any(existing => existing != null && existing.Id == c.Id))
                 {
                     FilteredContacts.Add(c);
                 }

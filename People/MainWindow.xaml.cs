@@ -46,10 +46,10 @@ public sealed partial class MainWindow : Window
     [System.Runtime.InteropServices.DllImport("gdi32.dll")]
     private static extern IntPtr CreateSolidBrush(int crColor);
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetClassLongPtr")]
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetClassLongPtrW")]
     private static extern IntPtr SetClassLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetClassLong")]
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetClassLongW")]
     private static extern int SetClassLong32(IntPtr hWnd, int nIndex, int dwNewLong);
 
     private static IntPtr SetClassLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
@@ -107,17 +107,24 @@ public sealed partial class MainWindow : Window
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
 
-        // 1. Force DWM to use immersive dark mode frame and dark caption
-        int darkMode = 1;
-        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
-        int captionColor = 0x00202020; // COLORREF: 0x00BBGGRR -> #202020
-        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
+        try
+        {
+            // 1. Force DWM to use immersive dark mode frame and dark caption
+            int darkMode = 1;
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+            int captionColor = 0x00202020; // COLORREF: 0x00BBGGRR -> #202020
+            DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
 
-        // 2. Set native Win32 window background brush to #202020
-        // This guarantees that before DirectX presents the first frame during the DWM scale-in animation,
-        // DWM composites the HWND with the #202020 dark background (zero black screen flash).
-        IntPtr darkBrush = CreateSolidBrush(0x00202020);
-        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, darkBrush);
+            // 2. Set native Win32 window background brush to #202020
+            // This guarantees that before DirectX presents the first frame during the DWM scale-in animation,
+            // DWM composites the HWND with the #202020 dark background (zero black screen flash).
+            IntPtr darkBrush = CreateSolidBrush(0x00202020);
+            SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, darkBrush);
+        }
+        catch
+        {
+            // Fallback gracefully if OS attributes cannot be applied
+        }
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
         
