@@ -12,6 +12,8 @@ public sealed partial class MainWindow : Window
 {
     public MainWindowViewModel ViewModel { get; }
 
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _whatsAppDarkSource;
+    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _whatsAppLightSource;
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _telegramDarkSource;
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _telegramLightSource;
     private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _signalDarkSource;
@@ -22,16 +24,21 @@ public sealed partial class MainWindow : Window
     private void UpdateSidebarIcons(ElementTheme theme)
     {
         bool isDark = IsDarkTheme(theme);
-        _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-        _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+
+        _whatsAppDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg"));
+        _whatsAppLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg"));
+        if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = isDark ? _whatsAppDarkSource : _whatsAppLightSource;
+
+        _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg"));
+        _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg"));
         if (NavTelegramIcon != null) NavTelegramIcon.Source = isDark ? _telegramDarkSource : _telegramLightSource;
 
-        _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-        _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg"));
+        _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg"));
         if (NavSignalIcon != null) NavSignalIcon.Source = isDark ? _signalDarkSource : _signalLightSource;
 
-        _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
-        _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg")) { RasterizePixelWidth = 36, RasterizePixelHeight = 36 };
+        _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg"));
+        _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg"));
         if (NavDiscordIcon != null) NavDiscordIcon.Source = isDark ? _discordDarkSource : _discordLightSource;
     }
 
@@ -97,12 +104,17 @@ public sealed partial class MainWindow : Window
 
             var platformId = initialItem?.Tag?.ToString();
 
-            if (!string.IsNullOrWhiteSpace(platformId))
-                navServiceCore.NavigateTo("Chats", platformId);
-            else
-                navServiceCore.NavigateTo("Chats");
+            // Defer initial page navigation to the dispatcher queue so Frame 1 (SplashOverlay)
+            // is measured, arranged, and presented to DirectX immediately without UI thread blocking.
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (!string.IsNullOrWhiteSpace(platformId))
+                    navServiceCore.NavigateTo("Chats", platformId);
+                else
+                    navServiceCore.NavigateTo("Chats");
 
-            DismissSplashAsync();
+                DismissSplashAsync();
+            });
         };
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -116,8 +128,6 @@ public sealed partial class MainWindow : Window
             DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(int));
 
             // 2. Set native Win32 window background brush to #202020
-            // This guarantees that before DirectX presents the first frame during the DWM scale-in animation,
-            // DWM composites the HWND with the #202020 dark background (zero black screen flash).
             IntPtr darkBrush = CreateSolidBrush(0x00202020);
             SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, darkBrush);
         }
@@ -216,8 +226,8 @@ public sealed partial class MainWindow : Window
 
     private async void DismissSplashAsync()
     {
-        // Allow a brief moment for the initial page to measure, layout, and render
-        await Task.Delay(350);
+        // Allow a brief moment for the initial page to measure, layout, and render underneath the splash screen
+        await Task.Delay(200);
 
         if (SplashOverlay == null || SplashOverlay.Visibility == Visibility.Collapsed)
             return;

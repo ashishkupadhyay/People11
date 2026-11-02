@@ -92,12 +92,19 @@ public partial class App : Application
             MainWindow = Services.GetRequiredService<MainWindow>();
             MainWindow.Activate();
 
-            var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
-            if (dbFactory != null)
+            _ = System.Threading.Tasks.Task.Run(() =>
             {
-                using var db = dbFactory.CreateDbContext();
-                db.Database.EnsureCreated();
-            }
+                try
+                {
+                    var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
+                    if (dbFactory != null)
+                    {
+                        using var db = dbFactory.CreateDbContext();
+                        db.Database.EnsureCreated();
+                    }
+                }
+                catch { }
+            });
 
             var trayService = Services.GetRequiredService<ITrayIconService>();
             trayService.Initialize();
