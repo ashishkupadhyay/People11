@@ -15,6 +15,17 @@ public partial class ConversationViewModel : ViewModelBase
 {
     private readonly IMessagingProvider _provider;
     private readonly IDispatcherService _dispatcherService;
+    private readonly ISettingsService? _settingsService;
+
+    [ObservableProperty]
+    public partial bool IsDoodleWallpaperVisible { get; set; }
+
+    public void UpdateDoodleWallpaperVisibility()
+    {
+        var enabled = _settingsService?.GetValue<bool>("WhatsAppDoodleWallpaper", false) ?? false;
+        var isWhatsApp = CurrentChat != null && CurrentChat.PlatformId == "WhatsApp";
+        IsDoodleWallpaperVisible = isWhatsApp && enabled;
+    }
 
     [ObservableProperty]
     public partial Chat? CurrentChat { get; set; }
@@ -58,6 +69,17 @@ public partial class ConversationViewModel : ViewModelBase
     {
         _provider = provider;
         _dispatcherService = dispatcherService;
+        _settingsService = App.Current.Services.GetService<ISettingsService>();
+        if (_settingsService != null)
+        {
+            _settingsService.SettingChanged += (s, key) =>
+            {
+                if (key == "WhatsAppDoodleWallpaper")
+                {
+                    _dispatcherService.Enqueue(UpdateDoodleWallpaperVisibility);
+                }
+            };
+        }
         _provider.MessageReceived += OnMessageReceived;
         _provider.ChatUpdated += OnChatUpdated;
     }
@@ -67,6 +89,7 @@ public partial class ConversationViewModel : ViewModelBase
     public async void LoadChat(Chat chat)
     {
         CurrentChat = chat;
+        UpdateDoodleWallpaperVisibility();
         int unreadCount = chat.UnreadCount;
         if (unreadCount > 0)
         {
@@ -598,6 +621,7 @@ public partial class ConversationViewModel : ViewModelBase
         var today = DateTime.Today;
         if (localDate == today) return "Today";
         if (localDate == today.AddDays(-1)) return "Yesterday";
+        if (localDate > today.AddDays(-7)) return localDate.ToString("dddd");
 
         int day = localDate.Day;
         string suffix = (day % 10 == 1 && day != 11) ? "st" :

@@ -33,6 +33,9 @@ public partial class SettingsViewModel : ViewModelBase
     public partial bool WhatsAppAutoDownloadDocuments { get; set; } = true;
 
     [ObservableProperty]
+    public partial bool WhatsAppDoodleWallpaperEnabled { get; set; } = false;
+
+    [ObservableProperty]
     public partial bool EnterSendsMessage { get; set; } = true;
 
     [ObservableProperty]
@@ -236,6 +239,7 @@ public partial class SettingsViewModel : ViewModelBase
         WhatsAppAutoDownloadPhotos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadPhotos", true);
         WhatsAppAutoDownloadVideos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadVideos", false);
         WhatsAppAutoDownloadDocuments = _settingsService.GetValue<bool>("WhatsAppAutoDownloadDocuments", true);
+        WhatsAppDoodleWallpaperEnabled = _settingsService.GetValue<bool>("WhatsAppDoodleWallpaper", false);
         EnterSendsMessage = _settingsService.GetValue<bool>("EnterSendsMessage", true);
         IsFlyoutEnabled = _settingsService.GetValue<bool>("FlyoutEnabled", true);
         ShowUnreadBadge = _settingsService.GetValue<bool>("ShowUnreadBadge", true);
@@ -261,6 +265,8 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnWhatsAppAutoDownloadVideosChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppAutoDownloadVideos", value); }
 
     partial void OnWhatsAppAutoDownloadDocumentsChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppAutoDownloadDocuments", value); }
+
+    partial void OnWhatsAppDoodleWallpaperEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppDoodleWallpaper", value); }
 
     partial void OnEnterSendsMessageChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("EnterSendsMessage", value); }
 

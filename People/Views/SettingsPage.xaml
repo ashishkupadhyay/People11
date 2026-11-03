@@ -129,6 +129,12 @@
                                 <RadioButton x:Uid="UseSystemSettingWhatsAppRadio" Content="Use system setting" />
                             </RadioButtons>
                         </ui:SettingsCard>
+                        <ui:SettingsCard Header="Chat background wallpaper" Description="Show the WhatsApp doodle pattern as the chat background">
+                            <ui:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xEB9F;" />
+                            </ui:SettingsCard.HeaderIcon>
+                            <ToggleSwitch IsOn="{x:Bind ViewModel.WhatsAppDoodleWallpaperEnabled, Mode=TwoWay}" AutomationProperties.Name="WhatsApp doodle wallpaper" AutomationProperties.AutomationId="WhatsAppDoodleToggle" />
+                        </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
 

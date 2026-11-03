@@ -59,6 +59,13 @@
 
         <!-- Messages -->
         <Grid Grid.Row="1">
+            <Image Source="{ThemeResource WhatsAppDoodleSource}"
+                   Stretch="UniformToFill"
+                   Opacity="{ThemeResource WhatsAppDoodleOpacity}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Visibility="{x:Bind ViewModel.IsDoodleWallpaperVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                   IsHitTestVisible="False" />
             <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,8,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
                     <ListView.ItemContainerTransitions>
                         <TransitionCollection />

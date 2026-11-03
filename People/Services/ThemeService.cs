@@ -249,6 +249,11 @@ public class ThemeService : IThemeService
         Windows.UI.Color effectiveForeground;
         Windows.UI.Color effectiveSubtext;
 
+        Windows.UI.Color btnBg;
+        Windows.UI.Color btnHover;
+        Windows.UI.Color btnPressed;
+        Windows.UI.Color btnFg;
+
         Windows.UI.Color outgoingBubbleBg;
         Windows.UI.Color outgoingBubbleText;
         Windows.UI.Color outgoingBubbleSubtext;
@@ -286,9 +291,16 @@ public class ThemeService : IThemeService
                 outgoingBubbleText = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
                 outgoingBubbleSubtext = ColorHelper.FromArgb(255, 134, 150, 160); // #8696A0
 
-                incomingBg = ColorHelper.FromArgb(255, 32, 44, 51); // #202C33
+                // Dark mode incoming message bubble: true grey #242626
+                incomingBg = ColorHelper.FromArgb(255, 36, 38, 38); // #242626
                 incomingText = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
                 incomingSubtext = ColorHelper.FromArgb(255, 134, 150, 160); // #8696A0
+
+                // Dark mode button color: distinct shade of grey (#323434)
+                btnBg = ColorHelper.FromArgb(255, 50, 52, 52); // #323434
+                btnHover = ColorHelper.FromArgb(255, 60, 62, 62); // #3C3E3E
+                btnPressed = ColorHelper.FromArgb(255, 40, 42, 42); // #282A2A
+                btnFg = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
 
                 quotedOutBg = ColorHelper.FromArgb(45, 0, 0, 0); // #025144 tint
                 quotedOutBorder = waGreen;
@@ -307,16 +319,22 @@ public class ThemeService : IThemeService
                 outgoingBubbleText = ColorHelper.FromArgb(255, 17, 27, 33); // #111B21
                 outgoingBubbleSubtext = ColorHelper.FromArgb(255, 102, 119, 129); // #667781
 
-                incomingBg = ColorHelper.FromArgb(255, 242, 242, 242); // #F2F2F2 Phone Link card surface
+                // Light mode incoming message bubble: pure white #FFFFFF
+                incomingBg = ColorHelper.FromArgb(255, 255, 255, 255); // #FFFFFF
                 incomingText = ColorHelper.FromArgb(255, 17, 27, 33); // #111B21
                 incomingSubtext = ColorHelper.FromArgb(255, 102, 119, 129); // #667781
+
+                btnBg = waTeal;
+                btnHover = ColorHelper.FromArgb(255, 6, 207, 156);
+                btnPressed = ColorHelper.FromArgb(255, 0, 140, 110);
+                btnFg = Microsoft.UI.Colors.White;
 
                 quotedOutBg = ColorHelper.FromArgb(20, 0, 0, 0); // #CEF2C8 tint
                 quotedOutBorder = waTeal;
                 quotedOutSender = waTeal;
                 quotedOutText = ColorHelper.FromArgb(255, 84, 101, 111);
 
-                quotedInBg = ColorHelper.FromArgb(14, 0, 0, 0);
+                quotedInBg = ColorHelper.FromArgb(240, 245, 245, 245);
                 quotedInBorder = waTeal;
                 quotedInSender = waTeal;
                 quotedInText = ColorHelper.FromArgb(255, 84, 101, 111);
@@ -330,6 +348,11 @@ public class ThemeService : IThemeService
             effectivePressed = isDark ? palette.Light3 : palette.Dark2;
             effectiveForeground = isDark ? ColorHelper.FromArgb(255, 28, 28, 28) : Microsoft.UI.Colors.White;
             effectiveSubtext = isDark ? ColorHelper.FromArgb(170, 0, 0, 0) : ColorHelper.FromArgb(210, 255, 255, 255);
+
+            btnBg = effectiveAccent;
+            btnHover = effectiveHover;
+            btnPressed = effectivePressed;
+            btnFg = effectiveForeground;
 
             outgoingBubbleBg = effectiveAccent;
             outgoingBubbleText = effectiveForeground;
@@ -365,6 +388,14 @@ public class ThemeService : IThemeService
         MutateBrush("AppAccentHoverBrush", effectiveHover);
         MutateBrush("AppAccentPressedBrush", effectivePressed);
         MutateBrush("AppAccentForegroundBrush", effectiveForeground);
+
+        MutateBrush("AppAccentButtonBrush", btnBg);
+        MutateBrush("AppAccentButtonHoverBrush", btnHover);
+        MutateBrush("AppAccentButtonPressedBrush", btnPressed);
+        MutateBrush("AppAccentButtonForegroundBrush", btnFg);
+
+        var chatListTsColor = isDark ? ColorHelper.FromArgb(255, 134, 150, 160) : ColorHelper.FromArgb(255, 102, 119, 129);
+        MutateBrush("ChatListTimestampBrush", chatListTsColor);
 
         MutateBrush("IncomingBubbleBrush", incomingBg);
         MutateBrush("IncomingBubbleTextBrush", incomingText);

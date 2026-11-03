@@ -370,7 +370,11 @@ public class ChatTimestampConverter : IValueConverter
             {
                 return "Yesterday";
             }
-            return local.ToString("dd/MM/yy");
+            if (local.Date > today.AddDays(-7))
+            {
+                return local.ToString("dddd");
+            }
+            return local.ToString("dd-MM-yy");
         }
         return string.Empty;
     }
@@ -446,6 +450,11 @@ public class UnreadToTimestampBrushConverter : IValueConverter
             {
                 return b;
             }
+        }
+
+        if (Application.Current.Resources.TryGetValue("ChatListTimestampBrush", out var tsBrush) && tsBrush is Microsoft.UI.Xaml.Media.Brush tb)
+        {
+            return tb;
         }
 
         if (Application.Current.Resources.TryGetValue("TextFillColorSecondaryBrush", out var secBrush) && secBrush is Microsoft.UI.Xaml.Media.Brush sb)

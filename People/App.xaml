@@ -18,6 +18,15 @@
             <SolidColorBrush x:Key="AppAccentPressedBrush" Color="{ThemeResource SystemAccentColor}" />
             <SolidColorBrush x:Key="AppAccentForegroundBrush" Color="#FFFFFF" />
 
+            <!-- Dedicated Button Brushes for Branded controls -->
+            <SolidColorBrush x:Key="AppAccentButtonBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AppAccentButtonHoverBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AppAccentButtonPressedBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AppAccentButtonForegroundBrush" Color="#FFFFFF" />
+
+            <!-- Chat list timestamp brush (theme-aware, updated in ThemeService) -->
+            <SolidColorBrush x:Key="ChatListTimestampBrush" Color="#8696A0" />
+
             <!-- Message Bubble Brushes (Updated dynamically in-place by ThemeService for Phone Link / Fluent contrast) -->
             <SolidColorBrush x:Key="IncomingBubbleBrush" Color="#2D2D2D" />
             <SolidColorBrush x:Key="IncomingBubbleTextBrush" Color="#FFFFFF" />
@@ -67,9 +76,9 @@
 
             <!-- Dedicated style for branded controls -->
             <Style x:Key="AppAccentButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="{ThemeResource AppAccentBrush}" />
-                <Setter Property="Foreground" Value="{ThemeResource AppAccentForegroundBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource AppAccentBrush}" />
+                <Setter Property="Background" Value="{ThemeResource AppAccentButtonBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource AppAccentButtonForegroundBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource AppAccentButtonBrush}" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="Padding" Value="12,6" />
                 <Setter Property="CornerRadius" Value="4" />
@@ -88,16 +97,16 @@
                                         <VisualState x:Name="Normal" />
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="RootGrid.Background" Value="{ThemeResource AppAccentHoverBrush}" />
-                                                <Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AppAccentHoverBrush}" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppAccentForegroundBrush}" />
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource AppAccentButtonHoverBrush}" />
+                                                <Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AppAccentButtonHoverBrush}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppAccentButtonForegroundBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="RootGrid.Background" Value="{ThemeResource AppAccentPressedBrush}" />
-                                                <Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AppAccentPressedBrush}" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppAccentForegroundBrush}" />
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource AppAccentButtonPressedBrush}" />
+                                                <Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AppAccentButtonPressedBrush}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppAccentButtonForegroundBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled">
@@ -130,6 +139,8 @@
                     <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" />
                     <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" />
                     <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
+                    <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_dark.svg" />
+                    <x:Double x:Key="WhatsAppDoodleOpacity">0.05</x:Double>
                 </ResourceDictionary>
                 
                 <ResourceDictionary x:Key="Light">
@@ -140,6 +151,8 @@
                     <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-Black.svg" />
                     <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-Black.svg" />
                     <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-Black.svg" />
+                    <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_light.svg" />
+                    <x:Double x:Key="WhatsAppDoodleOpacity">0.06</x:Double>
                 </ResourceDictionary>
                 
                 <ResourceDictionary x:Key="Dark">
@@ -150,10 +163,11 @@
                     <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" />
                     <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" />
                     <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
+                    <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_dark.svg" />
+                    <x:Double x:Key="WhatsAppDoodleOpacity">0.05</x:Double>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <!-- Other app resources here -->
         </ResourceDictionary>
     </Application.Resources>
 </Application>
-
