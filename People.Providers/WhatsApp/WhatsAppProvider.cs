@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -73,6 +75,11 @@ public class WhatsAppProvider : IWhatsAppProvider
     // In-memory testing messages cache so sent messages persist during session
     private readonly List<Message> _testingMessages = new();
 
+    // Outbox queue for offline message persistence and background dispatching
+    private readonly ConcurrentQueue<Message> _outboxQueue = new();
+    private readonly SemaphoreSlim _outboxLock = new(1, 1);
+    private System.Threading.Timer? _outboxTimer;
+
     public WhatsAppProvider(
         ILogger<WhatsAppProvider>? logger = null, 
         ISettingsService? settingsService = null,
@@ -86,6 +93,14 @@ public class WhatsAppProvider : IWhatsAppProvider
         _messageRepository = messageRepository;
         _contactRepository = contactRepository;
         _activeInstance = this;
+
+        try
+        {
+            NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
+        }
+        catch { }
+
+        _outboxTimer = new System.Threading.Timer(OnOutboxTimerTick, null, 4000, 4000);
 
         InitializeClientAndCache();
     }
@@ -979,60 +994,222 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
+    public static bool HasInternetAccess()
+    {
+        try
+        {
+            return NetworkInterface.GetIsNetworkAvailable();
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private void OnNetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
+    {
+        if (e.IsAvailable)
+        {
+            _logger?.LogInformation("Network connectivity available. Draining outbox queue.");
+            _ = ProcessOutboxQueueAsync();
+        }
+    }
+
+    private void OnOutboxTimerTick(object? state)
+    {
+        if (!_outboxQueue.IsEmpty && HasInternetAccess() && ConnectionState == ConnectionState.Connected)
+        {
+            _ = ProcessOutboxQueueAsync();
+        }
+    }
+
+    public async Task LoadPendingOutboxMessagesAsync()
+    {
+        if (_messageRepository == null) return;
+        try
+        {
+            var pending = await _messageRepository.GetPendingOutgoingMessagesAsync(PlatformId);
+            foreach (var msg in pending)
+            {
+                if (!_outboxQueue.Any(m => m.Id == msg.Id))
+                {
+                    _outboxQueue.Enqueue(msg);
+                    _logger?.LogInformation("Loaded pending outbox message {Id} for chat {ChatId}", msg.Id, msg.ChatId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load pending messages from repository.");
+        }
+    }
+
+    private void EnqueueOutbox(Message msg)
+    {
+        if (!_outboxQueue.Any(m => m.Id == msg.Id))
+        {
+            _outboxQueue.Enqueue(msg);
+        }
+        _ = ProcessOutboxQueueAsync();
+    }
+
+    public async Task ProcessOutboxQueueAsync()
+    {
+        if (_outboxQueue.IsEmpty) return;
+        if (!HasInternetAccess() || _clientPtr == IntPtr.Zero || ConnectionState != ConnectionState.Connected)
+        {
+            return;
+        }
+
+        if (!await _outboxLock.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            while (_outboxQueue.TryPeek(out var msg))
+            {
+                if (!HasInternetAccess() || _clientPtr == IntPtr.Zero || ConnectionState != ConnectionState.Connected)
+                {
+                    break;
+                }
+
+                _logger?.LogInformation("Dispatching queued message {Id} to {ChatId}", msg.Id, msg.ChatId);
+                IntPtr realIdPtr = IntPtr.Zero;
+                try
+                {
+                    realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, msg.ChatId, msg.Content.Text));
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Error executing wa_send_message in outbox queue");
+                }
+
+                if (realIdPtr != IntPtr.Zero)
+                {
+                    var realId = Marshal.PtrToStringUTF8(realIdPtr);
+                    WhatsAppNative.wa_free_string(realIdPtr);
+
+                    if (!string.IsNullOrEmpty(realId))
+                    {
+                        _outboxQueue.TryDequeue(out _);
+
+                        var oldId = msg.Id;
+                        msg.Id = realId;
+                        msg.Status = MessageStatus.Sent;
+
+                        if (_messageRepository != null)
+                        {
+                            try
+                            {
+                                await _messageRepository.DeleteAsync(oldId);
+                                await _messageRepository.SaveAsync(msg);
+
+                                if (_chatRepository != null)
+                                {
+                                    var chat = await _chatRepository.GetByIdAsync(msg.ChatId);
+                                    if (chat != null)
+                                    {
+                                        chat.LastMessage = msg;
+                                        chat.LastMessageTime = msg.Timestamp;
+                                        await _chatRepository.SaveAsync(chat);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.LogError(ex, "Failed to update database for sent message {Id}", realId);
+                            }
+                        }
+
+                        MessageReceived?.Invoke(this, new MessageReceivedEventArgs(msg));
+                        ChatUpdated?.Invoke(this, new ChatUpdatedEventArgs());
+                        continue;
+                    }
+                }
+
+                _logger?.LogInformation("Outbox send did not succeed for message {Id}. Will retry when connection stabilizes.", msg.Id);
+                break;
+            }
+        }
+        finally
+        {
+            _outboxLock.Release();
+        }
+    }
+
     public async Task<Message> SendMessageAsync(string chatId, MessageContent content, CancellationToken ct = default)
     {
         var msg = new Message
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = "pending_" + Guid.NewGuid().ToString("N"),
             ChatId = chatId,
             PlatformId = PlatformId,
             Content = content,
             Timestamp = DateTimeOffset.UtcNow,
-            Status = MessageStatus.Sent,
+            Status = MessageStatus.Sending,
             SenderId = "me",
             IsOutgoing = true
         };
 
         if (IsTestingMode)
         {
+            msg.Status = MessageStatus.Sent;
             _testingMessages.Add(msg);
             return msg;
         }
 
-        if (_clientPtr != IntPtr.Zero)
+        bool sentImmediately = false;
+        if (_clientPtr != IntPtr.Zero && ConnectionState == ConnectionState.Connected && HasInternetAccess())
         {
-            var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text), ct);
-            if (realIdPtr != IntPtr.Zero)
+            try
             {
-                var realId = Marshal.PtrToStringUTF8(realIdPtr);
-                WhatsAppNative.wa_free_string(realIdPtr);
-                if (!string.IsNullOrEmpty(realId))
+                var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text), ct);
+                if (realIdPtr != IntPtr.Zero)
                 {
-                    msg.Id = realId;
+                    var realId = Marshal.PtrToStringUTF8(realIdPtr);
+                    WhatsAppNative.wa_free_string(realIdPtr);
+                    if (!string.IsNullOrEmpty(realId))
+                    {
+                        msg.Id = realId;
+                        msg.Status = MessageStatus.Sent;
+                        sentImmediately = true;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Direct send failed for message {Id}; queuing for retry", msg.Id);
             }
         }
 
         if (_messageRepository != null)
         {
-            _ = Task.Run(async () =>
+            try
             {
-                try
+                await _messageRepository.SaveAsync(msg);
+                if (_chatRepository != null)
                 {
-                    await _messageRepository.SaveAsync(msg);
-                    if (_chatRepository != null)
+                    var chat = await _chatRepository.GetByIdAsync(chatId);
+                    if (chat != null)
                     {
-                        var chat = await _chatRepository.GetByIdAsync(chatId);
-                        if (chat != null)
-                        {
-                            chat.LastMessage = msg;
-                            chat.LastMessageTime = msg.Timestamp;
-                            await _chatRepository.SaveAsync(chat);
-                        }
+                        chat.LastMessage = msg;
+                        chat.LastMessageTime = msg.Timestamp;
+                        await _chatRepository.SaveAsync(chat);
                     }
                 }
-                catch { }
-            }, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to persist outgoing message {Id}", msg.Id);
+            }
+        }
+
+        if (!sentImmediately)
+        {
+            _logger?.LogInformation("Message {Id} for chat {ChatId} enqueued in Outbox.", msg.Id, chatId);
+            EnqueueOutbox(msg);
         }
 
         return msg;
@@ -1191,6 +1368,12 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     public void Dispose()
     {
+        try
+        {
+            NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
+        }
+        catch { }
+        _outboxTimer?.Dispose();
         _ = DisconnectAsync();
     }
 

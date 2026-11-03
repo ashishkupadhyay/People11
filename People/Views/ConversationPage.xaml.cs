@@ -4,7 +4,9 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using People.Core.Interfaces;
 using People.Core.Models;
@@ -18,10 +20,21 @@ public sealed partial class ConversationPage : Page
     private readonly DispatcherTimer _pillHideTimer = new() { Interval = TimeSpan.FromMilliseconds(1500) };
     private bool _isPillVisible;
 
+    private static readonly SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
+    private static readonly SvgImageSource _darkDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_dark.svg"));
+
     public ConversationPage()
     {
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
+
+        ActualThemeChanged += (s, e) =>
+        {
+            if (DoodleCanvas != null)
+            {
+                UpdateDoodleTiles(DoodleCanvas.ActualWidth, DoodleCanvas.ActualHeight);
+            }
+        };
 
         _pillHideTimer.Tick += (s, e) =>
         {
@@ -256,6 +269,62 @@ public sealed partial class ConversationPage : Page
             current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
         }
         return null;
+    }
+
+    private void DoodleCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateDoodleTiles(e.NewSize.Width, e.NewSize.Height);
+    }
+
+    private void UpdateDoodleTiles(double width, double height)
+    {
+        if (width <= 0 || height <= 0 || DoodleCanvas == null) return;
+
+        DoodleCanvas.Clip = new RectangleGeometry
+        {
+            Rect = new Windows.Foundation.Rect(0, 0, width, height)
+        };
+
+        const double tileWidth = 300.0;
+        const double tileHeight = 534.22;
+
+        int cols = (int)Math.Ceiling(width / tileWidth);
+        int rows = (int)Math.Ceiling(height / tileHeight);
+        int totalNeeded = cols * rows;
+
+        var isLight = ActualTheme == ElementTheme.Light;
+        var currentSource = isLight ? _lightDoodleSource : _darkDoodleSource;
+
+        while (DoodleCanvas.Children.Count < totalNeeded)
+        {
+            var img = new Image
+            {
+                Width = tileWidth,
+                Height = tileHeight,
+                Stretch = Stretch.Uniform,
+                Source = currentSource,
+                IsHitTestVisible = false
+            };
+            DoodleCanvas.Children.Add(img);
+        }
+
+        int idx = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                var img = (Image)DoodleCanvas.Children[idx++];
+                img.Visibility = Visibility.Visible;
+                img.Source = currentSource;
+                Canvas.SetLeft(img, c * tileWidth);
+                Canvas.SetTop(img, r * tileHeight);
+            }
+        }
+
+        for (int i = idx; i < DoodleCanvas.Children.Count; i++)
+        {
+            DoodleCanvas.Children[i].Visibility = Visibility.Collapsed;
+        }
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)

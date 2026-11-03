@@ -46,6 +46,16 @@ public class MessageRepository : IMessageRepository
         return msgs;
     }
 
+    public async Task<IReadOnlyList<Message>> GetPendingOutgoingMessagesAsync(string platformId)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Messages
+            .Where(m => m.PlatformId == platformId && m.IsOutgoing && m.Status == MessageStatus.Sending)
+            .OrderBy(m => m.Timestamp)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
     public async Task SaveAsync(Message message)
     {
         using var context = await _contextFactory.CreateDbContextAsync();

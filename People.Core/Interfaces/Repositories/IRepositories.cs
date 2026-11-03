@@ -17,6 +17,7 @@ public interface IMessageRepository
     Task<Message?> GetByIdAsync(string id);
     Task<IReadOnlyList<Message>> GetByChatIdAsync(string chatId, int offset = 0, int limit = 50);
     Task<IReadOnlyList<Message>> GetOlderMessagesBeforeAsync(string chatId, DateTimeOffset beforeTimestamp, int limit = 25);
+    Task<IReadOnlyList<Message>> GetPendingOutgoingMessagesAsync(string platformId);
     Task SaveAsync(Message message);
     Task SaveManyAsync(IEnumerable<Message> messages);
     Task DeleteAsync(string id);

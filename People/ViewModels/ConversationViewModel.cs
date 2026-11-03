@@ -249,7 +249,25 @@ public partial class ConversationViewModel : ViewModelBase
         MessageText = string.Empty;
 
         var content = new MessageContent { Text = text, Type = MessageContentType.Text };
-        var sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
+        Message sentMsg;
+        try
+        {
+            sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
+        }
+        catch
+        {
+            sentMsg = new Message
+            {
+                Id = "pending_" + Guid.NewGuid().ToString("N"),
+                ChatId = CurrentChat.Id,
+                PlatformId = CurrentChat.PlatformId,
+                Content = content,
+                Timestamp = DateTimeOffset.UtcNow,
+                Status = MessageStatus.Sending,
+                SenderId = "me",
+                IsOutgoing = true
+            };
+        }
 
         CurrentChat.LastMessage = sentMsg;
         CurrentChat.LastMessageTime = sentMsg.Timestamp;
@@ -343,9 +361,11 @@ public partial class ConversationViewModel : ViewModelBase
         {
             _dispatcherService.Enqueue(() =>
             {
-                var existing = Messages.FirstOrDefault(m => m.Id == e.Message.Id);
+                var existing = Messages.FirstOrDefault(m => m.Id == e.Message.Id ||
+                    (m.IsOutgoing && m.Status == MessageStatus.Sending && m.Content?.Text == e.Message.Content?.Text));
                 if (existing != null)
                 {
+                    existing.Id = e.Message.Id;
                     existing.Status = e.Message.Status;
                 }
                 else
