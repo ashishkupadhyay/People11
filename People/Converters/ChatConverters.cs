@@ -35,12 +35,10 @@ public class OutgoingBackgroundConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isOutgoing = false;
-        string platformId = "WhatsApp";
 
         if (value is People.Core.Models.Message msg)
         {
             isOutgoing = msg.IsOutgoing;
-            platformId = msg.PlatformId;
         }
         else if (value is bool b)
         {
@@ -49,42 +47,12 @@ public class OutgoingBackgroundConverter : IValueConverter
 
         if (isOutgoing)
         {
-            var settings = (Microsoft.UI.Xaml.Application.Current as App)?.Services.GetService(typeof(People.Core.Interfaces.ISettingsService)) as People.Core.Interfaces.ISettingsService;
-            
-            // Normalize platformId for setting key (handles old database entries or missing data)
-            if (string.IsNullOrEmpty(platformId) && value is People.Core.Models.Message m)
-            {
-                if (m.ChatId?.StartsWith("wa_") == true) platformId = "whatsapp";
-                else if (m.ChatId?.StartsWith("tg_") == true) platformId = "telegram";
-                else platformId = "whatsapp";
-            }
-            
-            string normalizedPlatformId = platformId;
-            if (string.Equals(platformId, "whatsapp", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "WhatsApp";
-            else if (string.Equals(platformId, "telegram", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Telegram";
-            else if (string.Equals(platformId, "discord", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Discord";
-            else if (string.Equals(platformId, "signal", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Signal";
-            else if (string.Equals(platformId, "sms", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "SMS";
-            else if (string.Equals(platformId, "matrix", StringComparison.OrdinalIgnoreCase)) normalizedPlatformId = "Matrix";
-            
-            bool isBrandColor = settings?.GetValue<bool>("BrandColor_" + normalizedPlatformId, false) ?? false;
-
-            if (isBrandColor)
-            {
-                if (normalizedPlatformId == "WhatsApp") return s_whatsAppBrush;
-                if (normalizedPlatformId == "Telegram") return s_telegramBrush;
-                if (normalizedPlatformId == "Discord") return s_discordBrush;
-                if (normalizedPlatformId == "Matrix") return s_matrixBrush;
-                if (normalizedPlatformId == "Signal") return s_signalBrush;
-                if (normalizedPlatformId == "SMS") return s_smsBrush;
-            }
-
-            return App.Current.Resources["AccentFillColorDefaultBrush"] as SolidColorBrush ?? s_defaultBlueBrush;
+            return App.Current.Resources["OutgoingBubbleBrush"] as SolidColorBrush ?? s_defaultBlueBrush;
         }
         else
         {
             // Incoming message background
-            return App.Current.Resources["ControlFillColorDefaultBrush"] as SolidColorBrush ?? s_defaultGrayBrush;
+            return App.Current.Resources["IncomingBubbleBrush"] as SolidColorBrush ?? s_defaultGrayBrush;
         }
     }
 
@@ -147,11 +115,21 @@ public class OutgoingTextColorConverter : IValueConverter
 
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isOutgoing && isOutgoing)
+        bool isOutgoing = false;
+        if (value is People.Core.Models.Message msg)
         {
-            return s_white;
+            isOutgoing = msg.IsOutgoing;
         }
-        return App.Current.Resources["TextFillColorPrimaryBrush"] as Brush ?? s_black;
+        else if (value is bool b)
+        {
+            isOutgoing = b;
+        }
+
+        if (isOutgoing)
+        {
+            return App.Current.Resources["OutgoingBubbleTextBrush"] as SolidColorBrush ?? s_white;
+        }
+        return App.Current.Resources["IncomingBubbleTextBrush"] as SolidColorBrush ?? s_black;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
@@ -164,13 +142,71 @@ public class OutgoingSubtextColorConverter : IValueConverter
 
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isOutgoing && isOutgoing)
+        bool isOutgoing = false;
+        if (value is People.Core.Models.Message msg)
         {
-            return s_translucentWhite;
+            isOutgoing = msg.IsOutgoing;
         }
-        return App.Current.Resources["TextFillColorSecondaryBrush"] as Brush ?? s_gray;
+        else if (value is bool b)
+        {
+            isOutgoing = b;
+        }
+
+        if (isOutgoing)
+        {
+            return App.Current.Resources["OutgoingBubbleSubtextBrush"] as SolidColorBrush ?? s_translucentWhite;
+        }
+        return App.Current.Resources["IncomingBubbleSubtextBrush"] as SolidColorBrush ?? s_gray;
     }
 
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class QuotedBackgroundConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
+        return isOutgoing
+            ? App.Current.Resources["QuotedOutgoingBackgroundBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent)
+            : App.Current.Resources["QuotedIncomingBackgroundBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class QuotedBorderBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
+        return isOutgoing
+            ? App.Current.Resources["QuotedOutgoingBorderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray)
+            : App.Current.Resources["QuotedIncomingBorderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class QuotedSenderBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
+        return isOutgoing
+            ? App.Current.Resources["QuotedOutgoingSenderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White)
+            : App.Current.Resources["QuotedIncomingSenderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class QuotedTextBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
+        return isOutgoing
+            ? App.Current.Resources["QuotedOutgoingTextBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White)
+            : App.Current.Resources["QuotedIncomingTextBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 

@@ -16,6 +16,27 @@
             <SolidColorBrush x:Key="AppAccentBrush" Color="{ThemeResource SystemAccentColor}" />
             <SolidColorBrush x:Key="AppAccentHoverBrush" Color="{ThemeResource SystemAccentColor}" />
             <SolidColorBrush x:Key="AppAccentPressedBrush" Color="{ThemeResource SystemAccentColor}" />
+            <SolidColorBrush x:Key="AppAccentForegroundBrush" Color="#FFFFFF" />
+
+            <!-- Message Bubble Brushes (Updated dynamically in-place by ThemeService for Phone Link / Fluent contrast) -->
+            <SolidColorBrush x:Key="IncomingBubbleBrush" Color="#2D2D2D" />
+            <SolidColorBrush x:Key="IncomingBubbleTextBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="IncomingBubbleSubtextBrush" Color="#A0A0A0" />
+
+            <SolidColorBrush x:Key="OutgoingBubbleBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="OutgoingBubbleTextBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="OutgoingBubbleSubtextBrush" Color="#D0FFFFFF" />
+
+            <!-- Quoted Reply Preview Brushes -->
+            <SolidColorBrush x:Key="QuotedIncomingBackgroundBrush" Color="#15FFFFFF" />
+            <SolidColorBrush x:Key="QuotedIncomingBorderBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="QuotedIncomingSenderBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="QuotedIncomingTextBrush" Color="#CCCCCC" />
+
+            <SolidColorBrush x:Key="QuotedOutgoingBackgroundBrush" Color="#18000000" />
+            <SolidColorBrush x:Key="QuotedOutgoingBorderBrush" Color="#005A9E" />
+            <SolidColorBrush x:Key="QuotedOutgoingSenderBrush" Color="#004578" />
+            <SolidColorBrush x:Key="QuotedOutgoingTextBrush" Color="#383838" />
 
             <LinearGradientBrush x:Key="AppAccentElevationBorderFocusedBrush" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,2">
                 <LinearGradientBrush.RelativeTransform>
@@ -47,7 +68,7 @@
             <!-- Dedicated style for branded controls -->
             <Style x:Key="AppAccentButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="{ThemeResource AppAccentBrush}" />
-                <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}" />
+                <Setter Property="Foreground" Value="{ThemeResource AppAccentForegroundBrush}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource AppAccentBrush}" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="Padding" Value="12,6" />
@@ -69,14 +90,14 @@
                                             <VisualState.Setters>
                                                 <Setter Target="RootGrid.Background" Value="{ThemeResource AppAccentHoverBrush}" />
                                                 <Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AppAccentHoverBrush}" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AccentButtonForegroundPointerOver}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppAccentForegroundBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
                                                 <Setter Target="RootGrid.Background" Value="{ThemeResource AppAccentPressedBrush}" />
                                                 <Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AppAccentPressedBrush}" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AccentButtonForegroundPressed}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AppAccentForegroundBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled">

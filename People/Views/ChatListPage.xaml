@@ -196,7 +196,7 @@
                                     <TextBlock Text="{x:Bind UnreadCount, Mode=OneWay}" 
                                                FontSize="11" 
                                                FontWeight="SemiBold" 
-                                               Foreground="White" 
+                                               Foreground="{ThemeResource AppAccentForegroundBrush}" 
                                                HorizontalAlignment="Center" 
                                                VerticalAlignment="Center" />
                                 </Border>
@@ -212,7 +212,7 @@
               CornerRadius="{ThemeResource OverlayCornerRadius}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0"
               Padding="24">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-                <AnimatedVisualPlayer x:Name="EmptyStatePlayer" AutoPlay="True" Width="120" Height="120">
+                <AnimatedVisualPlayer x:Name="EmptyStatePlayer" AutoPlay="False" Width="120" Height="120">
                     <lottie:LottieVisualSource x:Name="EmptyStateLottieSource" />
                 </AnimatedVisualPlayer>
                 <TextBlock x:Uid="NoChatSelectedText" 

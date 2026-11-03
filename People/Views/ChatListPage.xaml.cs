@@ -114,9 +114,10 @@ public sealed partial class ChatListPage : Page
                     EmptyStatePlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Chat_animated_white() : new AnimatedVisuals.Chat_animated_black();
                     break;
             }
-            
-            _ = EmptyStatePlayer.PlayAsync(0, 1, false);
         }
+
+        // Explicitly play once with looped: false so it never loops when re-navigating to the page
+        _ = EmptyStatePlayer.PlayAsync(0, 1, false);
     }
     
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)

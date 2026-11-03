@@ -16,7 +16,7 @@
         </Grid.Background>
         
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-            <AnimatedVisualPlayer x:Name="AppLottiePlayer" AutoPlay="True" Width="200" Height="200">
+            <AnimatedVisualPlayer x:Name="AppLottiePlayer" AutoPlay="False" Width="200" Height="200">
                 <lottie:LottieVisualSource x:Name="AppLottieSource" />
             </AnimatedVisualPlayer>
 

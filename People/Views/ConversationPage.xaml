@@ -20,6 +20,10 @@
         <converters:GroupSenderVisibilityConverter x:Key="GroupSenderVisibilityConverter" />
         <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
         <converters:PersonPictureDisplayNameConverter x:Key="PersonPictureDisplayNameConverter" />
+        <converters:QuotedBackgroundConverter x:Key="QuotedBackgroundConverter" />
+        <converters:QuotedBorderBrushConverter x:Key="QuotedBorderBrushConverter" />
+        <converters:QuotedSenderBrushConverter x:Key="QuotedSenderBrushConverter" />
+        <converters:QuotedTextBrushConverter x:Key="QuotedTextBrushConverter" />
         <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
     </Page.Resources>
 
@@ -122,8 +126,8 @@
 
                                                 <!-- Quoted / Reply Preview -->
                                                 <Border Visibility="{x:Bind QuotedText, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
-                                                        Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                        BorderBrush="{ThemeResource AppAccentBrush}"
+                                                        Background="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedBackgroundConverter}}"
+                                                        BorderBrush="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedBorderBrushConverter}}"
                                                         BorderThickness="3,0,0,0"
                                                         CornerRadius="4"
                                                         Padding="8,4"
@@ -132,12 +136,12 @@
                                                         <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="11"
-                                                                   Foreground="{ThemeResource AppAccentBrush}"
+                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedSenderBrushConverter}}"
                                                                    Visibility="{x:Bind QuotedSender, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{x:Bind QuotedText, Mode=OneTime}"
                                                                    FontSize="12"
-                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedTextBrushConverter}}"
                                                                    MaxLines="2"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>

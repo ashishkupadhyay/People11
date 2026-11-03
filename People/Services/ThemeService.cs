@@ -228,33 +228,83 @@ public class ThemeService : IThemeService
         }
     }
 
-    private static void SetAppAccentResources(AccentPalette palette)
+    private void SetAppAccentResources(AccentPalette palette)
     {
         var appResources = Microsoft.UI.Xaml.Application.Current.Resources;
         
-        var accentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(palette.Accent);
-        var hoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(palette.Light1);
-        var pressedBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(palette.Dark1);
+        bool isDark = _currentTheme switch
+        {
+            "Dark" => true,
+            "Light" => false,
+            _ => (App.Current.MainWindow?.Content is FrameworkElement root && root.ActualTheme != ElementTheme.Default)
+                ? root.ActualTheme == ElementTheme.Dark
+                : App.Current.RequestedTheme == ApplicationTheme.Dark
+        };
 
-        // Output the Color itself so it can be used inside SolidColorBrush definitions in XAML if needed
-        appResources["AppAccentColor"] = palette.Accent;
+        // Determine theme-adapted accent shades following Windows Phone Link & Fluent Design:
+        // In Dark mode: Outgoing bubbles and accent buttons use a soft pastel tint (Light2) paired with dark text (Black/Charcoal).
+        // In Light mode: Outgoing bubbles and accent buttons use a rich deeper shade (Dark1 or Dark2) paired with crisp White text.
+        Windows.UI.Color effectiveAccent = isDark ? palette.Light2 : (GetRelativeLuminance(palette.Dark1) > 0.35 ? palette.Dark2 : palette.Dark1);
+        Windows.UI.Color effectiveHover = isDark ? palette.Light1 : palette.Accent;
+        Windows.UI.Color effectivePressed = isDark ? palette.Light3 : palette.Dark2;
+        Windows.UI.Color effectiveForeground = isDark ? ColorHelper.FromArgb(255, 28, 28, 28) : Microsoft.UI.Colors.White;
+        Windows.UI.Color effectiveSubtext = isDark ? ColorHelper.FromArgb(170, 0, 0, 0) : ColorHelper.FromArgb(210, 255, 255, 255);
+
+        // Incoming bubble colors
+        Windows.UI.Color incomingBg = isDark ? ColorHelper.FromArgb(255, 45, 45, 45) : ColorHelper.FromArgb(255, 240, 240, 240);
+        Windows.UI.Color incomingText = isDark ? Microsoft.UI.Colors.White : ColorHelper.FromArgb(255, 28, 28, 28);
+        Windows.UI.Color incomingSubtext = isDark ? ColorHelper.FromArgb(255, 160, 160, 160) : ColorHelper.FromArgb(255, 112, 112, 112);
+
+        // Quoted message preview colors
+        Windows.UI.Color quotedOutBg = isDark ? ColorHelper.FromArgb(25, 0, 0, 0) : ColorHelper.FromArgb(35, 255, 255, 255);
+        Windows.UI.Color quotedOutBorder = isDark ? palette.Dark2 : palette.Light3;
+        Windows.UI.Color quotedOutSender = isDark ? palette.Dark3 : palette.Light3;
+        Windows.UI.Color quotedOutText = isDark ? ColorHelper.FromArgb(255, 56, 56, 56) : ColorHelper.FromArgb(255, 240, 240, 240);
+
+        Windows.UI.Color quotedInBg = isDark ? ColorHelper.FromArgb(20, 255, 255, 255) : ColorHelper.FromArgb(14, 0, 0, 0);
+        Windows.UI.Color quotedInBorder = isDark ? palette.Light2 : palette.Dark1;
+        Windows.UI.Color quotedInSender = isDark ? palette.Light2 : palette.Dark1;
+        Windows.UI.Color quotedInText = isDark ? ColorHelper.FromArgb(255, 204, 204, 204) : ColorHelper.FromArgb(255, 102, 102, 102);
+
+        appResources["AppAccentColor"] = effectiveAccent;
         
-        // Dynamically replace the color of the existing brushes to force UI re-evaluation
-        if (appResources["AppAccentBrush"] is Microsoft.UI.Xaml.Media.SolidColorBrush ab) ab.Color = palette.Accent;
-        if (appResources["AppAccentHoverBrush"] is Microsoft.UI.Xaml.Media.SolidColorBrush hb) hb.Color = palette.Light1;
-        if (appResources["AppAccentPressedBrush"] is Microsoft.UI.Xaml.Media.SolidColorBrush pb) pb.Color = palette.Dark1;
+        // Mutate existing brush instances in-place for instant UI re-evaluation without replacing dictionary objects
+        void MutateBrush(string key, Windows.UI.Color color)
+        {
+            if (appResources.TryGetValue(key, out var res) && res is Microsoft.UI.Xaml.Media.SolidColorBrush sb)
+            {
+                sb.Color = color;
+            }
+        }
+
+        MutateBrush("AppAccentBrush", effectiveAccent);
+        MutateBrush("AppAccentHoverBrush", effectiveHover);
+        MutateBrush("AppAccentPressedBrush", effectivePressed);
+        MutateBrush("AppAccentForegroundBrush", effectiveForeground);
+
+        MutateBrush("IncomingBubbleBrush", incomingBg);
+        MutateBrush("IncomingBubbleTextBrush", incomingText);
+        MutateBrush("IncomingBubbleSubtextBrush", incomingSubtext);
+
+        MutateBrush("OutgoingBubbleBrush", effectiveAccent);
+        MutateBrush("OutgoingBubbleTextBrush", effectiveForeground);
+        MutateBrush("OutgoingBubbleSubtextBrush", effectiveSubtext);
+
+        MutateBrush("QuotedIncomingBackgroundBrush", quotedInBg);
+        MutateBrush("QuotedIncomingBorderBrush", quotedInBorder);
+        MutateBrush("QuotedIncomingSenderBrush", quotedInSender);
+        MutateBrush("QuotedIncomingTextBrush", quotedInText);
+
+        MutateBrush("QuotedOutgoingBackgroundBrush", quotedOutBg);
+        MutateBrush("QuotedOutgoingBorderBrush", quotedOutBorder);
+        MutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
+        MutateBrush("QuotedOutgoingTextBrush", quotedOutText);
 
         if (appResources["AppAccentElevationBorderFocusedBrush"] is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
         {
-            lgb.GradientStops[0].Color = palette.Accent;
+            lgb.GradientStops[0].Color = effectiveAccent;
         }
 
-        // Central Mapping: Update the Color property of existing brushes IN PLACE.
-        // This is strictly required because controls like NavigationView and AutoSuggestBox
-        // are already loaded and will not re-evaluate their ThemeResource bindings if we
-        // simply replace the dictionary object. By changing the Color property of the existing
-        // SolidColorBrush, the UI instantly receives a dependency property change notification.
-        
         string[] brushKeysToUpdate = {
             "AccentFillColorDefaultBrush",
             "AccentFillColorSecondaryBrush",
@@ -271,23 +321,32 @@ public class ThemeService : IThemeService
 
         foreach (var key in brushKeysToUpdate)
         {
-            if (appResources.TryGetValue(key, out var resource) && resource is Microsoft.UI.Xaml.Media.SolidColorBrush solidBrush)
+            if (key.Contains("Secondary") || key.Contains("PointerOver"))
             {
-                // Select hover/pressed variants based on the key name
-                if (key.Contains("Secondary") || key.Contains("PointerOver"))
-                {
-                    solidBrush.Color = palette.Light1;
-                }
-                else if (key.Contains("Tertiary") || key.Contains("Pressed"))
-                {
-                    solidBrush.Color = palette.Dark1;
-                }
-                else
-                {
-                    solidBrush.Color = palette.Accent;
-                }
+                MutateBrush(key, effectiveHover);
+            }
+            else if (key.Contains("Tertiary") || key.Contains("Pressed"))
+            {
+                MutateBrush(key, effectivePressed);
+            }
+            else
+            {
+                MutateBrush(key, effectiveAccent);
             }
         }
+    }
+
+    private static double GetRelativeLuminance(Windows.UI.Color c)
+    {
+        double r = c.R / 255.0;
+        double g = c.G / 255.0;
+        double b = c.B / 255.0;
+
+        r = (r <= 0.03928) ? r / 12.92 : Math.Pow((r + 0.055) / 1.055, 2.4);
+        g = (g <= 0.03928) ? g / 12.92 : Math.Pow((g + 0.055) / 1.055, 2.4);
+        b = (b <= 0.03928) ? b / 12.92 : Math.Pow((b + 0.055) / 1.055, 2.4);
+
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     }
 
     private bool IsBrandAccentEligible(string platform)
@@ -295,10 +354,10 @@ public class ThemeService : IThemeService
         return platform switch
         {
             "WhatsApp" => _settingsService.GetValue<bool>("WhatsAppEnabled", true),
-            "Telegram" => false,
-            "Discord" => false,
-            "Signal" => false,
-            "SMS" => false,
+            "Telegram" => _settingsService.GetValue<bool>("TelegramEnabled", true),
+            "Discord" => _settingsService.GetValue<bool>("DiscordEnabled", true),
+            "Signal" => _settingsService.GetValue<bool>("SignalEnabled", true),
+            "SMS" => _settingsService.GetValue<bool>("SMSEnabled", true),
             _ => false
         };
     }
