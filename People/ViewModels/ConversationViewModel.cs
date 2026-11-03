@@ -339,11 +339,16 @@ public partial class ConversationViewModel : ViewModelBase
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        if (CurrentChat != null && e.Message.ChatId == CurrentChat.Id)
+        if (CurrentChat != null && (e.Message.ChatId == CurrentChat.Id || CurrentChat.Id.Contains(e.Message.ChatId) || e.Message.ChatId.Contains(CurrentChat.Id)))
         {
             _dispatcherService.Enqueue(() =>
             {
-                if (!Messages.Any(m => m.Id == e.Message.Id))
+                var existing = Messages.FirstOrDefault(m => m.Id == e.Message.Id);
+                if (existing != null)
+                {
+                    existing.Status = e.Message.Status;
+                }
+                else
                 {
                     Messages.Add(e.Message);
                     RecalculateDateSeparators();

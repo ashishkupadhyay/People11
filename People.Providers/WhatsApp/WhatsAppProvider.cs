@@ -323,7 +323,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 try
                 {
-                    await Task.Delay(400, token);
+                    await Task.Delay(150, token);
                     if (token.IsCancellationRequested) return;
 
                     if (_activeInstance._chatRepository != null && _activeInstance._clientPtr != IntPtr.Zero)
@@ -470,10 +470,6 @@ public class WhatsAppProvider : IWhatsAppProvider
                             if (string.IsNullOrEmpty(rc.PictureUrl) && picMap.TryGetValue(rc.Id, out var cachedPic))
                             {
                                 rc.PictureUrl = cachedPic;
-                            }
-                            if (unreadMap.TryGetValue(rc.Id, out var localUnread) && localUnread == 0 && rc.UnreadCount > 0)
-                            {
-                                rc.UnreadCount = 0;
                             }
                         }
                     }
@@ -1003,6 +999,20 @@ public class WhatsAppProvider : IWhatsAppProvider
             return msg;
         }
 
+        if (_clientPtr != IntPtr.Zero)
+        {
+            var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text), ct);
+            if (realIdPtr != IntPtr.Zero)
+            {
+                var realId = Marshal.PtrToStringUTF8(realIdPtr);
+                WhatsAppNative.wa_free_string(realIdPtr);
+                if (!string.IsNullOrEmpty(realId))
+                {
+                    msg.Id = realId;
+                }
+            }
+        }
+
         if (_messageRepository != null)
         {
             _ = Task.Run(async () =>
@@ -1022,14 +1032,6 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
                 catch { }
-            }, ct);
-        }
-
-        if (_clientPtr != IntPtr.Zero)
-        {
-            await Task.Run(() =>
-            {
-                WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text);
             }, ct);
         }
 

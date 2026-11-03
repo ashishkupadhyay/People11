@@ -45,6 +45,7 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                IsGroup="{x:Bind ViewModel.CurrentChat.IsGroup, Mode=OneWay}"
+                               Initials="{x:Bind ViewModel.CurrentChat.Initials, Mode=OneWay}"
                                DisplayName="{x:Bind ViewModel.CurrentChat, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}"
                                Width="40" Height="40" />
                 <StackPanel VerticalAlignment="Center" Spacing="2">

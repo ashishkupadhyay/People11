@@ -13,6 +13,13 @@ public partial class Contact : ObservableObject
     [ObservableProperty]
     private string _name = string.Empty;
 
+    public string Initials => Chat.ExtractInitials(Name);
+
+    partial void OnNameChanged(string value)
+    {
+        OnPropertyChanged(nameof(Initials));
+    }
+
     [ObservableProperty]
     private string? _phoneNumber;
 

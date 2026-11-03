@@ -296,11 +296,11 @@ public class ThemeService : IThemeService
                 incomingText = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
                 incomingSubtext = ColorHelper.FromArgb(255, 134, 150, 160); // #8696A0
 
-                // Dark mode button color: distinct shade of grey (#323434)
-                btnBg = ColorHelper.FromArgb(255, 50, 52, 52); // #323434
-                btnHover = ColorHelper.FromArgb(255, 60, 62, 62); // #3C3E3E
-                btnPressed = ColorHelper.FromArgb(255, 40, 42, 42); // #282A2A
-                btnFg = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
+                // WhatsApp brand mode buttons (New Chat '+', Send button) use WhatsApp accent color
+                btnBg = waTeal;
+                btnHover = waGreen;
+                btnPressed = ColorHelper.FromArgb(255, 0, 128, 100);
+                btnFg = Microsoft.UI.Colors.White;
 
                 quotedOutBg = ColorHelper.FromArgb(45, 0, 0, 0); // #025144 tint
                 quotedOutBorder = waGreen;

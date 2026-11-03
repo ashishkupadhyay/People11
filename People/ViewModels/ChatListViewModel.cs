@@ -283,12 +283,21 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             var msg = e.Message;
-            var chat = Chats.FirstOrDefault(c => c.Id.Equals(msg.ChatId, StringComparison.OrdinalIgnoreCase));
+            var chat = Chats.FirstOrDefault(c => c.Id.Equals(msg.ChatId, StringComparison.OrdinalIgnoreCase)
+                                              || c.Id.Contains(msg.ChatId, StringComparison.OrdinalIgnoreCase)
+                                              || msg.ChatId.Contains(c.Id, StringComparison.OrdinalIgnoreCase));
             if (chat != null)
             {
-                chat.LastMessage = msg;
-                chat.LastMessageTime = msg.Timestamp;
-                SortChatsInPlace();
+                if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)
+                {
+                    chat.LastMessage.Status = msg.Status;
+                }
+                else if (!msg.IsOutgoing)
+                {
+                    chat.LastMessage = msg;
+                    chat.LastMessageTime = msg.Timestamp;
+                    SortChatsInPlace();
+                }
             }
             else
             {
