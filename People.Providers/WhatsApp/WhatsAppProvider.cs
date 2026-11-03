@@ -388,7 +388,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     PlatformId = "WhatsApp",
                     Content = new MessageContent { Text = text },
                     Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
-                    Status = MessageStatus.Delivered,
+                    Status = root.TryGetProperty("status", out var stProp) && stProp.GetInt32() != 0 ? (MessageStatus)stProp.GetInt32() : ((root.TryGetProperty("isOutgoing", out var isOut) && isOut.GetBoolean()) ? MessageStatus.Sent : MessageStatus.Delivered),
                     IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
                     QuotedText = root.TryGetProperty("quotedText", out var qTextProp) ? qTextProp.GetString() : null,
                     QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
@@ -822,7 +822,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                             : DateTimeOffset.UnixEpoch,
-                        Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                        Status = dto.Status != 0 ? (MessageStatus)dto.Status : (dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered),
                         QuotedText = dto.QuotedText,
                         QuotedSender = dto.QuotedSender,
                         Reactions = dto.Reactions ?? new()
@@ -962,7 +962,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                             : DateTimeOffset.UnixEpoch,
-                        Status = dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                        Status = dto.Status != 0 ? (MessageStatus)dto.Status : (dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered),
                         QuotedText = dto.QuotedText,
                         QuotedSender = dto.QuotedSender,
                         Reactions = dto.Reactions ?? new()
@@ -1225,5 +1225,6 @@ public class WhatsAppProvider : IWhatsAppProvider
         public string? QuotedSender { get; set; }
         public List<string>? Reactions { get; set; }
         public long Timestamp { get; set; }
+        public int Status { get; set; }
     }
 }

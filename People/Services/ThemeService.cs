@@ -241,30 +241,114 @@ public class ThemeService : IThemeService
                 : App.Current.RequestedTheme == ApplicationTheme.Dark
         };
 
-        // Determine theme-adapted accent shades following Windows Phone Link & Fluent Design:
-        // In Dark mode: Outgoing bubbles and accent buttons use a soft pastel tint (Light2) paired with dark text (Black/Charcoal).
-        // In Light mode: Outgoing bubbles and accent buttons use a rich deeper shade (Dark1 or Dark2) paired with crisp White text.
-        Windows.UI.Color effectiveAccent = isDark ? palette.Light2 : (GetRelativeLuminance(palette.Dark1) > 0.35 ? palette.Dark2 : palette.Dark1);
-        Windows.UI.Color effectiveHover = isDark ? palette.Light1 : palette.Accent;
-        Windows.UI.Color effectivePressed = isDark ? palette.Light3 : palette.Dark2;
-        Windows.UI.Color effectiveForeground = isDark ? ColorHelper.FromArgb(255, 28, 28, 28) : Microsoft.UI.Colors.White;
-        Windows.UI.Color effectiveSubtext = isDark ? ColorHelper.FromArgb(170, 0, 0, 0) : ColorHelper.FromArgb(210, 255, 255, 255);
+        bool isWhatsAppBrand = _activePlatform == "WhatsApp" && _settingsService.GetValue<bool>("BrandColor_WhatsApp", false);
 
-        // Incoming bubble colors
-        Windows.UI.Color incomingBg = isDark ? ColorHelper.FromArgb(255, 45, 45, 45) : ColorHelper.FromArgb(255, 240, 240, 240);
-        Windows.UI.Color incomingText = isDark ? Microsoft.UI.Colors.White : ColorHelper.FromArgb(255, 28, 28, 28);
-        Windows.UI.Color incomingSubtext = isDark ? ColorHelper.FromArgb(255, 160, 160, 160) : ColorHelper.FromArgb(255, 112, 112, 112);
+        Windows.UI.Color effectiveAccent;
+        Windows.UI.Color effectiveHover;
+        Windows.UI.Color effectivePressed;
+        Windows.UI.Color effectiveForeground;
+        Windows.UI.Color effectiveSubtext;
 
-        // Quoted message preview colors
-        Windows.UI.Color quotedOutBg = isDark ? ColorHelper.FromArgb(25, 0, 0, 0) : ColorHelper.FromArgb(35, 255, 255, 255);
-        Windows.UI.Color quotedOutBorder = isDark ? palette.Dark2 : palette.Light3;
-        Windows.UI.Color quotedOutSender = isDark ? palette.Dark3 : palette.Light3;
-        Windows.UI.Color quotedOutText = isDark ? ColorHelper.FromArgb(255, 56, 56, 56) : ColorHelper.FromArgb(255, 240, 240, 240);
+        Windows.UI.Color outgoingBubbleBg;
+        Windows.UI.Color outgoingBubbleText;
+        Windows.UI.Color outgoingBubbleSubtext;
 
-        Windows.UI.Color quotedInBg = isDark ? ColorHelper.FromArgb(20, 255, 255, 255) : ColorHelper.FromArgb(14, 0, 0, 0);
-        Windows.UI.Color quotedInBorder = isDark ? palette.Light2 : palette.Dark1;
-        Windows.UI.Color quotedInSender = isDark ? palette.Light2 : palette.Dark1;
-        Windows.UI.Color quotedInText = isDark ? ColorHelper.FromArgb(255, 204, 204, 204) : ColorHelper.FromArgb(255, 102, 102, 102);
+        Windows.UI.Color incomingBg;
+        Windows.UI.Color incomingText;
+        Windows.UI.Color incomingSubtext;
+
+        Windows.UI.Color quotedOutBg;
+        Windows.UI.Color quotedOutBorder;
+        Windows.UI.Color quotedOutSender;
+        Windows.UI.Color quotedOutText;
+
+        Windows.UI.Color quotedInBg;
+        Windows.UI.Color quotedInBorder;
+        Windows.UI.Color quotedInSender;
+        Windows.UI.Color quotedInText;
+
+        if (isWhatsAppBrand)
+        {
+            // Official WhatsApp Web true brand colors
+            var waTeal = ColorHelper.FromArgb(255, 0, 168, 132); // #00A884
+            var waGreen = ColorHelper.FromArgb(255, 37, 211, 102); // #25D366
+
+            effectiveAccent = waTeal;
+            effectiveHover = isDark ? waGreen : ColorHelper.FromArgb(255, 6, 207, 156);
+            effectivePressed = isDark ? ColorHelper.FromArgb(255, 0, 128, 100) : ColorHelper.FromArgb(255, 0, 140, 110);
+            effectiveForeground = Microsoft.UI.Colors.White;
+            effectiveSubtext = isDark ? ColorHelper.FromArgb(255, 134, 150, 160) : ColorHelper.FromArgb(255, 102, 119, 129);
+
+            if (isDark)
+            {
+                // WhatsApp Web Dark Mode
+                outgoingBubbleBg = ColorHelper.FromArgb(255, 0, 92, 75); // #005C4B
+                outgoingBubbleText = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
+                outgoingBubbleSubtext = ColorHelper.FromArgb(255, 134, 150, 160); // #8696A0
+
+                incomingBg = ColorHelper.FromArgb(255, 32, 44, 51); // #202C33
+                incomingText = ColorHelper.FromArgb(255, 233, 237, 239); // #E9EDEF
+                incomingSubtext = ColorHelper.FromArgb(255, 134, 150, 160); // #8696A0
+
+                quotedOutBg = ColorHelper.FromArgb(45, 0, 0, 0); // #025144 tint
+                quotedOutBorder = waGreen;
+                quotedOutSender = waGreen;
+                quotedOutText = ColorHelper.FromArgb(255, 209, 215, 219);
+
+                quotedInBg = ColorHelper.FromArgb(20, 255, 255, 255);
+                quotedInBorder = waTeal;
+                quotedInSender = waTeal;
+                quotedInText = ColorHelper.FromArgb(255, 134, 150, 160);
+            }
+            else
+            {
+                // WhatsApp Web Light Mode
+                outgoingBubbleBg = ColorHelper.FromArgb(255, 217, 253, 211); // #D9FDD3
+                outgoingBubbleText = ColorHelper.FromArgb(255, 17, 27, 33); // #111B21
+                outgoingBubbleSubtext = ColorHelper.FromArgb(255, 102, 119, 129); // #667781
+
+                incomingBg = ColorHelper.FromArgb(255, 242, 242, 242); // #F2F2F2 Phone Link card surface
+                incomingText = ColorHelper.FromArgb(255, 17, 27, 33); // #111B21
+                incomingSubtext = ColorHelper.FromArgb(255, 102, 119, 129); // #667781
+
+                quotedOutBg = ColorHelper.FromArgb(20, 0, 0, 0); // #CEF2C8 tint
+                quotedOutBorder = waTeal;
+                quotedOutSender = waTeal;
+                quotedOutText = ColorHelper.FromArgb(255, 84, 101, 111);
+
+                quotedInBg = ColorHelper.FromArgb(14, 0, 0, 0);
+                quotedInBorder = waTeal;
+                quotedInSender = waTeal;
+                quotedInText = ColorHelper.FromArgb(255, 84, 101, 111);
+            }
+        }
+        else
+        {
+            // Windows Phone Link & System Accent mode
+            effectiveAccent = isDark ? palette.Light2 : (GetRelativeLuminance(palette.Dark1) > 0.35 ? palette.Dark2 : palette.Dark1);
+            effectiveHover = isDark ? palette.Light1 : palette.Accent;
+            effectivePressed = isDark ? palette.Light3 : palette.Dark2;
+            effectiveForeground = isDark ? ColorHelper.FromArgb(255, 28, 28, 28) : Microsoft.UI.Colors.White;
+            effectiveSubtext = isDark ? ColorHelper.FromArgb(170, 0, 0, 0) : ColorHelper.FromArgb(210, 255, 255, 255);
+
+            outgoingBubbleBg = effectiveAccent;
+            outgoingBubbleText = effectiveForeground;
+            outgoingBubbleSubtext = effectiveSubtext;
+
+            incomingBg = isDark ? ColorHelper.FromArgb(255, 45, 45, 45) : ColorHelper.FromArgb(255, 242, 242, 242); // #F2F2F2
+            incomingText = isDark ? Microsoft.UI.Colors.White : ColorHelper.FromArgb(255, 28, 28, 28);
+            incomingSubtext = isDark ? ColorHelper.FromArgb(255, 160, 160, 160) : ColorHelper.FromArgb(255, 112, 112, 112);
+
+            quotedOutBg = isDark ? ColorHelper.FromArgb(25, 0, 0, 0) : ColorHelper.FromArgb(35, 255, 255, 255);
+            quotedOutBorder = isDark ? palette.Dark2 : palette.Light3;
+            quotedOutSender = isDark ? palette.Dark3 : palette.Light3;
+            quotedOutText = isDark ? ColorHelper.FromArgb(255, 56, 56, 56) : ColorHelper.FromArgb(255, 240, 240, 240);
+
+            quotedInBg = isDark ? ColorHelper.FromArgb(20, 255, 255, 255) : ColorHelper.FromArgb(14, 0, 0, 0);
+            quotedInBorder = isDark ? palette.Light2 : palette.Dark1;
+            quotedInSender = isDark ? palette.Light2 : palette.Dark1;
+            quotedInText = isDark ? ColorHelper.FromArgb(255, 204, 204, 204) : ColorHelper.FromArgb(255, 102, 102, 102);
+        }
 
         appResources["AppAccentColor"] = effectiveAccent;
         
@@ -286,9 +370,9 @@ public class ThemeService : IThemeService
         MutateBrush("IncomingBubbleTextBrush", incomingText);
         MutateBrush("IncomingBubbleSubtextBrush", incomingSubtext);
 
-        MutateBrush("OutgoingBubbleBrush", effectiveAccent);
-        MutateBrush("OutgoingBubbleTextBrush", effectiveForeground);
-        MutateBrush("OutgoingBubbleSubtextBrush", effectiveSubtext);
+        MutateBrush("OutgoingBubbleBrush", outgoingBubbleBg);
+        MutateBrush("OutgoingBubbleTextBrush", outgoingBubbleText);
+        MutateBrush("OutgoingBubbleSubtextBrush", outgoingBubbleSubtext);
 
         MutateBrush("QuotedIncomingBackgroundBrush", quotedInBg);
         MutateBrush("QuotedIncomingBorderBrush", quotedInBorder);
@@ -297,6 +381,8 @@ public class ThemeService : IThemeService
 
         MutateBrush("QuotedOutgoingBackgroundBrush", quotedOutBg);
         MutateBrush("QuotedOutgoingBorderBrush", quotedOutBorder);
+        MutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
+        MutateBrush("QuotedOutgoingTextBrush", quotedOutText);
         MutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
         MutateBrush("QuotedOutgoingTextBrush", quotedOutText);
 

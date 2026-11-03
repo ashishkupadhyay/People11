@@ -210,6 +210,77 @@ public class QuotedTextBrushConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
+public class BubbleCornerRadiusConverter : IValueConverter
+{
+    private static readonly CornerRadius s_outgoingRadius = new(8, 0, 8, 8);
+    private static readonly CornerRadius s_incomingRadius = new(0, 8, 8, 8);
+
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isOutgoing = value is bool b && b;
+        return isOutgoing ? s_outgoingRadius : s_incomingRadius;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class InverseBoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool b && !b)
+            return Visibility.Visible;
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class MessageStatusSendingVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        return (value is People.Core.Models.MessageStatus s && s == People.Core.Models.MessageStatus.Sending)
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class MessageStatusSentVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        return (value is People.Core.Models.MessageStatus s && s == People.Core.Models.MessageStatus.Sent)
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class MessageStatusDoubleCheckVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        return (value is People.Core.Models.MessageStatus s && (s == People.Core.Models.MessageStatus.Delivered || s == People.Core.Models.MessageStatus.Read))
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class MessageStatusBrushConverter : IValueConverter
+{
+    private static readonly SolidColorBrush s_readCyan = new(Microsoft.UI.ColorHelper.FromArgb(255, 83, 189, 235)); // #53BDEB
+
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is People.Core.Models.MessageStatus s && s == People.Core.Models.MessageStatus.Read)
+        {
+            return s_readCyan;
+        }
+        return App.Current.Resources["OutgoingBubbleSubtextBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
 public class CollectionToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)

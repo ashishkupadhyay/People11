@@ -118,5 +118,25 @@ public partial class App : Application
             logger?.LogCritical(ex, "Failed to start application properly.");
         }
     }
+
+    public void BringToForeground()
+    {
+        if (MainWindow != null)
+        {
+            MainWindow.DispatcherQueue?.TryEnqueue(() =>
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(MainWindow);
+                ShowWindow(hwnd, 9); // SW_RESTORE
+                SetForegroundWindow(hwnd);
+                MainWindow.Activate();
+            });
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 

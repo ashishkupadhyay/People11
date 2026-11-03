@@ -24,6 +24,12 @@
         <converters:QuotedBorderBrushConverter x:Key="QuotedBorderBrushConverter" />
         <converters:QuotedSenderBrushConverter x:Key="QuotedSenderBrushConverter" />
         <converters:QuotedTextBrushConverter x:Key="QuotedTextBrushConverter" />
+        <converters:BubbleCornerRadiusConverter x:Key="BubbleCornerRadiusConverter" />
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+        <converters:MessageStatusSendingVisibilityConverter x:Key="MessageStatusSendingVisibilityConverter" />
+        <converters:MessageStatusSentVisibilityConverter x:Key="MessageStatusSentVisibilityConverter" />
+        <converters:MessageStatusDoubleCheckVisibilityConverter x:Key="MessageStatusDoubleCheckVisibilityConverter" />
+        <converters:MessageStatusBrushConverter x:Key="MessageStatusBrushConverter" />
         <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
     </Page.Resources>
 
@@ -113,56 +119,91 @@
                                 <!-- Message Bubble -->
                                 <Grid Grid.Row="1" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">
                                     <StackPanel MaxWidth="480" Spacing="2">
-                                        <Border Padding="12,8" CornerRadius="{ThemeResource ControlCornerRadius}" 
-                                                Background="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}">
-                                            <StackPanel Spacing="4">
-                                                <!-- Sender Name (for incoming messages in groups) -->
-                                                <TextBlock Text="{x:Bind SenderName, Mode=OneTime}"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="12"
-                                                           Foreground="{ThemeResource AppAccentBrush}"
-                                                           Visibility="{x:Bind Converter={StaticResource GroupSenderVisibilityConverter}}"
-                                                           TextTrimming="CharacterEllipsis" />
+                                        <Grid>
+                                            <!-- Incoming protruding tail (top-left) -->
+                                            <Path Data="M 2.812,0 H 8 V 11.193 L 1.533,3.568 C 0.5,2.25 1.062,0 2.812,0 Z"
+                                                  Fill="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                  Margin="-7,0,0,0" Width="8" Height="13"
+                                                  Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
 
-                                                <!-- Quoted / Reply Preview -->
-                                                <Border Visibility="{x:Bind QuotedText, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
-                                                        Background="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedBackgroundConverter}}"
-                                                        BorderBrush="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedBorderBrushConverter}}"
-                                                        BorderThickness="3,0,0,0"
-                                                        CornerRadius="4"
-                                                        Padding="8,4"
-                                                        Margin="0,0,0,4">
-                                                    <StackPanel Spacing="2">
-                                                        <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="11"
-                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedSenderBrushConverter}}"
-                                                                   Visibility="{x:Bind QuotedSender, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
-                                                                   TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{x:Bind QuotedText, Mode=OneTime}"
-                                                                   FontSize="12"
-                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedTextBrushConverter}}"
-                                                                   MaxLines="2"
-                                                                   TextTrimming="CharacterEllipsis"/>
+                                            <!-- Outgoing protruding tail (top-right) -->
+                                            <Path Data="M 0,0 H 5.188 C 6.938,0 7.5,1.25 6.467,2.568 L 0,11.193 Z"
+                                                  Fill="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                  Margin="0,0,-7,0" Width="8" Height="13"
+                                                  Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                            <!-- Main Bubble Box -->
+                                            <Border Padding="12,8" CornerRadius="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BubbleCornerRadiusConverter}}" 
+                                                    Background="{x:Bind Converter={StaticResource OutgoingBackgroundConverter}}">
+                                                <StackPanel Spacing="4">
+                                                    <!-- Sender Name (for incoming messages in groups) -->
+                                                    <TextBlock Text="{x:Bind SenderName, Mode=OneTime}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12"
+                                                               Foreground="{ThemeResource AppAccentBrush}"
+                                                               Visibility="{x:Bind Converter={StaticResource GroupSenderVisibilityConverter}}"
+                                                               TextTrimming="CharacterEllipsis" />
+
+                                                    <!-- Quoted / Reply Preview -->
+                                                    <Border Visibility="{x:Bind QuotedText, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
+                                                            Background="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedBackgroundConverter}}"
+                                                            BorderBrush="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedBorderBrushConverter}}"
+                                                            BorderThickness="3,0,0,0"
+                                                            CornerRadius="4"
+                                                            Padding="8,4"
+                                                            Margin="0,0,0,4">
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="11"
+                                                                       Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedSenderBrushConverter}}"
+                                                                       Visibility="{x:Bind QuotedSender, Mode=OneTime, Converter={StaticResource StringToVisibilityConverter}}"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{x:Bind QuotedText, Mode=OneTime}"
+                                                                       FontSize="12"
+                                                                       Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource QuotedTextBrushConverter}}"
+                                                                       MaxLines="2"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- Message Text -->
+                                                    <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" 
+                                                               TextWrapping="Wrap" 
+                                                               Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}" />
+
+                                                    <!-- Timestamp and status icons -->
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
+                                                        <TextBlock Text="{x:Bind FormattedTime, Mode=OneTime}" 
+                                                                   FontSize="10" 
+                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
+
+                                                        <!-- Status Icon Container for Outgoing Messages -->
+                                                        <Grid Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                              VerticalAlignment="Center">
+                                                            <!-- Sending: Clock icon -->
+                                                            <FontIcon Glyph="&#xE916;" FontSize="9"
+                                                                      Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                                      Visibility="{x:Bind Status, Mode=OneWay, Converter={StaticResource MessageStatusSendingVisibilityConverter}}" />
+
+                                                            <!-- Sent: Single checkmark -->
+                                                            <FontIcon Glyph="&#xE73E;" FontSize="9"
+                                                                      Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                                      Visibility="{x:Bind Status, Mode=OneWay, Converter={StaticResource MessageStatusSentVisibilityConverter}}" />
+
+                                                            <!-- Delivered and Read: Double checkmark (blue when read) -->
+                                                            <Viewbox Width="14" Height="10"
+                                                                     Visibility="{x:Bind Status, Mode=OneWay, Converter={StaticResource MessageStatusDoubleCheckVisibilityConverter}}">
+                                                                <Path Data="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                                      Fill="{x:Bind Status, Mode=OneWay, Converter={StaticResource MessageStatusBrushConverter}}" />
+                                                            </Viewbox>
+                                                        </Grid>
                                                     </StackPanel>
-                                                </Border>
-
-                                                <!-- Message Text -->
-                                                <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" 
-                                                           TextWrapping="Wrap" 
-                                                           Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}" />
-
-                                                <!-- Timestamp and status icon -->
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
-                                                    <TextBlock Text="{x:Bind FormattedTime, Mode=OneTime}" 
-                                                               FontSize="10" 
-                                                               Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
-                                                    <FontIcon Glyph="&#xE73E;" FontSize="10"
-                                                              Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
-                                                              Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                 </StackPanel>
-                                            </StackPanel>
-                                        </Border>
+                                            </Border>
+                                        </Grid>
 
                                         <!-- Reaction pills -->
                                         <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneTime}"

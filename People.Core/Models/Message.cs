@@ -24,7 +24,19 @@ public class Message : INotifyPropertyChanged
     public string? SenderName { get; set; }
     public bool IsOutgoing { get; set; }
     public DateTimeOffset Timestamp { get; set; }
-    public MessageStatus Status { get; set; }
+    private MessageStatus _status;
+    public MessageStatus Status
+    {
+        get => _status;
+        set
+        {
+            if (_status != value)
+            {
+                _status = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     public MessageContent Content { get; set; } = new();
 
     // Reply / Quote information

@@ -199,10 +199,20 @@ public sealed partial class MainWindow : Window
     {
         bool isDark = IsDarkTheme(theme);
         var foregroundColor = isDark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+        titleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+        titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
         titleBar.ButtonForegroundColor = foregroundColor;
         titleBar.ButtonHoverForegroundColor = foregroundColor;
         titleBar.ButtonPressedForegroundColor = foregroundColor;
-        titleBar.ButtonInactiveForegroundColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150) : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
+        titleBar.ButtonHoverBackgroundColor = isDark 
+            ? Microsoft.UI.ColorHelper.FromArgb(25, 255, 255, 255) 
+            : Microsoft.UI.ColorHelper.FromArgb(25, 0, 0, 0);
+        titleBar.ButtonPressedBackgroundColor = isDark 
+            ? Microsoft.UI.ColorHelper.FromArgb(40, 255, 255, 255) 
+            : Microsoft.UI.ColorHelper.FromArgb(40, 0, 0, 0);
+        titleBar.ButtonInactiveForegroundColor = isDark 
+            ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150) 
+            : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
