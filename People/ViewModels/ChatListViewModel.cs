@@ -50,6 +50,14 @@ public partial class ChatListViewModel : ViewModelBase
     public partial int InitialSyncProgress { get; set; }
 
     [ObservableProperty]
+    public partial bool IsInitialSyncIndeterminate { get; set; } = true;
+
+    partial void OnInitialSyncProgressChanged(int value)
+    {
+        IsInitialSyncIndeterminate = value <= 0;
+    }
+
+    [ObservableProperty]
     public partial string InitialSyncText { get; set; } = "Downloading your recent messages...";
 
     private readonly IMessagingProvider _provider;
@@ -478,73 +486,6 @@ public partial class ChatListViewModel : ViewModelBase
                     }
 
                     SortChatsInPlace();
-                }
-            });
-
-            // Asynchronously resolve missing profile picture URLs in the background (bounded to top 25 most active chats)
-            _ = Task.Run(async () =>
-            {
-                if (_provider is IWhatsAppProvider waProvider)
-                {
-                    if (!waProvider.IsAuthenticated || IsInitialSyncing) return;
-
-                    // Wait for client to connect if app just launched (up to 8 seconds)
-                    for (int i = 0; i < 40 && !waProvider.IsClientReady; i++)
-                    {
-                        await Task.Delay(200);
-                    }
-                    if (!waProvider.IsClientReady) return;
-
-                    var chatsNeedingPics = validChats
-                        .Where(c => string.IsNullOrEmpty(c.PictureUrl) && !_failedPictureJids.Contains(c.Id))
-                        .Take(25)
-                        .ToList();
-
-                    if (chatsNeedingPics.Count == 0) return;
-
-                    var updatedWithPics = new List<Chat>();
-
-                    // Fetch sequentially with a gentle delay to avoid WhatsApp Web server rate limits (429)
-                    foreach (var chat in chatsNeedingPics)
-                    {
-                        try
-                        {
-                            var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id);
-                            if (!string.IsNullOrEmpty(picUrl))
-                            {
-                                _dispatcherService.Enqueue(() =>
-                                {
-                                    var target = Chats.FirstOrDefault(c => c.Id.Equals(chat.Id, StringComparison.OrdinalIgnoreCase));
-                                    if (target != null)
-                                    {
-                                        target.PictureUrl = picUrl;
-                                    }
-                                });
-
-                                chat.PictureUrl = picUrl;
-                                updatedWithPics.Add(chat);
-                            }
-                            else if (waProvider.IsClientReady)
-                            {
-                                lock (_failedPictureJids)
-                                {
-                                    _failedPictureJids.Add(chat.Id);
-                                }
-                            }
-                        }
-                        catch
-                        {
-                            // Transient error or timeout: do not blacklist permanently
-                        }
-
-                        await Task.Delay(150);
-                    }
-
-                    // Batch persist profile pictures to SQLite in a single transaction
-                    if (_chatRepository != null && updatedWithPics.Count > 0)
-                    {
-                        try { await _chatRepository.SaveManyAsync(updatedWithPics); } catch { }
-                    }
                 }
             });
         }

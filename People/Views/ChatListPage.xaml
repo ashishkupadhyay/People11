@@ -265,7 +265,9 @@
                            FontWeight="SemiBold"
                            HorizontalAlignment="Center"
                            TextAlignment="Center" />
-                <ProgressBar IsIndeterminate="True"
+                <ProgressBar IsIndeterminate="{x:Bind ViewModel.IsInitialSyncIndeterminate, Mode=OneWay}"
+                             Value="{x:Bind ViewModel.InitialSyncProgress, Mode=OneWay}"
+                             Maximum="100"
                              Width="260"
                              HorizontalAlignment="Center" />
             </StackPanel>

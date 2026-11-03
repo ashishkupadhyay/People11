@@ -109,6 +109,7 @@ public partial class ConversationViewModel : ViewModelBase
                         _dispatcherService.Enqueue(() =>
                         {
                             chat.PictureUrl = picUrl;
+                            OnPropertyChanged(nameof(CurrentChat));
                         });
                     }
                 }
