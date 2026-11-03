@@ -117,12 +117,6 @@ public sealed partial class ChatListPage : Page
             
             _ = EmptyStatePlayer.PlayAsync(0, 1, false);
         }
-
-        if (InitialSyncPlayer != null && ViewModel.IsInitialSyncing)
-        {
-            InitialSyncPlayer.Source = themeSuffix == "white" ? new AnimatedVisuals.Whatsapp_animated_reveal_white() : new AnimatedVisuals.Whatsapp_animated_reveal_black();
-            _ = InitialSyncPlayer.PlayAsync(0, 1, true);
-        }
     }
     
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)

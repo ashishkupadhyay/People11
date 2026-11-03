@@ -240,7 +240,7 @@ public partial class ChatListViewModel : ViewModelBase
                 else
                 {
                     InitialSyncProgress = Math.Max(0, progress);
-                    InitialSyncText = $"Downloading your recent messages ({InitialSyncProgress}%)...";
+                    InitialSyncText = "Downloading your recent messages...";
                 }
             }
             else
@@ -255,7 +255,7 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     IsInitialSyncing = true;
                     InitialSyncProgress = Math.Max(0, progress);
-                    InitialSyncText = $"Downloading your recent messages ({InitialSyncProgress}%)...";
+                    InitialSyncText = "Downloading your recent messages...";
                 }
             }
         });
@@ -301,7 +301,7 @@ public partial class ChatListViewModel : ViewModelBase
                     ShowQrCode = false;
                     IsInitialSyncing = true;
                     InitialSyncProgress = 0;
-                    InitialSyncText = "Downloading your recent messages (0%)...";
+                    InitialSyncText = "Downloading your recent messages...";
                 }
                 HasError = false;
             });
@@ -488,8 +488,8 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     if (!waProvider.IsAuthenticated || IsInitialSyncing) return;
 
-                    // Wait for client to connect if app just launched
-                    for (int i = 0; i < 25 && !waProvider.IsClientReady; i++)
+                    // Wait for client to connect if app just launched (up to 8 seconds)
+                    for (int i = 0; i < 40 && !waProvider.IsClientReady; i++)
                     {
                         await Task.Delay(200);
                     }
@@ -502,13 +502,14 @@ public partial class ChatListViewModel : ViewModelBase
 
                     if (chatsNeedingPics.Count == 0) return;
 
-                    var updatedWithPics = new System.Collections.Concurrent.ConcurrentBag<Chat>();
+                    var updatedWithPics = new List<Chat>();
 
-                    await Parallel.ForEachAsync(chatsNeedingPics, new ParallelOptions { MaxDegreeOfParallelism = 2 }, async (chat, ct) =>
+                    // Fetch sequentially with a gentle delay to avoid WhatsApp Web server rate limits (429)
+                    foreach (var chat in chatsNeedingPics)
                     {
                         try
                         {
-                            var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id, ct);
+                            var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id);
                             if (!string.IsNullOrEmpty(picUrl))
                             {
                                 _dispatcherService.Enqueue(() =>
@@ -533,20 +534,16 @@ public partial class ChatListViewModel : ViewModelBase
                         }
                         catch
                         {
-                            if (waProvider.IsClientReady)
-                            {
-                                lock (_failedPictureJids)
-                                {
-                                    _failedPictureJids.Add(chat.Id);
-                                }
-                            }
+                            // Transient error or timeout: do not blacklist permanently
                         }
-                    });
+
+                        await Task.Delay(150);
+                    }
 
                     // Batch persist profile pictures to SQLite in a single transaction
-                    if (_chatRepository != null && !updatedWithPics.IsEmpty)
+                    if (_chatRepository != null && updatedWithPics.Count > 0)
                     {
-                        try { await _chatRepository.SaveManyAsync(updatedWithPics.ToList()); } catch { }
+                        try { await _chatRepository.SaveManyAsync(updatedWithPics); } catch { }
                     }
                 }
             });

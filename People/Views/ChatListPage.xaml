@@ -252,19 +252,20 @@
             </StackPanel>
         </Grid>
         
-        <!-- Initial Syncing Overlay (Post-Auth WhatsApp Lottie + Progress) -->
+        <!-- Initial Syncing Overlay (Post-Auth WhatsApp Icon + Progress) -->
         <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.IsInitialSyncing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20" MaxWidth="360">
-                <AnimatedVisualPlayer x:Name="InitialSyncPlayer" AutoPlay="True" Width="100" Height="100" HorizontalAlignment="Center">
-                    <lottie:LottieVisualSource x:Name="InitialSyncLottieSource" />
-                </AnimatedVisualPlayer>
+                <Image Width="72" Height="72" HorizontalAlignment="Center">
+                    <Image.Source>
+                        <SvgImageSource UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-OriginalGrey.svg" />
+                    </Image.Source>
+                </Image>
                 <TextBlock Text="{x:Bind ViewModel.InitialSyncText, Mode=OneWay}"
                            Style="{ThemeResource SubtitleTextBlockStyle}"
                            FontWeight="SemiBold"
                            HorizontalAlignment="Center"
                            TextAlignment="Center" />
-                <ProgressBar Value="{x:Bind ViewModel.InitialSyncProgress, Mode=OneWay}"
-                             Maximum="100"
+                <ProgressBar IsIndeterminate="True"
                              Width="260"
                              HorizontalAlignment="Center" />
             </StackPanel>

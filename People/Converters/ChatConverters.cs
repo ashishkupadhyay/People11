@@ -194,7 +194,12 @@ public class GroupSenderVisibilityConverter : IValueConverter
     {
         if (value is People.Core.Models.Message msg)
         {
-            return (!msg.IsOutgoing && !string.IsNullOrWhiteSpace(msg.SenderName)) ? Visibility.Visible : Visibility.Collapsed;
+            if (msg.IsOutgoing || string.IsNullOrWhiteSpace(msg.SenderName))
+                return Visibility.Collapsed;
+
+            // Only show sender name in group chats
+            bool isGroup = !string.IsNullOrEmpty(msg.ChatId) && (msg.ChatId.EndsWith("@g.us", StringComparison.OrdinalIgnoreCase) || msg.ChatId.Contains("group", StringComparison.OrdinalIgnoreCase));
+            return isGroup ? Visibility.Visible : Visibility.Collapsed;
         }
         return Visibility.Collapsed;
     }

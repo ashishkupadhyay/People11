@@ -504,7 +504,17 @@ public partial class ConversationViewModel : ViewModelBase
             if (!string.IsNullOrWhiteSpace(pushName))
             {
                 var cleaned = pushName.Trim().TrimStart('~').Trim();
-                HeaderSubtitle = !string.IsNullOrEmpty(cleaned) ? $"~{cleaned}" : null;
+                if (!string.IsNullOrEmpty(cleaned)
+                    && cleaned.Any(char.IsLetter)
+                    && !cleaned.StartsWith('+')
+                    && !cleaned.Contains(".."))
+                {
+                    HeaderSubtitle = $"~{cleaned}";
+                }
+                else
+                {
+                    HeaderSubtitle = null;
+                }
             }
             else
             {
