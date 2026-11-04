@@ -19,15 +19,37 @@ public class MessageRepository : IMessageRepository
         return await context.Messages.FirstOrDefaultAsync(m => m.Id == id);
     }
 
+    private static List<string> GetCandidateChatIds(string chatId)
+    {
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId.Substring(3) : chatId;
+        var list = new List<string> { cleanId, "wa_" + cleanId };
+        if (cleanId.Contains('@'))
+        {
+            var parts = cleanId.Split('@');
+            var user = parts[0];
+            var domain = parts[1];
+            var bareUser = user.Split(':')[0];
+            list.Add($"{bareUser}@{domain}");
+            list.Add($"wa_{bareUser}@{domain}");
+            list.Add($"{bareUser}:0@{domain}");
+            list.Add($"wa_{bareUser}:0@{domain}");
+        }
+        else
+        {
+            list.Add($"{cleanId}@s.whatsapp.net");
+            list.Add($"wa_{cleanId}@s.whatsapp.net");
+            list.Add($"{cleanId}@g.us");
+            list.Add($"wa_{cleanId}@g.us");
+        }
+        return list.Distinct().ToList();
+    }
+
     public async Task<IReadOnlyList<Message>> GetByChatIdAsync(string chatId, int offset = 0, int limit = 50)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var cleanId = chatId.StartsWith("wa_") ? chatId.Substring(3) : chatId;
-        var waId = "wa_" + cleanId;
-        var bareUser = cleanId.Split('@')[0].Split(':')[0];
-        var waBare = "wa_" + bareUser;
+        var candidates = GetCandidateChatIds(chatId);
         var msgs = await context.Messages
-            .Where(m => m.ChatId == cleanId || m.ChatId == waId || m.ChatId.StartsWith(cleanId + ":") || m.ChatId.StartsWith(waId + ":") || (bareUser.Length >= 5 && (m.ChatId.StartsWith(bareUser + "@") || m.ChatId.StartsWith(bareUser + ":") || m.ChatId.StartsWith(waBare + "@") || m.ChatId.StartsWith(waBare + ":"))))
+            .Where(m => candidates.Contains(m.ChatId!))
             .OrderByDescending(m => m.Timestamp)
             .Skip(offset)
             .Take(limit)
@@ -40,12 +62,9 @@ public class MessageRepository : IMessageRepository
     public async Task<IReadOnlyList<Message>> GetOlderMessagesBeforeAsync(string chatId, DateTimeOffset beforeTimestamp, int limit = 25)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var cleanId = chatId.StartsWith("wa_") ? chatId.Substring(3) : chatId;
-        var waId = "wa_" + cleanId;
-        var bareUser = cleanId.Split('@')[0].Split(':')[0];
-        var waBare = "wa_" + bareUser;
+        var candidates = GetCandidateChatIds(chatId);
         var msgs = await context.Messages
-            .Where(m => (m.ChatId == cleanId || m.ChatId == waId || m.ChatId.StartsWith(cleanId + ":") || m.ChatId.StartsWith(waId + ":") || (bareUser.Length >= 5 && (m.ChatId.StartsWith(bareUser + "@") || m.ChatId.StartsWith(bareUser + ":") || m.ChatId.StartsWith(waBare + "@") || m.ChatId.StartsWith(waBare + ":")))) && m.Timestamp < beforeTimestamp)
+            .Where(m => candidates.Contains(m.ChatId!) && m.Timestamp < beforeTimestamp)
             .OrderByDescending(m => m.Timestamp)
             .Take(limit)
             .AsNoTracking()

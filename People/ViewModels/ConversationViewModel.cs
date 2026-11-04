@@ -86,6 +86,7 @@ public partial class ConversationViewModel : ViewModelBase
 
     public event EventHandler<Message>? OlderMessagesLoaded;
     private CancellationTokenSource? _loadChatCts;
+    private int _consecutiveEmptyOlderLoads;
 
     public void CancelLoading()
     {
@@ -122,16 +123,9 @@ public partial class ConversationViewModel : ViewModelBase
             _ = waMarkProvider.MarkChatAsReadAsync(chat.Id);
         }
 
-        // Instant preview: If chat has LastMessage, display it immediately so the screen is never blank
-        if (Messages.Count == 0 && chat.LastMessage != null)
-        {
-            Messages.Add(chat.LastMessage);
-            UpdateChatDateString();
-            UpdateSenderPushName();
-        }
-
-        IsLoading = Messages.Count == 0;
+        _consecutiveEmptyOlderLoads = 0;
         HasMoreOlderMessages = true;
+        IsLoading = Messages.Count == 0;
         UpdateChatDateString();
         UpdateSenderPushName();
 
@@ -161,7 +155,7 @@ public partial class ConversationViewModel : ViewModelBase
             }, token);
         }
 
-        // Fast path: Immediately load cached messages from SQLite so UI displays instantly
+        // Fast path: Immediately load cached messages from SQLite so UI displays instantly with all messages
         var messageRepo = App.Current.Services.GetService<IMessageRepository>();
         if (messageRepo != null)
         {
@@ -188,6 +182,14 @@ public partial class ConversationViewModel : ViewModelBase
                     UpdateSenderPushName();
                     IsLoading = false;
                     InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+                }
+                else if (Messages.Count == 0 && chat.LastMessage != null)
+                {
+                    // Fallback to single message preview ONLY if SQLite has 0 messages stored for this chat
+                    Messages.Add(chat.LastMessage);
+                    RecalculateDateSeparators();
+                    UpdateChatDateString();
+                    UpdateSenderPushName();
                 }
             }
             catch { }
@@ -286,7 +288,13 @@ public partial class ConversationViewModel : ViewModelBase
 
         try
         {
-            var older = await _provider.GetOlderMessagesAsync(targetChatId, 25, anchor?.Timestamp);
+            var older = await _provider.GetOlderMessagesAsync(
+                targetChatId, 
+                25, 
+                anchor?.Timestamp, 
+                anchor?.Id, 
+                anchor?.IsOutgoing ?? false);
+
             _dispatcherService.Enqueue(() =>
             {
                 if (CurrentChat?.Id != targetChatId)
@@ -297,7 +305,15 @@ public partial class ConversationViewModel : ViewModelBase
 
                 if (older.Count == 0)
                 {
-                    HasMoreOlderMessages = false;
+                    _consecutiveEmptyOlderLoads++;
+                    if (_consecutiveEmptyOlderLoads >= 3)
+                    {
+                        HasMoreOlderMessages = false;
+                    }
+                }
+                else
+                {
+                    _consecutiveEmptyOlderLoads = 0;
                 }
 
                 bool addedAny = false;

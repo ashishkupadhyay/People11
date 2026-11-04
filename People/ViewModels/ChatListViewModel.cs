@@ -337,7 +337,7 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     chat.LastMessage.Status = msg.Status;
                 }
-                else if (!msg.IsOutgoing)
+                else
                 {
                     chat.LastMessage = msg;
                     chat.LastMessageTime = msg.Timestamp;

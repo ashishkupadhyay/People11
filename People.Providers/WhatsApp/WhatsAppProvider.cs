@@ -950,7 +950,13 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
-    public async Task<IReadOnlyList<Message>> GetOlderMessagesAsync(string chatId, int count = 25, DateTimeOffset? beforeTimestamp = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Message>> GetOlderMessagesAsync(
+        string chatId, 
+        int count = 25, 
+        DateTimeOffset? beforeTimestamp = null, 
+        string? anchorMessageId = null, 
+        bool anchorFromMe = false, 
+        CancellationToken ct = default)
     {
         if (IsTestingMode)
         {
@@ -1003,10 +1009,11 @@ public class WhatsAppProvider : IWhatsAppProvider
         // 3. Local storage & bridge cache exhausted -> request on-demand PDO from phone
         var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
 
-        string? anchorId = null;
-        bool anchorFromMe = false;
-        long anchorTsMs = beforeUnix * 1000;
-        if (_messageRepository != null)
+        string? anchorId = anchorMessageId;
+        bool fromMe = anchorFromMe;
+        long anchorTsMs = (beforeTimestamp?.ToUnixTimeMilliseconds()) ?? (beforeUnix * 1000);
+
+        if (string.IsNullOrEmpty(anchorId) && _messageRepository != null)
         {
             try
             {
@@ -1014,7 +1021,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 if (oldestSqlite.Count > 0)
                 {
                     anchorId = oldestSqlite[0].Id;
-                    anchorFromMe = oldestSqlite[0].IsOutgoing;
+                    fromMe = oldestSqlite[0].IsOutgoing;
                     anchorTsMs = oldestSqlite[0].Timestamp.ToUnixTimeMilliseconds();
                 }
             }
@@ -1023,16 +1030,16 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         int initialCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
 
-        // Fire PDO on-demand request to the phone
+        // Fire PDO on-demand request to the phone with exact anchor message ID and timestamp
         await Task.Run(() =>
         {
-            WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, anchorFromMe, anchorTsMs);
+            WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, fromMe, anchorTsMs);
         }, ct);
 
-        // Poll for phone response with responsive 40ms intervals (up to 1.5 seconds for device latency)
-        for (int i = 0; i < 35; i++)
+        // Poll for phone response with responsive 50ms intervals (up to 4.5 seconds for network/phone latency)
+        for (int i = 0; i < 90; i++)
         {
-            await Task.Delay(40, ct);
+            await Task.Delay(50, ct);
             int currentCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
             if (currentCount > initialCount)
             {

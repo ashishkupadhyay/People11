@@ -28,6 +28,50 @@ public partial class Chat : ObservableObject
     [ObservableProperty]
     private Message? _lastMessage;
 
+    public string LastMessagePreview
+    {
+        get
+        {
+            var msg = LastMessage;
+            if (msg == null || string.IsNullOrWhiteSpace(msg.Content?.Text))
+            {
+                return string.Empty;
+            }
+
+            var text = msg.Content.Text.Trim();
+            if (IsGroup)
+            {
+                if (msg.IsOutgoing)
+                {
+                    return $"You: {text}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(msg.SenderName))
+                {
+                    return $"{msg.SenderName.Trim()}: {text}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(msg.SenderId))
+                {
+                    var user = msg.SenderId.Contains('@') ? msg.SenderId.Split('@')[0] : msg.SenderId;
+                    var phone = user.StartsWith('+') ? user : $"+{user}";
+                    return $"{phone}: {text}";
+                }
+            }
+            else if (msg.IsOutgoing)
+            {
+                return $"You: {text}";
+            }
+
+            return text;
+        }
+    }
+
+    partial void OnLastMessageChanged(Message? value)
+    {
+        OnPropertyChanged(nameof(LastMessagePreview));
+    }
+
     public string Initials => IsGroup ? string.Empty : ExtractInitials(Title);
 
     partial void OnTitleChanged(string value)

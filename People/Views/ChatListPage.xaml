@@ -175,7 +175,7 @@
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{x:Bind Mode=OneWay, Converter={StaticResource ChatLastMessagePreviewConverter}}" 
+                                <TextBlock Text="{x:Bind LastMessagePreview, Mode=OneWay}" 
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                            TextTrimming="CharacterEllipsis" 
                                            MaxLines="1" />
