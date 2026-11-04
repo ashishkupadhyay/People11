@@ -22,8 +22,10 @@ public class MessageRepository : IMessageRepository
     public async Task<IReadOnlyList<Message>> GetByChatIdAsync(string chatId, int offset = 0, int limit = 50)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
+        var cleanId = chatId.StartsWith("wa_") ? chatId.Substring(3) : chatId;
+        var waId = "wa_" + cleanId;
         var msgs = await context.Messages
-            .Where(m => m.ChatId == chatId)
+            .Where(m => m.ChatId == cleanId || m.ChatId == waId)
             .OrderByDescending(m => m.Timestamp)
             .Skip(offset)
             .Take(limit)
@@ -36,8 +38,10 @@ public class MessageRepository : IMessageRepository
     public async Task<IReadOnlyList<Message>> GetOlderMessagesBeforeAsync(string chatId, DateTimeOffset beforeTimestamp, int limit = 25)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
+        var cleanId = chatId.StartsWith("wa_") ? chatId.Substring(3) : chatId;
+        var waId = "wa_" + cleanId;
         var msgs = await context.Messages
-            .Where(m => m.ChatId == chatId && m.Timestamp < beforeTimestamp)
+            .Where(m => (m.ChatId == cleanId || m.ChatId == waId) && m.Timestamp < beforeTimestamp)
             .OrderByDescending(m => m.Timestamp)
             .Take(limit)
             .AsNoTracking()

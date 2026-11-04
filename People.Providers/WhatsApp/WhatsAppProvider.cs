@@ -624,8 +624,8 @@ public class WhatsAppProvider : IWhatsAppProvider
             var chats = new List<Chat>(dtos.Count);
             foreach (var dto in dtos)
             {
-                // Filter out phantom empty non-group chat stubs (no valid last message)
-                if (!dto.IsGroup && (dto.LastMessage == null || string.IsNullOrWhiteSpace(dto.LastMessage.Text)))
+                // Filter out phantom empty chat stubs (no valid last message)
+                if (dto.LastMessage == null || (dto.LastMessage.MediaType == "text" && string.IsNullOrWhiteSpace(dto.LastMessage.Text)))
                 {
                     continue;
                 }
@@ -1056,7 +1056,7 @@ public class WhatsAppProvider : IWhatsAppProvider
     public async Task ProcessOutboxQueueAsync()
     {
         if (_outboxQueue.IsEmpty) return;
-        if (!HasInternetAccess() || _clientPtr == IntPtr.Zero || ConnectionState != ConnectionState.Connected)
+        if (!HasInternetAccess() || _clientPtr == IntPtr.Zero || !IsClientReady || ConnectionState != ConnectionState.Connected)
         {
             return;
         }
@@ -1070,7 +1070,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             while (_outboxQueue.TryPeek(out var msg))
             {
-                if (!HasInternetAccess() || _clientPtr == IntPtr.Zero || ConnectionState != ConnectionState.Connected)
+                if (!HasInternetAccess() || _clientPtr == IntPtr.Zero || !IsClientReady || ConnectionState != ConnectionState.Connected)
                 {
                     break;
                 }
@@ -1161,7 +1161,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
 
         bool sentImmediately = false;
-        if (_clientPtr != IntPtr.Zero && ConnectionState == ConnectionState.Connected && HasInternetAccess())
+        if (_clientPtr != IntPtr.Zero && IsClientReady && ConnectionState == ConnectionState.Connected && HasInternetAccess())
         {
             try
             {

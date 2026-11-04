@@ -283,9 +283,16 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             var msg = e.Message;
-            var chat = Chats.FirstOrDefault(c => c.Id.Equals(msg.ChatId, StringComparison.OrdinalIgnoreCase)
-                                              || c.Id.Contains(msg.ChatId, StringComparison.OrdinalIgnoreCase)
-                                              || msg.ChatId.Contains(c.Id, StringComparison.OrdinalIgnoreCase));
+            if (msg.Content == null || (msg.Content.Type == MessageContentType.Text && string.IsNullOrWhiteSpace(msg.Content.Text)))
+            {
+                return;
+            }
+
+            var cleanMsgChatId = msg.ChatId.StartsWith("wa_") ? msg.ChatId.Substring(3) : msg.ChatId;
+            var chat = Chats.FirstOrDefault(c => {
+                var cleanCId = c.Id.StartsWith("wa_") ? c.Id.Substring(3) : c.Id;
+                return cleanCId.Equals(cleanMsgChatId, StringComparison.OrdinalIgnoreCase);
+            });
             if (chat != null)
             {
                 if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)
@@ -417,7 +424,7 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chats = await _provider.GetChatsAsync();
-            var validChats = chats.Where(c => !string.IsNullOrWhiteSpace(c.Id) && (c.IsGroup || c.LastMessage != null)).ToList();
+            var validChats = chats.Where(c => !string.IsNullOrWhiteSpace(c.Id) && c.LastMessage != null && (!string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text) || c.LastMessage.Content?.Type != MessageContentType.Text)).ToList();
 
             // Resolve titles on background thread BEFORE dispatching to UI
             foreach (var incoming in validChats)
@@ -437,14 +444,26 @@ public partial class ChatListViewModel : ViewModelBase
                 }
                 else
                 {
-                    var newChatIds = new HashSet<string>(validChats.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+                    var newChatIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var c in validChats)
+                    {
+                        if (!string.IsNullOrEmpty(c.Id))
+                        {
+                            newChatIds.Add(c.Id);
+                            var clean = c.Id.StartsWith("wa_") ? c.Id.Substring(3) : c.Id;
+                            newChatIds.Add(clean);
+                            newChatIds.Add("wa_" + clean);
+                        }
+                    }
 
                     // Remove chats that no longer exist
                     if (validChats.Count > 0)
                     {
                         for (int i = Chats.Count - 1; i >= 0; i--)
                         {
-                            if (!newChatIds.Contains(Chats[i].Id))
+                            var cId = Chats[i].Id;
+                            var clean = cId.StartsWith("wa_") ? cId.Substring(3) : cId;
+                            if (!newChatIds.Contains(cId) && !newChatIds.Contains(clean) && !newChatIds.Contains("wa_" + clean))
                             {
                                 Chats.RemoveAt(i);
                             }
@@ -458,6 +477,9 @@ public partial class ChatListViewModel : ViewModelBase
                         if (!string.IsNullOrEmpty(c.Id))
                         {
                             existingMap[c.Id] = c;
+                            var clean = c.Id.StartsWith("wa_") ? c.Id.Substring(3) : c.Id;
+                            existingMap[clean] = c;
+                            existingMap["wa_" + clean] = c;
                         }
                     }
 
@@ -490,6 +512,9 @@ public partial class ChatListViewModel : ViewModelBase
                             if (!string.IsNullOrEmpty(incoming.Id))
                             {
                                 existingMap[incoming.Id] = incoming;
+                                var clean = incoming.Id.StartsWith("wa_") ? incoming.Id.Substring(3) : incoming.Id;
+                                existingMap[clean] = incoming;
+                                existingMap["wa_" + clean] = incoming;
                             }
                         }
                     }

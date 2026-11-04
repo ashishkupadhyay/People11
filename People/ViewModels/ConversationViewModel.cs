@@ -249,28 +249,26 @@ public partial class ConversationViewModel : ViewModelBase
         MessageText = string.Empty;
 
         var content = new MessageContent { Text = text, Type = MessageContentType.Text };
-        Message sentMsg;
-        try
+        var pendingId = "pending_" + Guid.NewGuid().ToString("N");
+        var pendingMsg = new Message
         {
-            sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
-        }
-        catch
-        {
-            sentMsg = new Message
-            {
-                Id = "pending_" + Guid.NewGuid().ToString("N"),
-                ChatId = CurrentChat.Id,
-                PlatformId = CurrentChat.PlatformId,
-                Content = content,
-                Timestamp = DateTimeOffset.UtcNow,
-                Status = MessageStatus.Sending,
-                SenderId = "me",
-                IsOutgoing = true
-            };
-        }
+            Id = pendingId,
+            ChatId = CurrentChat.Id,
+            PlatformId = CurrentChat.PlatformId,
+            Content = content,
+            Timestamp = DateTimeOffset.UtcNow,
+            Status = MessageStatus.Sending,
+            SenderId = "me",
+            IsOutgoing = true
+        };
 
-        CurrentChat.LastMessage = sentMsg;
-        CurrentChat.LastMessageTime = sentMsg.Timestamp;
+        // 1. Instantly display in conversation history with timer icon
+        Messages.Add(pendingMsg);
+        RecalculateDateSeparators();
+        UpdateChatDateString();
+
+        CurrentChat.LastMessage = pendingMsg;
+        CurrentChat.LastMessageTime = pendingMsg.Timestamp;
 
         var chatRepo = App.Current.Services.GetService<IChatRepository>();
         if (chatRepo != null)
@@ -284,27 +282,46 @@ public partial class ConversationViewModel : ViewModelBase
         var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
         if (chatListVm != null)
         {
-            _dispatcherService.Enqueue(() =>
+            if (!chatListVm.Chats.Any(c => c.Id == CurrentChat.Id))
             {
-                if (!chatListVm.Chats.Any(c => c.Id == CurrentChat.Id))
-                {
-                    chatListVm.Chats.Insert(0, CurrentChat);
-                }
-                else
-                {
-                    chatListVm.SortChatsInPlace();
-                }
-            });
+                chatListVm.Chats.Insert(0, CurrentChat);
+            }
+            else
+            {
+                chatListVm.SortChatsInPlace();
+            }
         }
 
+        // 2. Dispatch to provider asynchronously
+        Message sentMsg;
+        try
+        {
+            sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
+        }
+        catch
+        {
+            sentMsg = pendingMsg;
+        }
+
+        // 3. Update the pending message in place
         _dispatcherService.Enqueue(() =>
         {
-            if (!Messages.Any(m => m.Id == sentMsg.Id))
+            var existing = Messages.FirstOrDefault(m => m.Id == pendingId);
+            if (existing != null)
+            {
+                if (sentMsg.Id != pendingId)
+                {
+                    existing.Id = sentMsg.Id;
+                }
+                existing.Status = sentMsg.Status;
+                existing.Timestamp = sentMsg.Timestamp;
+            }
+            else if (!Messages.Any(m => m.Id == sentMsg.Id))
             {
                 Messages.Add(sentMsg);
-                RecalculateDateSeparators();
-                UpdateChatDateString();
             }
+            RecalculateDateSeparators();
+            UpdateChatDateString();
         });
     }
 
@@ -370,10 +387,13 @@ public partial class ConversationViewModel : ViewModelBase
                 }
                 else
                 {
-                    Messages.Add(e.Message);
-                    RecalculateDateSeparators();
-                    UpdateChatDateString();
-                    UpdateSenderPushName();
+                    if (e.Message.Content != null && !string.IsNullOrWhiteSpace(e.Message.Content.Text))
+                    {
+                        Messages.Add(e.Message);
+                        RecalculateDateSeparators();
+                        UpdateChatDateString();
+                        UpdateSenderPushName();
+                    }
                 }
             });
         }
