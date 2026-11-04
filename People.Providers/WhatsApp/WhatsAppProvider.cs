@@ -100,7 +100,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
         catch { }
 
-        _outboxTimer = new System.Threading.Timer(OnOutboxTimerTick, null, 4000, 4000);
+        _outboxTimer = new System.Threading.Timer(OnOutboxTimerTick, null, 1500, 1500);
 
         InitializeClientAndCache();
     }
@@ -804,32 +804,11 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        // 3. Always query and merge pending outgoing messages (Status == Sending) from SQLite & Outbox
+        // 3. Always merge pending outgoing messages (Status == Sending) from in-memory outbox
         var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
         var bareUser = cleanChatId.Split('@')[0].Split(':')[0];
 
         var pendingMessages = new List<Message>();
-        if (_messageRepository != null)
-        {
-            try
-            {
-                var pendingFromDb = await _messageRepository.GetPendingOutgoingMessagesAsync(PlatformId);
-                foreach (var p in pendingFromDb)
-                {
-                    var c = p.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? p.ChatId[3..] : p.ChatId;
-                    var cBare = c.Split('@')[0].Split(':')[0];
-                    if (string.Equals(c, cleanChatId, StringComparison.OrdinalIgnoreCase) ||
-                        (bareUser.Length >= 5 && string.Equals(cBare, bareUser, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        pendingMessages.Add(p);
-                        // Ensure it's in outbox queue for background dispatching
-                        EnqueueOutbox(p);
-                    }
-                }
-            }
-            catch { }
-        }
-
         foreach (var p in _outboxQueue)
         {
             var c = p.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? p.ChatId[3..] : p.ChatId;
@@ -998,10 +977,10 @@ public class WhatsAppProvider : IWhatsAppProvider
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, anchorFromMe, anchorTsMs);
         }, ct);
 
-        // Poll for phone response (up to 1.5 seconds for device latency)
-        for (int i = 0; i < 10; i++)
+        // Poll for phone response with responsive 80ms intervals (up to 1.2 seconds for device latency)
+        for (int i = 0; i < 15; i++)
         {
-            await Task.Delay(150, ct);
+            await Task.Delay(80, ct);
             int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, cleanId), ct);
             if (currentCount > initialCount)
             {
@@ -1116,8 +1095,20 @@ public class WhatsAppProvider : IWhatsAppProvider
     {
         if (e.IsAvailable)
         {
-            _logger?.LogInformation("Network connectivity available. Draining outbox queue.");
-            _ = ProcessOutboxQueueAsync();
+            _logger?.LogInformation("Network connectivity available. Fast-draining outbox queue.");
+            _ = Task.Run(async () =>
+            {
+                // Rapidly poll up to 30 times (every 250ms = 7.5s) until IsClientReady is true, then drain immediately
+                for (int i = 0; i < 30; i++)
+                {
+                    if (!_outboxQueue.IsEmpty && HasInternetAccess() && _clientPtr != IntPtr.Zero && IsClientReady && ConnectionState == ConnectionState.Connected)
+                    {
+                        await ProcessOutboxQueueAsync();
+                        break;
+                    }
+                    await Task.Delay(250);
+                }
+            });
         }
     }
 

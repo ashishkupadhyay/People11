@@ -25,6 +25,7 @@ public sealed partial class ConversationPage : Page
 
     public ConversationPage()
     {
+        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
 
@@ -104,7 +105,7 @@ public sealed partial class ConversationPage : Page
         int delta = pointerPoint.Properties.MouseWheelDelta;
         if (delta > 0) // Scrolling up
         {
-            if (_messagesScrollViewer == null || _messagesScrollViewer.VerticalOffset <= 5)
+            if (_messagesScrollViewer == null || _messagesScrollViewer.ScrollableHeight <= 50 || _messagesScrollViewer.VerticalOffset <= 20)
             {
                 _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
             }
@@ -115,8 +116,8 @@ public sealed partial class ConversationPage : Page
     {
         if (_messagesScrollViewer == null || ViewModel == null) return;
 
-        // When user scrolls near top (within 150px) on a scrollable list and not currently loading, dynamically load older messages
-        if (_messagesScrollViewer.ScrollableHeight > 50 && _messagesScrollViewer.VerticalOffset <= 150 && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
+        // When user scrolls near top (within 150px) or on a sparse list, dynamically load older messages
+        if ((_messagesScrollViewer.ScrollableHeight <= 50 || _messagesScrollViewer.VerticalOffset <= 150) && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
         {
             _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
         }

@@ -221,6 +221,12 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateSenderPushName();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+
+                // If chat only has a few messages (e.g. months-old chat with only 1-3 messages), auto-fetch older messages
+                if (Messages.Count <= 3 && HasMoreOlderMessages && !IsLoadingOlder)
+                {
+                    _ = LoadOlderMessagesCommand.ExecuteAsync(null);
+                }
             });
         }
         catch
