@@ -140,17 +140,77 @@ public partial class ConversationViewModel : ViewModelBase
             });
         }
 
+        // Fast path: Immediately load cached messages from SQLite so UI displays instantly
+        var messageRepo = App.Current.Services.GetService<IMessageRepository>();
+        if (messageRepo != null)
+        {
+            try
+            {
+                var cached = await messageRepo.GetByChatIdAsync(chat.Id, 0, 30);
+                if (cached.Count > 0 && CurrentChat?.Id == chat.Id)
+                {
+                    Messages.Clear();
+                    foreach (var m in cached.OrderBy(m => m.Timestamp))
+                    {
+                        Messages.Add(m);
+                    }
+                    if (unreadCount > 0 && Messages.Count > 0)
+                    {
+                        int unreadIndex = Math.Max(0, Messages.Count - unreadCount);
+                        Messages[unreadIndex].ShowUnreadSeparator = true;
+                        Messages[unreadIndex].UnreadSeparatorText = $"{unreadCount} unread message" + (unreadCount > 1 ? "s" : "");
+                    }
+                    RecalculateDateSeparators();
+                    UpdateChatDateString();
+                    UpdateSenderPushName();
+                    IsLoading = false;
+                    InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+                }
+            }
+            catch { }
+        }
+
         try
         {
             var msgs = await _provider.GetMessagesAsync(chat.Id, 0, 30);
+            if (CurrentChat?.Id != chat.Id) return;
+
             _dispatcherService.Enqueue(() =>
             {
-                Messages.Clear();
-                foreach (var msg in msgs)
+                if (CurrentChat?.Id != chat.Id) return;
+
+                if (Messages.Count == 0)
                 {
-                    Messages.Add(msg);
+                    foreach (var msg in msgs)
+                    {
+                        Messages.Add(msg);
+                    }
                 }
-                if (unreadCount > 0 && Messages.Count > 0)
+                else
+                {
+                    // Merge incoming with existing without clearing
+                    foreach (var msg in msgs)
+                    {
+                        var existing = Messages.FirstOrDefault(m => m.Id == msg.Id ||
+                            (m.IsOutgoing && m.Status == MessageStatus.Sending && m.Content?.Text == msg.Content?.Text));
+                        if (existing != null)
+                        {
+                            existing.Id = msg.Id;
+                            existing.Status = msg.Status;
+                        }
+                        else
+                        {
+                            int index = 0;
+                            while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
+                            {
+                                index++;
+                            }
+                            Messages.Insert(index, msg);
+                        }
+                    }
+                }
+
+                if (unreadCount > 0 && Messages.Count > 0 && !Messages.Any(m => m.ShowUnreadSeparator))
                 {
                     int unreadIndex = Math.Max(0, Messages.Count - unreadCount);
                     Messages[unreadIndex].ShowUnreadSeparator = true;
@@ -161,11 +221,6 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateSenderPushName();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
-
-                if (msgs.Count <= 3 && HasMoreOlderMessages)
-                {
-                    _ = LoadOlderMessagesAsync();
-                }
             });
         }
         catch
@@ -296,7 +351,7 @@ public partial class ConversationViewModel : ViewModelBase
         Message sentMsg;
         try
         {
-            sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content);
+            sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content, pendingMsg.Id);
         }
         catch
         {
@@ -347,16 +402,38 @@ public partial class ConversationViewModel : ViewModelBase
                 bool anyAdded = false;
                 foreach (var msg in msgs)
                 {
-                    if (!Messages.Any(m => m.Id == msg.Id))
+                    var existingById = Messages.FirstOrDefault(m => m.Id == msg.Id);
+                    if (existingById != null)
                     {
-                        int index = 0;
-                        while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
+                        if (existingById.Status != msg.Status)
                         {
-                            index++;
+                            existingById.Status = msg.Status;
                         }
-                        Messages.Insert(index, msg);
-                        anyAdded = true;
+                        continue;
                     }
+
+                    // Check if there is an outgoing pending message matching this sent message
+                    if (msg.IsOutgoing)
+                    {
+                        var pendingMatch = Messages.FirstOrDefault(m => m.IsOutgoing &&
+                            (m.Status == MessageStatus.Sending || m.Id.StartsWith("pending_")) &&
+                            m.Content?.Text == msg.Content?.Text);
+                        if (pendingMatch != null)
+                        {
+                            pendingMatch.Id = msg.Id;
+                            pendingMatch.Status = msg.Status;
+                            pendingMatch.Timestamp = msg.Timestamp;
+                            continue;
+                        }
+                    }
+
+                    int index = 0;
+                    while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
+                    {
+                        index++;
+                    }
+                    Messages.Insert(index, msg);
+                    anyAdded = true;
                 }
                 if (anyAdded)
                 {
@@ -380,7 +457,7 @@ public partial class ConversationViewModel : ViewModelBase
             _dispatcherService.Enqueue(() =>
             {
                 var existing = Messages.FirstOrDefault(m => m.Id == e.Message.Id ||
-                    (m.IsOutgoing && m.Status == MessageStatus.Sending && m.Content?.Text == e.Message.Content?.Text));
+                    (m.IsOutgoing && (m.Status == MessageStatus.Sending || m.Id.StartsWith("pending_")) && m.Content?.Text == e.Message.Content?.Text));
                 if (existing != null)
                 {
                     existing.Id = e.Message.Id;

@@ -410,7 +410,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     PlatformId = "WhatsApp",
                     Content = new MessageContent { Text = text, Type = contentType },
                     Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
-                    Status = root.TryGetProperty("status", out var stProp) && stProp.GetInt32() != 0 ? (MessageStatus)stProp.GetInt32() : ((root.TryGetProperty("isOutgoing", out var isOut) && isOut.GetBoolean()) ? MessageStatus.Sent : MessageStatus.Delivered),
+                    Status = root.TryGetProperty("status", out var stProp) ? (MessageStatus)stProp.GetInt32() : ((root.TryGetProperty("isOutgoing", out var isOut) && isOut.GetBoolean()) ? MessageStatus.Sent : MessageStatus.Delivered),
                     IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
                     QuotedText = root.TryGetProperty("quotedText", out var qTextProp) ? qTextProp.GetString() : null,
                     QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
@@ -663,7 +663,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Timestamp = dto.LastMessage.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
                             : (chat.LastMessageTime != DateTimeOffset.MinValue ? chat.LastMessageTime : DateTimeOffset.UnixEpoch),
-                        Status = dto.LastMessage.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered,
+                        Status = (MessageStatus)dto.LastMessage.Status,
                         QuotedText = dto.LastMessage.QuotedText,
                         QuotedSender = dto.LastMessage.QuotedSender,
                         Reactions = dto.LastMessage.Reactions ?? new()
@@ -773,22 +773,8 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         var resultList = new List<Message>();
 
-        // 1. Try SQLite first (instant indexed retrieval)
-        if (_messageRepository != null)
-        {
-            try
-            {
-                var localMsgs = await _messageRepository.GetByChatIdAsync(chatId, offset, limit);
-                resultList.AddRange(localMsgs);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to load messages from SQLite for {ChatId}", chatId);
-            }
-        }
-
-        // 2. Fallback to native bridge if SQLite has no messages for this chat yet
-        if (resultList.Count == 0 && _clientPtr != IntPtr.Zero)
+        // 1. Fetch from native bridge first if ready
+        if (_clientPtr != IntPtr.Zero)
         {
             var bridgeMsgs = await FetchMessagesFromNativeAsync(chatId, 0, limit, ct);
             if (bridgeMsgs.Count > 0)
@@ -804,18 +790,65 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        // 3. Always merge any pending outbox messages for this chat so they never disappear on page changes
-        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
-        var pendingForChat = _outboxQueue
-            .Where(m => {
-                var c = m.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? m.ChatId[3..] : m.ChatId;
-                return string.Equals(c, cleanChatId, StringComparison.OrdinalIgnoreCase);
-            })
-            .ToList();
-
-        foreach (var p in pendingForChat)
+        // 2. Fallback to SQLite if native bridge had no messages (e.g. offline, not connected, or empty)
+        if (resultList.Count == 0 && _messageRepository != null)
         {
-            if (!resultList.Any(r => r.Id == p.Id))
+            try
+            {
+                var localMsgs = await _messageRepository.GetByChatIdAsync(chatId, offset, limit);
+                resultList.AddRange(localMsgs);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load messages from SQLite for {ChatId}", chatId);
+            }
+        }
+
+        // 3. Always query and merge pending outgoing messages (Status == Sending) from SQLite & Outbox
+        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var bareUser = cleanChatId.Split('@')[0].Split(':')[0];
+
+        var pendingMessages = new List<Message>();
+        if (_messageRepository != null)
+        {
+            try
+            {
+                var pendingFromDb = await _messageRepository.GetPendingOutgoingMessagesAsync(PlatformId);
+                foreach (var p in pendingFromDb)
+                {
+                    var c = p.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? p.ChatId[3..] : p.ChatId;
+                    var cBare = c.Split('@')[0].Split(':')[0];
+                    if (string.Equals(c, cleanChatId, StringComparison.OrdinalIgnoreCase) ||
+                        (bareUser.Length >= 5 && string.Equals(cBare, bareUser, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        pendingMessages.Add(p);
+                        // Ensure it's in outbox queue for background dispatching
+                        EnqueueOutbox(p);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        foreach (var p in _outboxQueue)
+        {
+            var c = p.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? p.ChatId[3..] : p.ChatId;
+            var cBare = c.Split('@')[0].Split(':')[0];
+            if (string.Equals(c, cleanChatId, StringComparison.OrdinalIgnoreCase) ||
+                (bareUser.Length >= 5 && string.Equals(cBare, bareUser, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!pendingMessages.Any(m => m.Id == p.Id))
+                {
+                    pendingMessages.Add(p);
+                }
+            }
+        }
+
+        foreach (var p in pendingMessages)
+        {
+            // Only add if not already in resultList by ID and not replaced by a sent message with matching text
+            if (!resultList.Any(r => r.Id == p.Id) &&
+                !resultList.Any(r => r.IsOutgoing && r.Status != MessageStatus.Sending && r.Content?.Text == p.Content?.Text))
             {
                 resultList.Add(p);
             }
@@ -865,7 +898,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                             : DateTimeOffset.UnixEpoch,
-                        Status = dto.Status != 0 ? (MessageStatus)dto.Status : (dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered),
+                        Status = (MessageStatus)dto.Status,
                         QuotedText = dto.QuotedText,
                         QuotedSender = dto.QuotedSender,
                         Reactions = dto.Reactions ?? new()
@@ -965,10 +998,10 @@ public class WhatsAppProvider : IWhatsAppProvider
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, anchorFromMe, anchorTsMs);
         }, ct);
 
-        // Poll for phone response (up to 8 seconds for mobile network / device latency)
-        for (int i = 0; i < 32; i++)
+        // Poll for phone response (up to 1.5 seconds for device latency)
+        for (int i = 0; i < 10; i++)
         {
-            await Task.Delay(250, ct);
+            await Task.Delay(150, ct);
             int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, cleanId), ct);
             if (currentCount > initialCount)
             {
@@ -1027,7 +1060,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                             : DateTimeOffset.UnixEpoch,
-                        Status = dto.Status != 0 ? (MessageStatus)dto.Status : (dto.IsOutgoing ? MessageStatus.Sent : MessageStatus.Delivered),
+                        Status = (MessageStatus)dto.Status,
                         QuotedText = dto.QuotedText,
                         QuotedSender = dto.QuotedSender,
                         Reactions = dto.Reactions ?? new()
@@ -1052,11 +1085,30 @@ public class WhatsAppProvider : IWhatsAppProvider
     {
         try
         {
-            return NetworkInterface.GetIsNetworkAvailable();
+            if (!NetworkInterface.GetIsNetworkAvailable())
+                return false;
+
+            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (var ni in interfaces)
+            {
+                if (ni.OperationalStatus == OperationalStatus.Up &&
+                    ni.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+                    ni.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
+                {
+                    var props = ni.GetIPProperties();
+                    if (props != null && props.GatewayAddresses != null &&
+                        props.GatewayAddresses.Any(g => g.Address != null && !g.Address.Equals(System.Net.IPAddress.Any) && !g.Address.Equals(System.Net.IPAddress.None)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
         catch
         {
-            return true;
+            return false;
         }
     }
 
@@ -1151,7 +1203,8 @@ public class WhatsAppProvider : IWhatsAppProvider
 
                         var oldId = msg.Id;
                         msg.Id = realId;
-                        msg.Status = MessageStatus.Sent;
+                        bool isSelf = WhatsAppNative.wa_is_self_chat(_clientPtr, msg.ChatId) == 1;
+                        msg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
 
                         if (_messageRepository != null)
                         {
@@ -1193,11 +1246,11 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
     }
 
-    public async Task<Message> SendMessageAsync(string chatId, MessageContent content, CancellationToken ct = default)
+    public async Task<Message> SendMessageAsync(string chatId, MessageContent content, string? clientMessageId = null, CancellationToken ct = default)
     {
         var msg = new Message
         {
-            Id = "pending_" + Guid.NewGuid().ToString("N"),
+            Id = clientMessageId ?? ("pending_" + Guid.NewGuid().ToString("N")),
             ChatId = chatId,
             PlatformId = PlatformId,
             Content = content,
@@ -1227,7 +1280,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                     if (!string.IsNullOrEmpty(realId))
                     {
                         msg.Id = realId;
-                        msg.Status = MessageStatus.Sent;
+                        bool isSelf = WhatsAppNative.wa_is_self_chat(_clientPtr, chatId) == 1;
+                        msg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
                         sentImmediately = true;
                     }
                 }

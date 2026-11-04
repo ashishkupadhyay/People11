@@ -24,8 +24,10 @@ public class MessageRepository : IMessageRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         var cleanId = chatId.StartsWith("wa_") ? chatId.Substring(3) : chatId;
         var waId = "wa_" + cleanId;
+        var bareUser = cleanId.Split('@')[0].Split(':')[0];
+        var waBare = "wa_" + bareUser;
         var msgs = await context.Messages
-            .Where(m => m.ChatId == cleanId || m.ChatId == waId)
+            .Where(m => m.ChatId == cleanId || m.ChatId == waId || m.ChatId.StartsWith(cleanId + ":") || m.ChatId.StartsWith(waId + ":") || (bareUser.Length >= 5 && (m.ChatId.StartsWith(bareUser + "@") || m.ChatId.StartsWith(bareUser + ":") || m.ChatId.StartsWith(waBare + "@") || m.ChatId.StartsWith(waBare + ":"))))
             .OrderByDescending(m => m.Timestamp)
             .Skip(offset)
             .Take(limit)
@@ -40,8 +42,10 @@ public class MessageRepository : IMessageRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         var cleanId = chatId.StartsWith("wa_") ? chatId.Substring(3) : chatId;
         var waId = "wa_" + cleanId;
+        var bareUser = cleanId.Split('@')[0].Split(':')[0];
+        var waBare = "wa_" + bareUser;
         var msgs = await context.Messages
-            .Where(m => (m.ChatId == cleanId || m.ChatId == waId) && m.Timestamp < beforeTimestamp)
+            .Where(m => (m.ChatId == cleanId || m.ChatId == waId || m.ChatId.StartsWith(cleanId + ":") || m.ChatId.StartsWith(waId + ":") || (bareUser.Length >= 5 && (m.ChatId.StartsWith(bareUser + "@") || m.ChatId.StartsWith(bareUser + ":") || m.ChatId.StartsWith(waBare + "@") || m.ChatId.StartsWith(waBare + ":")))) && m.Timestamp < beforeTimestamp)
             .OrderByDescending(m => m.Timestamp)
             .Take(limit)
             .AsNoTracking()

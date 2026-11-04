@@ -472,21 +472,59 @@ public partial class ChatListViewModel : ViewModelBase
 
                     // Pre-index existing chats safely for O(1) lookups
                     var existingMap = new Dictionary<string, Chat>(StringComparer.OrdinalIgnoreCase);
+                    void IndexChat(Chat c)
+                    {
+                        if (string.IsNullOrEmpty(c.Id)) return;
+                        existingMap[c.Id] = c;
+                        var clean = c.Id.StartsWith("wa_") ? c.Id.Substring(3) : c.Id;
+                        existingMap[clean] = c;
+                        existingMap["wa_" + clean] = c;
+                        var noDev = clean.Split(':')[0];
+                        if (clean.Contains('@'))
+                        {
+                            var user = noDev.Split('@')[0];
+                            var server = clean.Split('@')[1];
+                            existingMap[$"{user}@{server}"] = c;
+                            existingMap[$"wa_{user}@{server}"] = c;
+                            var digits = new string(user.Where(char.IsDigit).ToArray());
+                            if (digits.Length >= 7)
+                            {
+                                existingMap[digits] = c;
+                                existingMap[$"{digits}@s.whatsapp.net"] = c;
+                                existingMap[$"wa_{digits}@s.whatsapp.net"] = c;
+                            }
+                        }
+                    }
+
                     foreach (var c in Chats)
                     {
-                        if (!string.IsNullOrEmpty(c.Id))
+                        IndexChat(c);
+                    }
+
+                    Chat? FindExisting(string id)
+                    {
+                        if (string.IsNullOrEmpty(id)) return null;
+                        if (existingMap.TryGetValue(id, out var found)) return found;
+                        var clean = id.StartsWith("wa_") ? id.Substring(3) : id;
+                        if (existingMap.TryGetValue(clean, out found)) return found;
+                        if (existingMap.TryGetValue("wa_" + clean, out found)) return found;
+                        var noDev = clean.Split(':')[0];
+                        if (clean.Contains('@'))
                         {
-                            existingMap[c.Id] = c;
-                            var clean = c.Id.StartsWith("wa_") ? c.Id.Substring(3) : c.Id;
-                            existingMap[clean] = c;
-                            existingMap["wa_" + clean] = c;
+                            var user = noDev.Split('@')[0];
+                            var server = clean.Split('@')[1];
+                            if (existingMap.TryGetValue($"{user}@{server}", out found)) return found;
+                            var digits = new string(user.Where(char.IsDigit).ToArray());
+                            if (digits.Length >= 7 && existingMap.TryGetValue(digits, out found)) return found;
                         }
+                        return null;
                     }
 
                     // Update existing or add new
                     foreach (var incoming in validChats)
                     {
-                        if (existingMap.TryGetValue(incoming.Id, out var existing))
+                        var existing = FindExisting(incoming.Id);
+                        if (existing != null)
                         {
                             if (existing.Title != incoming.Title && incoming.Title != "WhatsApp Contact")
                             {
@@ -509,13 +547,7 @@ public partial class ChatListViewModel : ViewModelBase
                         else
                         {
                             Chats.Add(incoming);
-                            if (!string.IsNullOrEmpty(incoming.Id))
-                            {
-                                existingMap[incoming.Id] = incoming;
-                                var clean = incoming.Id.StartsWith("wa_") ? incoming.Id.Substring(3) : incoming.Id;
-                                existingMap[clean] = incoming;
-                                existingMap["wa_" + clean] = incoming;
-                            }
+                            IndexChat(incoming);
                         }
                     }
 
@@ -603,6 +635,15 @@ public partial class ChatListViewModel : ViewModelBase
                     return n10;
                 }
             }
+        }
+
+        // If chat already has a valid saved contact name (not a phone number, not "WhatsApp Contact"), preserve it!
+        if (!string.IsNullOrWhiteSpace(chat.Title) &&
+            !chat.Title.StartsWith('+') &&
+            chat.Title != "WhatsApp Contact" &&
+            !chat.Title.All(c => char.IsDigit(c) || char.IsWhiteSpace(c) || c == '-' || c == '(' || c == ')'))
+        {
+            return chat.Title;
         }
 
         // Unsaved 1-on-1 contact: format international phone number matching WhatsApp
@@ -776,10 +817,21 @@ public partial class ChatListViewModel : ViewModelBase
             _allContacts.Clear();
             _allContacts.AddRange(sorted);
         }
-        if (FilteredContacts.Count > 0)
+        _dispatcherService.Enqueue(() =>
         {
-            _dispatcherService.Enqueue(() => FilterContacts(string.Empty));
-        }
+            foreach (var chat in Chats)
+            {
+                var resolved = ResolveChatTitle(chat);
+                if (!string.IsNullOrEmpty(resolved) && chat.Title != resolved)
+                {
+                    chat.Title = resolved;
+                }
+            }
+            if (FilteredContacts.Count > 0)
+            {
+                FilterContacts(string.Empty);
+            }
+        });
     }
 
     public void FilterContacts(string query)

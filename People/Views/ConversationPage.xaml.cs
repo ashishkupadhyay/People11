@@ -115,8 +115,8 @@ public sealed partial class ConversationPage : Page
     {
         if (_messagesScrollViewer == null || ViewModel == null) return;
 
-        // When user scrolls near top (within 150px) and not currently loading, dynamically load older messages
-        if (_messagesScrollViewer.VerticalOffset <= 150 && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
+        // When user scrolls near top (within 150px) on a scrollable list and not currently loading, dynamically load older messages
+        if (_messagesScrollViewer.ScrollableHeight > 50 && _messagesScrollViewer.VerticalOffset <= 150 && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
         {
             _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
         }
