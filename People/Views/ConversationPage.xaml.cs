@@ -25,7 +25,6 @@ public sealed partial class ConversationPage : Page
 
     public ConversationPage()
     {
-        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
 
@@ -339,6 +338,7 @@ public sealed partial class ConversationPage : Page
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        ViewModel.CancelLoading();
         ViewModel.ClearUnreadSeparators();
         base.OnNavigatedFrom(e);
     }

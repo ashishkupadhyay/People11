@@ -85,9 +85,22 @@ public partial class ConversationViewModel : ViewModelBase
     }
 
     public event EventHandler<Message>? OlderMessagesLoaded;
+    private CancellationTokenSource? _loadChatCts;
+
+    public void CancelLoading()
+    {
+        _loadChatCts?.Cancel();
+        _loadChatCts?.Dispose();
+        _loadChatCts = null;
+    }
 
     public async void LoadChat(Chat chat)
     {
+        _loadChatCts?.Cancel();
+        _loadChatCts?.Dispose();
+        _loadChatCts = new CancellationTokenSource();
+        var token = _loadChatCts.Token;
+
         CurrentChat = chat;
         UpdateDoodleWallpaperVisibility();
         int unreadCount = chat.UnreadCount;
@@ -109,8 +122,15 @@ public partial class ConversationViewModel : ViewModelBase
             _ = waMarkProvider.MarkChatAsReadAsync(chat.Id);
         }
 
-        Messages.Clear();
-        IsLoading = true;
+        // Instant preview: If chat has LastMessage, display it immediately so the screen is never blank
+        if (Messages.Count == 0 && chat.LastMessage != null)
+        {
+            Messages.Add(chat.LastMessage);
+            UpdateChatDateString();
+            UpdateSenderPushName();
+        }
+
+        IsLoading = Messages.Count == 0;
         HasMoreOlderMessages = true;
         UpdateChatDateString();
         UpdateSenderPushName();
@@ -131,13 +151,14 @@ public partial class ConversationViewModel : ViewModelBase
                     {
                         _dispatcherService.Enqueue(() =>
                         {
+                            if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
                             chat.PictureUrl = picUrl;
                             OnPropertyChanged(nameof(CurrentChat));
                         });
                     }
                 }
                 catch { }
-            });
+            }, token);
         }
 
         // Fast path: Immediately load cached messages from SQLite so UI displays instantly
@@ -147,7 +168,9 @@ public partial class ConversationViewModel : ViewModelBase
             try
             {
                 var cached = await messageRepo.GetByChatIdAsync(chat.Id, 0, 30);
-                if (cached.Count > 0 && CurrentChat?.Id == chat.Id)
+                if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
+
+                if (cached.Count > 0)
                 {
                     Messages.Clear();
                     foreach (var m in cached.OrderBy(m => m.Timestamp))
@@ -172,12 +195,12 @@ public partial class ConversationViewModel : ViewModelBase
 
         try
         {
-            var msgs = await _provider.GetMessagesAsync(chat.Id, 0, 30);
-            if (CurrentChat?.Id != chat.Id) return;
+            var msgs = await _provider.GetMessagesAsync(chat.Id, 0, 30, token);
+            if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
 
             _dispatcherService.Enqueue(() =>
             {
-                if (CurrentChat?.Id != chat.Id) return;
+                if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
 
                 if (Messages.Count == 0)
                 {
@@ -229,10 +252,12 @@ public partial class ConversationViewModel : ViewModelBase
                 }
             });
         }
+        catch (OperationCanceledException) { }
         catch
         {
             _dispatcherService.Enqueue(() =>
             {
+                if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
                 IsLoading = false;
             });
         }
@@ -255,14 +280,21 @@ public partial class ConversationViewModel : ViewModelBase
     {
         if (CurrentChat == null || IsLoadingOlder || !HasMoreOlderMessages) return;
 
+        var targetChatId = CurrentChat.Id;
         IsLoadingOlder = true;
         var anchor = Messages.FirstOrDefault();
 
         try
         {
-            var older = await _provider.GetOlderMessagesAsync(CurrentChat.Id, 25, anchor?.Timestamp);
+            var older = await _provider.GetOlderMessagesAsync(targetChatId, 25, anchor?.Timestamp);
             _dispatcherService.Enqueue(() =>
             {
+                if (CurrentChat?.Id != targetChatId)
+                {
+                    IsLoadingOlder = false;
+                    return;
+                }
+
                 if (older.Count == 0)
                 {
                     HasMoreOlderMessages = false;

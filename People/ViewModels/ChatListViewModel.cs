@@ -90,6 +90,7 @@ public partial class ChatListViewModel : ViewModelBase
         {
             waProvider.QrCodeReceived += OnQrCodeReceived;
             waProvider.SyncProgressChanged += OnSyncProgressChanged;
+            waProvider.ChatMarkedRead += OnChatMarkedRead;
             _ = ConnectAndAuthenticateAsync(waProvider);
         }
         else
@@ -276,6 +277,27 @@ public partial class ChatListViewModel : ViewModelBase
             _failedPictureJids.Clear();
         }
         _ = LoadChatsAsync();
+    }
+
+    private void OnChatMarkedRead(object? sender, string chatId)
+    {
+        _dispatcherService.Enqueue(() =>
+        {
+            var cleanTarget = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+            var targetBare = cleanTarget.Split('@')[0].Split(':')[0];
+            var existing = Chats.FirstOrDefault(c =>
+            {
+                var cleanC = c.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? c.Id[3..] : c.Id;
+                if (string.Equals(cleanC, cleanTarget, StringComparison.OrdinalIgnoreCase)) return true;
+                var u = cleanC.Split('@')[0].Split(':')[0];
+                return !string.IsNullOrEmpty(u) && string.Equals(u, targetBare, StringComparison.OrdinalIgnoreCase);
+            });
+
+            if (existing != null && existing.UnreadCount > 0)
+            {
+                existing.UnreadCount = 0;
+            }
+        });
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)

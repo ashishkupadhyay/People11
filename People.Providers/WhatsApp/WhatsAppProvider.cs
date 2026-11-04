@@ -61,6 +61,7 @@ public class WhatsAppProvider : IWhatsAppProvider
     public event EventHandler<ChatUpdatedEventArgs>? ChatUpdated;
     public event EventHandler<string>? QrCodeReceived;
     public event EventHandler<int>? SyncProgressChanged;
+    public event EventHandler<string>? ChatMarkedRead;
 
     private IntPtr _clientPtr = IntPtr.Zero;
     private readonly ILogger<WhatsAppProvider>? _logger;
@@ -169,6 +170,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         WhatsAppNative.wa_register_message_callback(_clientPtr, &OnNativeMessageReceived);
                         WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
                         WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
+                        WhatsAppNative.wa_register_chat_read_callback(_clientPtr, &OnNativeChatRead);
                     }
 
                     await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
@@ -321,6 +323,40 @@ public class WhatsAppProvider : IWhatsAppProvider
         if (_activeInstance == null) return;
         _activeInstance._logger?.LogInformation("WhatsApp sync progress: {Progress}%", progress);
         _activeInstance.SyncProgressChanged?.Invoke(_activeInstance, progress);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeChatRead(IntPtr chatIdPtr)
+    {
+        if (chatIdPtr == IntPtr.Zero || _activeInstance == null) return;
+        string? rawChatId = Marshal.PtrToStringUTF8(chatIdPtr);
+        if (string.IsNullOrWhiteSpace(rawChatId)) return;
+
+        var cleanId = rawChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? rawChatId[3..] : rawChatId;
+        _activeInstance._logger?.LogInformation("WhatsApp chat read notification received from backend for {ChatId}", cleanId);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_activeInstance._chatRepository != null)
+                {
+                    var chat = await _activeInstance._chatRepository.GetByIdAsync(cleanId)
+                        ?? await _activeInstance._chatRepository.GetByIdAsync("wa_" + cleanId);
+                    if (chat != null && chat.UnreadCount > 0)
+                    {
+                        chat.UnreadCount = 0;
+                        await _activeInstance._chatRepository.SaveAsync(chat);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _activeInstance._logger?.LogWarning(ex, "Failed to clear unread count in SQLite for {ChatId}", cleanId);
+            }
+        });
+
+        _activeInstance.ChatMarkedRead?.Invoke(_activeInstance, cleanId);
     }
 
     private static readonly object _chatsUpdateLock = new();
@@ -969,7 +1005,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             catch { }
         }
 
-        int initialCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, cleanId), ct);
+        int initialCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
 
         // Fire PDO on-demand request to the phone
         await Task.Run(() =>
@@ -977,11 +1013,11 @@ public class WhatsAppProvider : IWhatsAppProvider
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, anchorFromMe, anchorTsMs);
         }, ct);
 
-        // Poll for phone response with responsive 80ms intervals (up to 1.2 seconds for device latency)
-        for (int i = 0; i < 15; i++)
+        // Poll for phone response with responsive 40ms intervals (up to 1.5 seconds for device latency)
+        for (int i = 0; i < 35; i++)
         {
-            await Task.Delay(80, ct);
-            int currentCount = await Task.Run(() => WhatsAppNative.wa_get_message_count(_clientPtr, cleanId), ct);
+            await Task.Delay(40, ct);
+            int currentCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
             if (currentCount > initialCount)
             {
                 break;

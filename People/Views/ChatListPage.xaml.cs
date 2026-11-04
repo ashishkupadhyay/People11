@@ -173,7 +173,10 @@ public sealed partial class ChatListPage : Page
             {
                 return;
             }
-            DetailFrame.Navigate(typeof(ConversationPage), chat);
+            DetailFrame.Navigate(
+                typeof(ConversationPage),
+                chat,
+                new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight });
         }
     }
 
@@ -188,7 +191,10 @@ public sealed partial class ChatListPage : Page
         {
             NewChatFlyout?.Hide();
             var chat = ViewModel.GetOrCreateChatForContact(contact);
-            DetailFrame.Navigate(typeof(ConversationPage), chat);
+            DetailFrame.Navigate(
+                typeof(ConversationPage),
+                chat,
+                new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight });
         }
     }
 

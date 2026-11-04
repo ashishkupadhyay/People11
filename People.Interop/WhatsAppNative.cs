@@ -85,6 +85,11 @@ public static unsafe partial class WhatsAppNative
         delegate* unmanaged[Cdecl]<void> callback);
 
     [LibraryImport(DllName)]
+    public static partial int wa_register_chat_read_callback(
+        IntPtr clientPtr,
+        delegate* unmanaged[Cdecl]<IntPtr, void> callback);
+
+    [LibraryImport(DllName)]
     public static partial void wa_destroy_client(IntPtr clientPtr);
 
     [LibraryImport(DllName)]
