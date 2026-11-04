@@ -16,10 +16,12 @@ public class ChatRepository : IChatRepository
     public async Task<Chat?> GetByIdAsync(string id)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
+        var cleanId = id.StartsWith("wa_") ? id[3..] : id;
+        var waId = "wa_" + cleanId;
         return await context.Chats
             .Include(c => c.Participants)
             .Include(c => c.LastMessage)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id || c.Id == cleanId || c.Id == waId);
     }
 
     public async Task<IReadOnlyList<Chat>> GetAllAsync(int offset = 0, int limit = 50)
@@ -52,7 +54,9 @@ public class ChatRepository : IChatRepository
     public async Task SaveAsync(Chat chat)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var existing = await context.Chats.FindAsync(chat.Id);
+        var cleanId = chat.Id.StartsWith("wa_") ? chat.Id[3..] : chat.Id;
+        var waId = "wa_" + cleanId;
+        var existing = await context.Chats.FirstOrDefaultAsync(c => c.Id == chat.Id || c.Id == cleanId || c.Id == waId);
         
         if (existing == null)
         {
@@ -73,7 +77,9 @@ public class ChatRepository : IChatRepository
         else
         {
             var preservedPic = existing.PictureUrl;
+            var realId = existing.Id;
             context.Entry(existing).CurrentValues.SetValues(chat);
+            existing.Id = realId;
             if (string.IsNullOrEmpty(chat.PictureUrl) && !string.IsNullOrEmpty(preservedPic))
             {
                 existing.PictureUrl = preservedPic;
@@ -92,11 +98,28 @@ public class ChatRepository : IChatRepository
         if (chatList.Count == 0) return;
 
         using var context = await _contextFactory.CreateDbContextAsync();
-        var ids = chatList.Select(c => c.Id).Distinct().ToList();
-        var existingDict = await context.Chats
+        var allIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in chatList)
+        {
+            allIds.Add(c.Id);
+            var clean = c.Id.StartsWith("wa_") ? c.Id[3..] : c.Id;
+            allIds.Add(clean);
+            allIds.Add("wa_" + clean);
+        }
+
+        var existingList = await context.Chats
             .Include(c => c.LastMessage)
-            .Where(c => ids.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id);
+            .Where(c => allIds.Contains(c.Id))
+            .ToListAsync();
+
+        var existingDict = new Dictionary<string, Chat>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in existingList)
+        {
+            existingDict[c.Id] = c;
+            var clean = c.Id.StartsWith("wa_") ? c.Id[3..] : c.Id;
+            existingDict[clean] = c;
+            existingDict["wa_" + clean] = c;
+        }
 
         var newChatsWithLastMessage = new List<(Chat Chat, Message LastMessage)>();
 
@@ -105,7 +128,9 @@ public class ChatRepository : IChatRepository
             if (existingDict.TryGetValue(chat.Id, out var existing))
             {
                 var preservedPic = existing.PictureUrl;
+                var realId = existing.Id;
                 context.Entry(existing).CurrentValues.SetValues(chat);
+                existing.Id = realId;
                 if (string.IsNullOrEmpty(chat.PictureUrl) && !string.IsNullOrEmpty(preservedPic))
                 {
                     existing.PictureUrl = preservedPic;
@@ -124,6 +149,10 @@ public class ChatRepository : IChatRepository
                     newChatsWithLastMessage.Add((chat, lm));
                 }
                 context.Chats.Add(chat);
+                existingDict[chat.Id] = chat;
+                var clean = chat.Id.StartsWith("wa_") ? chat.Id[3..] : chat.Id;
+                existingDict[clean] = chat;
+                existingDict["wa_" + clean] = chat;
             }
         }
 

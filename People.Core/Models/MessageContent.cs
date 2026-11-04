@@ -7,7 +7,8 @@ public enum MessageContentType
     Video,
     Audio,
     Document,
-    Location
+    Location,
+    SystemNotice
 }
 
 public class MessageContent

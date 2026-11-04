@@ -51,6 +51,9 @@ public class Message : INotifyPropertyChanged
     // For EF Core
     public Chat? Chat { get; set; }
 
+    [NotMapped]
+    public bool IsSystemNotice => Content?.Type == MessageContentType.SystemNotice;
+
     private bool _showDateSeparator;
     [NotMapped]
     public bool ShowDateSeparator

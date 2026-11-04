@@ -124,8 +124,31 @@
                                     </Border>
                                 </StackPanel>
 
+                                <!-- System Alert / Notice (Centered) -->
+                                <Border Grid.Row="1"
+                                        HorizontalAlignment="Center"
+                                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="12,6"
+                                        Margin="0,4"
+                                        MaxWidth="420"
+                                        Visibility="{x:Bind IsSystemNotice, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                        <FontIcon Glyph="&#xE72E;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}"
+                                                   FontSize="12"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- Message Bubble -->
-                                <Grid Grid.Row="1" HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}">
+                                <Grid Grid.Row="1"
+                                      HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                      Visibility="{x:Bind IsSystemNotice, Mode=OneTime, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                                     <StackPanel MaxWidth="480" Spacing="2">
                                         <Grid>
                                             <!-- Incoming protruding tail (top-left) -->

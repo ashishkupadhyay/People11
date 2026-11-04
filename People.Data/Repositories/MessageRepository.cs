@@ -63,7 +63,7 @@ public class MessageRepository : IMessageRepository
     public async Task SaveAsync(Message message)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        message.Chat = null;
+        await EnsureValidChatIdAsync(context, message);
         var existing = await context.Messages.FindAsync(message.Id);
         
         if (existing == null)
@@ -83,7 +83,7 @@ public class MessageRepository : IMessageRepository
         using var context = await _contextFactory.CreateDbContextAsync();
         foreach (var message in messages)
         {
-            message.Chat = null;
+            await EnsureValidChatIdAsync(context, message);
             var existing = await context.Messages.FindAsync(message.Id);
             if (existing == null)
             {
@@ -95,6 +95,37 @@ public class MessageRepository : IMessageRepository
             }
         }
         await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureValidChatIdAsync(PeopleDbContext context, Message message)
+    {
+        message.Chat = null;
+        if (string.IsNullOrEmpty(message.ChatId)) return;
+
+        var cleanId = message.ChatId.StartsWith("wa_") ? message.ChatId[3..] : message.ChatId;
+        var waId = "wa_" + cleanId;
+
+        var matchingChat = await context.Chats.FirstOrDefaultAsync(c => c.Id == message.ChatId || c.Id == cleanId || c.Id == waId);
+        if (matchingChat != null)
+        {
+            message.ChatId = matchingChat.Id;
+        }
+        else
+        {
+            var newChat = new Chat
+            {
+                Id = message.ChatId,
+                PlatformId = message.PlatformId ?? "WhatsApp",
+                Title = message.SenderName ?? "Chat",
+                LastMessageTime = message.Timestamp
+            };
+            context.Chats.Add(newChat);
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch { }
+        }
     }
 
     public async Task DeleteAsync(string id)

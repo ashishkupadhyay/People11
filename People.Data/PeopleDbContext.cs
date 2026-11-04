@@ -53,6 +53,7 @@ public class PeopleDbContext : DbContext
             entity.HasOne(e => e.Chat)
                   .WithMany(c => c.Messages)
                   .HasForeignKey(e => e.ChatId)
+                  .IsRequired(false)
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.Property(e => e.Content)

@@ -360,6 +360,7 @@ public partial class ConversationViewModel : ViewModelBase
                 }
                 if (anyAdded)
                 {
+                    HasMoreOlderMessages = true;
                     RecalculateDateSeparators();
                     UpdateChatDateString();
                     UpdateSenderPushName();
