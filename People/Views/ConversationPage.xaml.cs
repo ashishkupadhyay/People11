@@ -90,6 +90,31 @@ public sealed partial class ConversationPage : Page
                 MessagesListView.ScrollIntoView(anchor, ScrollIntoViewAlignment.Leading);
             }
         };
+
+        ViewModel.ActiveVideoSourceChanged += (s, path) =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                {
+                    MediaViewerPlayer.Source = Windows.Media.Core.MediaSource.CreateFromUri(new Uri(path));
+                }
+                else
+                {
+                    MediaViewerPlayer.MediaPlayer?.Pause();
+                    MediaViewerPlayer.Source = null;
+                }
+            });
+        };
+
+        KeyDown += (s, e) =>
+        {
+            if (ViewModel.IsMediaViewerOpen && e.Key == Windows.System.VirtualKey.Escape)
+            {
+                ViewModel.CloseMediaViewer();
+                e.Handled = true;
+            }
+        };
     }
 
     private ScrollViewer? _messagesScrollViewer;
@@ -354,5 +379,45 @@ public sealed partial class ConversationPage : Page
         ViewModel.CancelLoading();
         ViewModel.ClearUnreadSeparators();
         base.OnNavigatedFrom(e);
+    }
+
+    private void MediaBubble_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.OpenMediaViewerAsync(msg);
+        }
+    }
+
+    private void OpenMediaInApp_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.OpenMediaViewerAsync(msg);
+        }
+    }
+
+    private void OpenMediaDefaultApp_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.OpenMessageInDefaultAppAsync(msg);
+        }
+    }
+
+    private void DocumentCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.DownloadAndOpenDocumentAsync(msg);
+        }
+    }
+
+    private void OpenDocumentDefaultApp_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.DownloadAndOpenDocumentAsync(msg);
+        }
     }
 }

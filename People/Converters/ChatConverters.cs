@@ -95,7 +95,30 @@ public class StringToImageSourceConverter : IValueConverter
         {
             try
             {
-                return new BitmapImage(new Uri(url));
+                if (url.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+                {
+                    var commaIdx = url.IndexOf(',');
+                    if (commaIdx >= 0)
+                    {
+                        var base64 = url.Substring(commaIdx + 1);
+                        var bytes = System.Convert.FromBase64String(base64);
+                        var ms = new System.IO.MemoryStream(bytes);
+                        var bitmap = new BitmapImage();
+                        ms.Position = 0;
+                        bitmap.SetSource(ms.AsRandomAccessStream());
+                        return bitmap;
+                    }
+                }
+
+                if (System.IO.File.Exists(url))
+                {
+                    return new BitmapImage(new Uri(url));
+                }
+
+                if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                {
+                    return new BitmapImage(uri);
+                }
             }
             catch
             {

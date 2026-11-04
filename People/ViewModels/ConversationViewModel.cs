@@ -833,4 +833,163 @@ public partial class ConversationViewModel : ViewModelBase
 
         return $"{day}{suffix} {localDate:MMMM yyyy}";
     }
+
+    [ObservableProperty]
+    public partial bool IsMediaViewerOpen { get; set; }
+
+    [ObservableProperty]
+    public partial Message? ActiveMediaItem { get; set; }
+
+    [ObservableProperty]
+    public partial string? ActiveMediaImageSource { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsActiveMediaImage { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsActiveMediaVideo { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsMediaDownloading { get; set; }
+
+    [ObservableProperty]
+    public partial string ActiveMediaTitle { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ActiveMediaSubtitle { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string? ActiveMediaCaption { get; set; }
+
+    public event EventHandler<string?>? ActiveVideoSourceChanged;
+
+    [RelayCommand]
+    public async Task OpenMediaViewerAsync(Message? msg)
+    {
+        if (msg == null || msg.Content == null) return;
+        if (!msg.Content.IsImage && !msg.Content.IsVideo) return;
+
+        ActiveMediaItem = msg;
+        IsActiveMediaImage = msg.Content.IsImage;
+        IsActiveMediaVideo = msg.Content.IsVideo;
+        ActiveMediaTitle = msg.Content.DisplayName;
+        ActiveMediaSubtitle = $"{msg.SenderName ?? (msg.IsOutgoing ? "You" : "")} • {msg.FormattedTime}".Trim(' ', '•');
+        ActiveMediaCaption = msg.Content.Caption;
+        IsMediaViewerOpen = true;
+
+        if (msg.Content.IsDownloaded)
+        {
+            if (IsActiveMediaImage)
+            {
+                ActiveMediaImageSource = msg.Content.LocalFilePath;
+            }
+            else if (IsActiveMediaVideo)
+            {
+                ActiveVideoSourceChanged?.Invoke(this, msg.Content.LocalFilePath);
+            }
+        }
+        else
+        {
+            // Show thumbnail immediately while downloading
+            if (IsActiveMediaImage && !string.IsNullOrEmpty(msg.Content.ThumbnailUrl))
+            {
+                ActiveMediaImageSource = msg.Content.ThumbnailUrl;
+            }
+
+            IsMediaDownloading = true;
+            try
+            {
+                var localPath = await _provider.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName);
+                if (!string.IsNullOrEmpty(localPath))
+                {
+                    msg.Content.LocalFilePath = localPath;
+                    msg.Content.MediaUrl = localPath;
+
+                    if (ActiveMediaItem?.Id == msg.Id)
+                    {
+                        if (IsActiveMediaImage)
+                        {
+                            ActiveMediaImageSource = localPath;
+                        }
+                        else if (IsActiveMediaVideo)
+                        {
+                            ActiveVideoSourceChanged?.Invoke(this, localPath);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                IsMediaDownloading = false;
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void CloseMediaViewer()
+    {
+        IsMediaViewerOpen = false;
+        ActiveMediaItem = null;
+        ActiveMediaImageSource = null;
+        IsActiveMediaImage = false;
+        IsActiveMediaVideo = false;
+        ActiveVideoSourceChanged?.Invoke(this, null);
+    }
+
+    [RelayCommand]
+    public async Task OpenActiveMediaInDefaultAppAsync()
+    {
+        if (ActiveMediaItem != null)
+        {
+            await OpenMessageInDefaultAppAsync(ActiveMediaItem);
+        }
+    }
+
+    public async Task OpenMessageInDefaultAppAsync(Message? msg)
+    {
+        if (msg == null || msg.Content == null) return;
+
+        string? filePath = msg.Content.LocalFilePath;
+        if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
+        {
+            filePath = await _provider.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName);
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                msg.Content.LocalFilePath = filePath;
+                msg.Content.MediaUrl = filePath;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(filePath) && System.IO.File.Exists(filePath))
+        {
+            await LaunchFileAsync(filePath);
+        }
+    }
+
+    public async Task DownloadAndOpenDocumentAsync(Message? msg)
+    {
+        if (msg == null || msg.Content == null) return;
+        await OpenMessageInDefaultAppAsync(msg);
+    }
+
+    private static async Task LaunchFileAsync(string filePath)
+    {
+        try
+        {
+            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(filePath);
+            await Windows.System.Launcher.LaunchFileAsync(file);
+        }
+        catch
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = filePath,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+    }
 }

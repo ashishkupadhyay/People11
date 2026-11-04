@@ -444,14 +444,21 @@ public class WhatsAppProvider : IWhatsAppProvider
 
                 string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? string.Empty : string.Empty;
                 string mediaType = root.TryGetProperty("mediaType", out var mediaProp) ? mediaProp.GetString() ?? "text" : "text";
+                string? mediaUrl = root.TryGetProperty("mediaUrl", out var muProp) ? muProp.GetString() : null;
+                string? fileName = root.TryGetProperty("fileName", out var fnProp) ? fnProp.GetString() : null;
+                long? fileSize = root.TryGetProperty("fileSize", out var fsProp) ? fsProp.GetInt64() : null;
+                string? mimeType = root.TryGetProperty("mimeType", out var mtProp) ? mtProp.GetString() : null;
+                string? thumbB64 = root.TryGetProperty("thumbnailBase64", out var tbProp) ? tbProp.GetString() : null;
+                string? caption = root.TryGetProperty("caption", out var capProp) ? capProp.GetString() : null;
+                int? duration = root.TryGetProperty("durationSeconds", out var durProp) ? durProp.GetInt32() : null;
 
-                // Filter out empty protocol / stub messages (unless it's an alert/notice with text)
-                if (mediaType == "text" && string.IsNullOrWhiteSpace(text))
+                var contentType = ParseContentType(mediaType);
+
+                // Filter out empty protocol / stub messages (unless it's an alert/notice with text or real media)
+                if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(text))
                 {
                     return;
                 }
-
-                var contentType = mediaType == "system_notice" ? MessageContentType.SystemNotice : MessageContentType.Text;
 
                 var msg = new Message
                 {
@@ -460,7 +467,19 @@ public class WhatsAppProvider : IWhatsAppProvider
                     SenderId = root.TryGetProperty("senderId", out var senderProp) ? senderProp.GetString() ?? string.Empty : string.Empty,
                     SenderName = root.TryGetProperty("senderName", out var sNameProp) ? sNameProp.GetString() : null,
                     PlatformId = "WhatsApp",
-                    Content = new MessageContent { Text = text, Type = contentType },
+                    Content = new MessageContent
+                    {
+                        Text = text,
+                        Type = contentType,
+                        MediaUrl = mediaUrl,
+                        LocalFilePath = mediaUrl,
+                        FileName = fileName,
+                        FileSize = fileSize,
+                        MimeType = mimeType,
+                        ThumbnailUrl = thumbB64,
+                        Caption = caption,
+                        DurationSeconds = duration
+                    },
                     Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
                     Status = root.TryGetProperty("status", out var stProp) ? (MessageStatus)stProp.GetInt32() : ((root.TryGetProperty("isOutgoing", out var isOut) && isOut.GetBoolean()) ? MessageStatus.Sent : MessageStatus.Delivered),
                     IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
@@ -977,8 +996,9 @@ public class WhatsAppProvider : IWhatsAppProvider
             var messages = new List<Message>(dtos.Count);
             foreach (var dto in dtos)
             {
+                var contentType = ParseContentType(dto.MediaType);
                 // Filter empty protocol messages
-                if (dto.MediaType == "text" && string.IsNullOrWhiteSpace(dto.Text))
+                if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
                 {
                     continue;
                 }
@@ -993,7 +1013,15 @@ public class WhatsAppProvider : IWhatsAppProvider
                     IsOutgoing = dto.IsOutgoing,
                     Content = new MessageContent { 
                         Text = dto.Text ?? string.Empty,
-                        Type = dto.MediaType == "system_notice" ? MessageContentType.SystemNotice : MessageContentType.Text
+                        Type = contentType,
+                        MediaUrl = dto.MediaUrl,
+                        LocalFilePath = dto.MediaUrl,
+                        FileName = dto.FileName,
+                        FileSize = dto.FileSize,
+                        MimeType = dto.MimeType,
+                        ThumbnailUrl = dto.ThumbnailBase64,
+                        Caption = dto.Caption,
+                        DurationSeconds = dto.DurationSeconds
                     },
                     Timestamp = dto.Timestamp > 0
                         ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
@@ -1145,8 +1173,9 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var messages = new List<Message>();
                 foreach (var dto in dtos)
                 {
+                    var contentType = ParseContentType(dto.MediaType);
                     // Filter empty protocol messages
-                    if (dto.MediaType == "text" && string.IsNullOrWhiteSpace(dto.Text))
+                    if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
                     {
                         continue;
                     }
@@ -1161,7 +1190,15 @@ public class WhatsAppProvider : IWhatsAppProvider
                         IsOutgoing = dto.IsOutgoing,
                         Content = new MessageContent { 
                             Text = dto.Text ?? string.Empty,
-                            Type = dto.MediaType == "system_notice" ? MessageContentType.SystemNotice : MessageContentType.Text
+                            Type = contentType,
+                            MediaUrl = dto.MediaUrl,
+                            LocalFilePath = dto.MediaUrl,
+                            FileName = dto.FileName,
+                            FileSize = dto.FileSize,
+                            MimeType = dto.MimeType,
+                            ThumbnailUrl = dto.ThumbnailBase64,
+                            Caption = dto.Caption,
+                            DurationSeconds = dto.DurationSeconds
                         },
                         Timestamp = dto.Timestamp > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
@@ -1592,6 +1629,103 @@ public class WhatsAppProvider : IWhatsAppProvider
         ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(PlatformId, state));
     }
 
+    private static MessageContentType ParseContentType(string? mediaType) => mediaType?.ToLowerInvariant() switch
+    {
+        "image" => MessageContentType.Image,
+        "video" => MessageContentType.Video,
+        "audio" => MessageContentType.Audio,
+        "document" => MessageContentType.Document,
+        "location" => MessageContentType.Location,
+        "system_notice" => MessageContentType.SystemNotice,
+        _ => MessageContentType.Text
+    };
+
+    public async Task<string?> DownloadMediaAsync(string chatId, string messageId, string? fileName = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(messageId)) return null;
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var mediaDir = Path.Combine(localAppData, "People", "Media");
+        Directory.CreateDirectory(mediaDir);
+
+        string safeFileName;
+        if (!string.IsNullOrWhiteSpace(fileName))
+        {
+            var invalidChars = Path.GetInvalidFileNameChars();
+            safeFileName = string.Concat(fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+        }
+        else
+        {
+            safeFileName = $"{messageId}.bin";
+        }
+
+        var targetPath = Path.Combine(mediaDir, safeFileName);
+        if (File.Exists(targetPath) && new FileInfo(targetPath).Length > 0)
+        {
+            return targetPath;
+        }
+
+        if (_clientPtr == IntPtr.Zero || !IsClientReady)
+        {
+            _logger?.LogWarning("Cannot download media: WhatsApp client not ready.");
+            return null;
+        }
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                var ptr = WhatsAppNative.wa_download_media(_clientPtr, chatId, messageId, targetPath);
+                if (ptr == IntPtr.Zero)
+                {
+                    _logger?.LogWarning("wa_download_media returned null for {MessageId}", messageId);
+                    return null;
+                }
+
+                try
+                {
+                    var resultPath = Marshal.PtrToStringUTF8(ptr);
+                    if (!string.IsNullOrEmpty(resultPath) && File.Exists(resultPath))
+                    {
+                        // Update SQLite repository asynchronously
+                        if (_messageRepository != null)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var msg = await _messageRepository.GetByIdAsync(messageId);
+                                    if (msg != null)
+                                    {
+                                        msg.Content.LocalFilePath = resultPath;
+                                        msg.Content.MediaUrl = resultPath;
+                                        await _messageRepository.SaveAsync(msg);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger?.LogError(ex, "Failed to update downloaded media path in SQLite for {MessageId}", messageId);
+                                }
+                            });
+                        }
+
+                        return resultPath;
+                    }
+                    return null;
+                }
+                finally
+                {
+                    WhatsAppNative.wa_free_string(ptr);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "DownloadMediaAsync failed for {MessageId}", messageId);
+                return null;
+            }
+        }, ct);
+    }
+
     public void Dispose()
     {
         try
@@ -1637,5 +1771,12 @@ public class WhatsAppProvider : IWhatsAppProvider
         public List<string>? Reactions { get; set; }
         public long Timestamp { get; set; }
         public int Status { get; set; }
+        public string? MediaUrl { get; set; }
+        public string? FileName { get; set; }
+        public long? FileSize { get; set; }
+        public string? MimeType { get; set; }
+        public string? ThumbnailBase64 { get; set; }
+        public string? Caption { get; set; }
+        public int? DurationSeconds { get; set; }
     }
 }

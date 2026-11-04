@@ -6,6 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:converters="using:People.Converters"
     xmlns:models="using:People.Core.Models"
+    xmlns:helpers="using:People.Helpers"
     mc:Ignorable="d"
     Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
 
@@ -206,10 +207,147 @@
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- Message Text -->
-                                                    <TextBlock Text="{x:Bind Content.Text, Mode=OneTime}" 
-                                                               TextWrapping="Wrap" 
-                                                               Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}" />
+                                                    <!-- Photo Bubble -->
+                                                    <Border Visibility="{x:Bind Content.IsImage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            CornerRadius="6"
+                                                            Margin="0,2,0,4"
+                                                            MaxWidth="320">
+                                                        <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                                               Stretch="UniformToFill"
+                                                               MaxHeight="260"
+                                                               HorizontalAlignment="Center"
+                                                               Tapped="MediaBubble_Tapped">
+                                                            <Image.ContextFlyout>
+                                                                <MenuFlyout>
+                                                                    <MenuFlyoutItem Text="Open in app" Click="OpenMediaInApp_Click">
+                                                                        <MenuFlyoutItem.Icon>
+                                                                            <FontIcon Glyph="&#xE7AC;" />
+                                                                        </MenuFlyoutItem.Icon>
+                                                                    </MenuFlyoutItem>
+                                                                    <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
+                                                                        <MenuFlyoutItem.Icon>
+                                                                            <FontIcon Glyph="&#xE7AC;" />
+                                                                        </MenuFlyoutItem.Icon>
+                                                                    </MenuFlyoutItem>
+                                                                </MenuFlyout>
+                                                            </Image.ContextFlyout>
+                                                        </Image>
+                                                    </Border>
+
+                                                    <!-- Video Bubble -->
+                                                    <Grid Visibility="{x:Bind Content.IsVideo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                          CornerRadius="6"
+                                                          Margin="0,2,0,4"
+                                                          MaxWidth="320">
+                                                        <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                                               Stretch="UniformToFill"
+                                                               MaxHeight="260"
+                                                               HorizontalAlignment="Center"
+                                                               Tapped="MediaBubble_Tapped" />
+
+                                                        <!-- Play Button Overlay -->
+                                                        <Border Background="#60000000"
+                                                                CornerRadius="24"
+                                                                Width="48" Height="48"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                IsHitTestVisible="False">
+                                                            <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="White" Margin="2,0,0,0" />
+                                                        </Border>
+
+                                                        <!-- Duration Badge -->
+                                                        <Border Background="#80000000"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Bottom"
+                                                                Margin="8"
+                                                                IsHitTestVisible="False"
+                                                                Visibility="{x:Bind Content.FormattedDuration, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                                                            <TextBlock Text="{x:Bind Content.FormattedDuration, Mode=OneWay}"
+                                                                       FontSize="11"
+                                                                       Foreground="White" />
+                                                        </Border>
+
+                                                        <Grid.ContextFlyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Open in app" Click="OpenMediaInApp_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                            </MenuFlyout>
+                                                        </Grid.ContextFlyout>
+                                                    </Grid>
+
+                                                    <!-- Document Card -->
+                                                    <Border Visibility="{x:Bind Content.IsDocument, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="8"
+                                                            Padding="12,10"
+                                                            Margin="0,2,0,4"
+                                                            MinWidth="220"
+                                                            MaxWidth="320"
+                                                            Tapped="DocumentCard_Tapped">
+                                                        <Grid ColumnSpacing="12">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- Document Icon Badge -->
+                                                            <Border Grid.Column="0"
+                                                                    Width="38" Height="38"
+                                                                    CornerRadius="6"
+                                                                    Background="{ThemeResource AppAccentBrush}"
+                                                                    VerticalAlignment="Center">
+                                                                <FontIcon Glyph="&#xE8A5;" FontSize="18" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+
+                                                            <!-- File Name & Size -->
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                                                <TextBlock Text="{x:Bind Content.DisplayName, Mode=OneWay}"
+                                                                           FontWeight="SemiBold"
+                                                                           FontSize="13"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           MaxLines="1" />
+                                                                <TextBlock Text="{x:Bind Content.FormattedFileSize, Mode=OneWay}"
+                                                                           FontSize="11"
+                                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                            </StackPanel>
+
+                                                            <!-- Action Button / Icon -->
+                                                            <Border Grid.Column="2" VerticalAlignment="Center">
+                                                                <FontIcon Glyph="&#xE896;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                            </Border>
+                                                        </Grid>
+
+                                                        <Border.ContextFlyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Open with default app" Click="OpenDocumentDefaultApp_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                            </MenuFlyout>
+                                                        </Border.ContextFlyout>
+                                                    </Border>
+
+                                                    <!-- Message Text / Caption with Clickable Links -->
+                                                    <RichTextBlock helpers:LinkifyHelper.Text="{x:Bind Content.DisplayCaptionOrText, Mode=OneWay}"
+                                                                   Visibility="{x:Bind Content.HasTextOrCaption, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                   TextWrapping="Wrap"
+                                                                   IsTextSelectionEnabled="True"
+                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}"
+                                                                   Margin="0,2,0,0" />
 
                                                     <!-- Timestamp and status icons -->
                                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
@@ -305,6 +443,99 @@
             <Button Grid.Column="1" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AppAccentButtonStyle}" VerticalAlignment="Bottom" x:Uid="SendMessageBtn" AutomationProperties.AutomationId="SendBtn">
                 <FontIcon Glyph="&#xE122;" />
             </Button>
+        </Grid>
+
+        <!-- In-App Media Viewer Lightbox Modal -->
+        <Grid Grid.RowSpan="3"
+              Canvas.ZIndex="1000"
+              Background="#E6000000"
+              Visibility="{x:Bind ViewModel.IsMediaViewerOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Top Toolbar -->
+            <Grid Grid.Row="0" Padding="16,12" Background="#40000000">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.ActiveMediaTitle, Mode=OneWay}"
+                               FontWeight="SemiBold"
+                               FontSize="15"
+                               Foreground="White"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="400" />
+                    <TextBlock Text="{x:Bind ViewModel.ActiveMediaSubtitle, Mode=OneWay}"
+                               FontSize="12"
+                               Foreground="#B0FFFFFF"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <!-- Open with default app -->
+                    <Button Command="{x:Bind ViewModel.OpenActiveMediaInDefaultAppCommand}"
+                            ToolTipService.ToolTip="Open with default app"
+                            Background="Transparent" BorderThickness="0" Padding="8">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE7AC;" FontSize="14" Foreground="White" />
+                            <TextBlock Text="Open in app" FontSize="12" Foreground="White" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Close button -->
+                    <Button Command="{x:Bind ViewModel.CloseMediaViewerCommand}"
+                            ToolTipService.ToolTip="Close (Esc)"
+                            Background="Transparent" BorderThickness="0" Padding="8">
+                        <FontIcon Glyph="&#xE711;" FontSize="16" Foreground="White" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Center Content -->
+            <Grid Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="24">
+                <!-- Photo Viewer -->
+                <Image Source="{x:Bind ViewModel.ActiveMediaImageSource, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Visibility="{x:Bind ViewModel.IsActiveMediaImage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                <!-- Video Player -->
+                <MediaPlayerElement x:Name="MediaViewerPlayer"
+                                    AreTransportControlsEnabled="True"
+                                    AutoPlay="True"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="{x:Bind ViewModel.IsActiveMediaVideo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                <!-- Loading spinner while downloading -->
+                <ProgressRing IsActive="{x:Bind ViewModel.IsMediaDownloading, Mode=OneWay}"
+                              Visibility="{x:Bind ViewModel.IsMediaDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Width="48" Height="48" />
+            </Grid>
+
+            <!-- Bottom Caption Bar -->
+            <Border Grid.Row="2"
+                    Padding="24,12"
+                    Background="#40000000"
+                    Visibility="{x:Bind ViewModel.ActiveMediaCaption, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}">
+                <TextBlock Text="{x:Bind ViewModel.ActiveMediaCaption, Mode=OneWay}"
+                           Foreground="White"
+                           FontSize="13"
+                           TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           MaxWidth="700" />
+            </Border>
         </Grid>
     </Grid>
 </Page>
