@@ -17,6 +17,9 @@ public static unsafe partial class WhatsAppNative
     public static partial int wa_is_authenticated(string dbPath);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_clear_session(string dbPath);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_load_cache(string dbPath);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]

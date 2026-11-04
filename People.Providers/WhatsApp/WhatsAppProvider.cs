@@ -268,16 +268,32 @@ public class WhatsAppProvider : IWhatsAppProvider
         try
         {
             var dbPath = GetSessionDbPath();
-            if (File.Exists(dbPath)) File.Delete(dbPath);
-            if (File.Exists(dbPath + "-shm")) File.Delete(dbPath + "-shm");
-            if (File.Exists(dbPath + "-wal")) File.Delete(dbPath + "-wal");
-            var cachePath = dbPath + ".cache.json";
-            if (File.Exists(cachePath)) File.Delete(cachePath);
+            await Task.Run(() => WhatsAppNative.wa_clear_session(dbPath), ct);
+
+            for (int i = 0; i < 5; i++)
+            {
+                try
+                {
+                    if (File.Exists(dbPath)) File.Delete(dbPath);
+                    if (File.Exists(dbPath + "-shm")) File.Delete(dbPath + "-shm");
+                    if (File.Exists(dbPath + "-wal")) File.Delete(dbPath + "-wal");
+                    var cachePath = dbPath + ".cache.json";
+                    if (File.Exists(cachePath)) File.Delete(cachePath);
+                    break;
+                }
+                catch
+                {
+                    await Task.Delay(50, ct);
+                }
+            }
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Failed to clean some WhatsApp session files.");
         }
+
+        ConnectionState = ConnectionState.Connecting;
+        OnConnectionStateChanged(ConnectionState);
 
         await ConnectAsync(ct);
         await AuthenticateAsync(ct);

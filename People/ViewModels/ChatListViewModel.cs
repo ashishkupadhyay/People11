@@ -189,6 +189,7 @@ public partial class ChatListViewModel : ViewModelBase
                 ShowQrCode = false;
                 HasError = false;
                 ErrorMessage = string.Empty;
+                QrCodeBytes = null;
             });
 
             await provider.ConnectAsync();
@@ -203,6 +204,21 @@ public partial class ChatListViewModel : ViewModelBase
                 ErrorMessage = ex.Message;
             });
         }
+    }
+
+    public void PrepareForReauthentication()
+    {
+        _dispatcherService.Enqueue(() =>
+        {
+            IsConnecting = true;
+            ShowQrCode = false;
+            HasError = false;
+            ErrorMessage = string.Empty;
+            QrCodeBytes = null;
+            IsSyncing = false;
+            IsInitialSyncing = false;
+            Chats.Clear();
+        });
     }
 
     [RelayCommand]

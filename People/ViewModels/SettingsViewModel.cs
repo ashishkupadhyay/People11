@@ -122,12 +122,16 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task ReauthenticateAsync()
     {
+        var navService = App.Current.Services.GetRequiredService<INavigationService>();
+        navService.NavigateTo("Chats", "WhatsApp");
+
+        var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
+        chatListVm?.PrepareForReauthentication();
+
         var provider = App.Current.Services.GetService<IMessagingProvider>();
         if (provider is IWhatsAppProvider waProvider)
         {
             await waProvider.ReauthenticateAsync();
-            var navService = App.Current.Services.GetRequiredService<INavigationService>();
-            navService.NavigateTo("Chats", "WhatsApp");
         }
     }
 
