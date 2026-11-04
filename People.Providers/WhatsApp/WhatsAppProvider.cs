@@ -662,6 +662,71 @@ public class WhatsAppProvider : IWhatsAppProvider
         return ReadChatsFromNative(_clientPtr);
     }
 
+    public IReadOnlyList<Message> GetCachedMessages(string chatId, int limit = 30)
+    {
+        if (IsTestingMode)
+        {
+            var testMsgs = _testingMessages.FindAll(m => m.ChatId == chatId);
+            if (testMsgs.Count > 0) return testMsgs;
+            if (chatId == "sample_wa_1")
+            {
+                return new List<Message>
+                {
+                    new Message
+                    {
+                        Id = "msg_1",
+                        ChatId = chatId,
+                        PlatformId = PlatformId,
+                        SenderId = "sarah",
+                        Content = new MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
+                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
+                        Status = MessageStatus.Read,
+                        IsOutgoing = false
+                    },
+                    new Message
+                    {
+                        Id = "msg_2",
+                        ChatId = chatId,
+                        PlatformId = PlatformId,
+                        SenderId = "me",
+                        Content = new MessageContent { Text = "Yes, we just implemented the full WhatsApp provider and testing mode!" },
+                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5),
+                        Status = MessageStatus.Delivered,
+                        IsOutgoing = true
+                    }
+                };
+            }
+            return Array.Empty<Message>();
+        }
+
+        if (_clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
+        {
+            return Array.Empty<Message>();
+        }
+
+        var resultList = new List<Message>(ReadMessagesFromNative(_clientPtr, chatId, 0, limit));
+
+        // Merge pending outbox messages
+        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var bareUser = cleanChatId.Split('@')[0].Split(':')[0];
+        foreach (var p in _outboxQueue)
+        {
+            var c = p.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? p.ChatId[3..] : p.ChatId;
+            var cBare = c.Split('@')[0].Split(':')[0];
+            if (string.Equals(c, cleanChatId, StringComparison.OrdinalIgnoreCase) ||
+                (bareUser.Length >= 5 && string.Equals(cBare, bareUser, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!resultList.Any(r => r.Id == p.Id) &&
+                    !resultList.Any(r => r.IsOutgoing && r.Status != MessageStatus.Sending && r.Content?.Text == p.Content?.Text))
+                {
+                    resultList.Add(p);
+                }
+            }
+        }
+
+        return resultList.OrderBy(m => m.Timestamp).ToList();
+    }
+
     private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)
     {
         return await Task.Run(() => ReadChatsFromNative(_clientPtr), ct);
@@ -891,63 +956,66 @@ public class WhatsAppProvider : IWhatsAppProvider
     private async Task<IReadOnlyList<Message>> FetchMessagesFromNativeAsync(string chatId, long beforeTs, int limit, CancellationToken ct = default)
     {
         if (_clientPtr == IntPtr.Zero) return Array.Empty<Message>();
+        return await Task.Run(() => ReadMessagesFromNative(_clientPtr, chatId, beforeTs, limit), ct);
+    }
 
-        return await Task.Run(() =>
+    private IReadOnlyList<Message> ReadMessagesFromNative(IntPtr clientPtr, string chatId, long beforeTs, int limit)
+    {
+        if (clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId)) return Array.Empty<Message>();
+
+        var ptr = WhatsAppNative.wa_get_messages_paginated(clientPtr, chatId, beforeTs, limit);
+        if (ptr == IntPtr.Zero) return Array.Empty<Message>();
+
+        try
         {
-            var ptr = WhatsAppNative.wa_get_messages_paginated(_clientPtr, chatId, beforeTs, limit);
-            if (ptr == IntPtr.Zero) return (IReadOnlyList<Message>)new List<Message>();
+            var json = Marshal.PtrToStringUTF8(ptr);
+            if (string.IsNullOrEmpty(json)) return Array.Empty<Message>();
 
-            try
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var dtos = JsonSerializer.Deserialize<List<NativeMessageDto>>(json, options) ?? new List<NativeMessageDto>();
+
+            var messages = new List<Message>(dtos.Count);
+            foreach (var dto in dtos)
             {
-                var json = Marshal.PtrToStringUTF8(ptr);
-                if (string.IsNullOrEmpty(json)) return new List<Message>();
-
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var dtos = JsonSerializer.Deserialize<List<NativeMessageDto>>(json, options) ?? new List<NativeMessageDto>();
-
-                var messages = new List<Message>();
-                foreach (var dto in dtos)
+                // Filter empty protocol messages
+                if (dto.MediaType == "text" && string.IsNullOrWhiteSpace(dto.Text))
                 {
-                    // Filter empty protocol messages
-                    if (dto.MediaType == "text" && string.IsNullOrWhiteSpace(dto.Text))
-                    {
-                        continue;
-                    }
-
-                    messages.Add(new Message
-                    {
-                        Id = dto.Id ?? Guid.NewGuid().ToString(),
-                        ChatId = dto.ChatId ?? chatId,
-                        PlatformId = "WhatsApp",
-                        SenderId = dto.SenderId ?? string.Empty,
-                        SenderName = dto.SenderName,
-                        IsOutgoing = dto.IsOutgoing,
-                        Content = new MessageContent { 
-                            Text = dto.Text ?? string.Empty,
-                            Type = dto.MediaType == "system_notice" ? MessageContentType.SystemNotice : MessageContentType.Text
-                        },
-                        Timestamp = dto.Timestamp > 0
-                            ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
-                            : DateTimeOffset.UnixEpoch,
-                        Status = (MessageStatus)dto.Status,
-                        QuotedText = dto.QuotedText,
-                        QuotedSender = dto.QuotedSender,
-                        Reactions = dto.Reactions ?? new()
-                    });
+                    continue;
                 }
 
-                return (IReadOnlyList<Message>)messages;
+                messages.Add(new Message
+                {
+                    Id = dto.Id ?? Guid.NewGuid().ToString(),
+                    ChatId = dto.ChatId ?? chatId,
+                    PlatformId = "WhatsApp",
+                    SenderId = dto.SenderId ?? string.Empty,
+                    SenderName = dto.SenderName,
+                    IsOutgoing = dto.IsOutgoing,
+                    Content = new MessageContent { 
+                        Text = dto.Text ?? string.Empty,
+                        Type = dto.MediaType == "system_notice" ? MessageContentType.SystemNotice : MessageContentType.Text
+                    },
+                    Timestamp = dto.Timestamp > 0
+                        ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
+                        : DateTimeOffset.UnixEpoch,
+                    Status = (MessageStatus)dto.Status,
+                    QuotedText = dto.QuotedText,
+                    QuotedSender = dto.QuotedSender,
+                    Reactions = dto.Reactions ?? new()
+                });
             }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Failed to deserialize messages from native bridge.");
-                return new List<Message>();
-            }
-            finally
-            {
-                WhatsAppNative.wa_free_string(ptr);
-            }
-        }, ct);
+
+            return messages;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to deserialize messages from native bridge.");
+            return Array.Empty<Message>();
+        }
+        finally
+        {
+            WhatsAppNative.wa_free_string(ptr);
+        }
     }
 
     public async Task<IReadOnlyList<Message>> GetOlderMessagesAsync(

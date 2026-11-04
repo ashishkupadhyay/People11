@@ -16,6 +16,7 @@ public interface IWhatsAppProvider : IMessagingProvider
     Task ReauthenticateAsync(CancellationToken ct = default);
     Task<System.Collections.Generic.IReadOnlyList<Contact>> GetContactsAsync(CancellationToken ct = default);
     System.Collections.Generic.IReadOnlyList<Chat> GetCachedChats();
+    System.Collections.Generic.IReadOnlyList<Message> GetCachedMessages(string chatId, int limit = 30);
     string? GetContactName(string chatId);
     string? GetPushName(string chatId);
     string? GetPhoneNumber(string chatId);

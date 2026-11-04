@@ -95,6 +95,10 @@ public class MessageRepository : IMessageRepository
         }
         else
         {
+            if (message.IsOutgoing && existing.Status > message.Status)
+            {
+                message.Status = existing.Status;
+            }
             context.Entry(existing).CurrentValues.SetValues(message);
         }
         
@@ -114,6 +118,10 @@ public class MessageRepository : IMessageRepository
             }
             else
             {
+                if (message.IsOutgoing && existing.Status > message.Status)
+                {
+                    message.Status = existing.Status;
+                }
                 context.Entry(existing).CurrentValues.SetValues(message);
             }
         }

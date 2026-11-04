@@ -28,6 +28,14 @@ public sealed partial class ConversationPage : Page
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
 
+        Loaded += (s, e) =>
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                MessageInputBox?.Focus(FocusState.Programmatic);
+            });
+        };
+
         ActualThemeChanged += (s, e) =>
         {
             if (DoodleCanvas != null)
@@ -334,6 +342,11 @@ public sealed partial class ConversationPage : Page
             ViewModel.LoadChat(chat);
         }
         base.OnNavigatedTo(e);
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            MessageInputBox?.Focus(FocusState.Programmatic);
+        });
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
