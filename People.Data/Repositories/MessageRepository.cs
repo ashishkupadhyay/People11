@@ -56,6 +56,10 @@ public class MessageRepository : IMessageRepository
             .AsNoTracking()
             .ToListAsync();
         msgs.Reverse();
+        foreach (var m in msgs)
+        {
+            HealLegacyMessage(m);
+        }
         return msgs;
     }
 
@@ -70,7 +74,45 @@ public class MessageRepository : IMessageRepository
             .AsNoTracking()
             .ToListAsync();
         msgs.Reverse();
+        foreach (var m in msgs)
+        {
+            HealLegacyMessage(m);
+        }
         return msgs;
+    }
+
+    private static void HealLegacyMessage(Message m)
+    {
+        if (m.Content == null) return;
+        if (m.Content.Type == MessageContentType.Text && !string.IsNullOrWhiteSpace(m.Content.Text))
+        {
+            var text = m.Content.Text.Trim();
+            if (text == "📷 Photo" || text.StartsWith("📷 Photo:"))
+            {
+                m.Content.Type = MessageContentType.Image;
+                if (text.Length > 9 && text.StartsWith("📷 Photo: "))
+                {
+                    m.Content.Caption = text[10..].Trim();
+                }
+            }
+            else if (text == "🎥 Video" || text.StartsWith("🎥 Video:"))
+            {
+                m.Content.Type = MessageContentType.Video;
+                if (text.Length > 9 && text.StartsWith("🎥 Video: "))
+                {
+                    m.Content.Caption = text[10..].Trim();
+                }
+            }
+            else if (text.StartsWith("📄 "))
+            {
+                m.Content.Type = MessageContentType.Document;
+                m.Content.FileName = text[3..].Trim();
+            }
+            else if (text == "🎤 Voice message" || text == "🎵 Audio")
+            {
+                m.Content.Type = MessageContentType.Audio;
+            }
+        }
     }
 
     public async Task<IReadOnlyList<Message>> GetPendingOutgoingMessagesAsync(string platformId)
@@ -99,7 +141,14 @@ public class MessageRepository : IMessageRepository
             {
                 message.Status = existing.Status;
             }
-            context.Entry(existing).CurrentValues.SetValues(message);
+            existing.Status = message.Status;
+            existing.Content = message.Content;
+            existing.SenderName = message.SenderName;
+            existing.Timestamp = message.Timestamp;
+            existing.QuotedText = message.QuotedText;
+            existing.QuotedSender = message.QuotedSender;
+            existing.Reactions = message.Reactions;
+            context.Entry(existing).State = EntityState.Modified;
         }
         
         await context.SaveChangesAsync();
@@ -122,7 +171,14 @@ public class MessageRepository : IMessageRepository
                 {
                     message.Status = existing.Status;
                 }
-                context.Entry(existing).CurrentValues.SetValues(message);
+                existing.Status = message.Status;
+                existing.Content = message.Content;
+                existing.SenderName = message.SenderName;
+                existing.Timestamp = message.Timestamp;
+                existing.QuotedText = message.QuotedText;
+                existing.QuotedSender = message.QuotedSender;
+                existing.Reactions = message.Reactions;
+                context.Entry(existing).State = EntityState.Modified;
             }
         }
         await context.SaveChangesAsync();

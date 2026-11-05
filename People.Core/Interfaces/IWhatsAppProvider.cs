@@ -12,6 +12,7 @@ public interface IWhatsAppProvider : IMessagingProvider
     event EventHandler<string>? QrCodeReceived;
     event EventHandler<int>? SyncProgressChanged;
     event EventHandler<string>? ChatMarkedRead;
+    event EventHandler<(string MessageId, long BytesReceived, long TotalBytes)>? MediaDownloadProgress;
     Task AuthenticateAsync(CancellationToken ct = default);
     Task ReauthenticateAsync(CancellationToken ct = default);
     Task<System.Collections.Generic.IReadOnlyList<Contact>> GetContactsAsync(CancellationToken ct = default);

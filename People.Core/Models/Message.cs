@@ -37,7 +37,20 @@ public class Message : INotifyPropertyChanged
             }
         }
     }
-    public MessageContent Content { get; set; } = new();
+    private MessageContent _content = new();
+    public MessageContent Content
+    {
+        get => _content;
+        set
+        {
+            if (_content != value)
+            {
+                _content = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsSystemNotice));
+            }
+        }
+    }
 
     // Reply / Quote information
     public string? QuotedText { get; set; }

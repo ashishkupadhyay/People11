@@ -115,6 +115,17 @@ public sealed partial class ConversationPage : Page
                 e.Handled = true;
             }
         };
+
+        ViewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ConversationViewModel.IsMediaViewerOpen) && ViewModel.IsMediaViewerOpen)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    try { LightboxEntranceStoryboard?.Begin(); } catch { }
+                });
+            }
+        };
     }
 
     private ScrollViewer? _messagesScrollViewer;
@@ -418,6 +429,22 @@ public sealed partial class ConversationPage : Page
         if ((sender as FrameworkElement)?.DataContext is Message msg)
         {
             _ = ViewModel.DownloadAndOpenDocumentAsync(msg);
+        }
+    }
+
+    private void SaveMediaAs_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.SaveMediaAsAsync(msg);
+        }
+    }
+
+    private void CancelDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            ViewModel.CancelDocumentDownload(msg);
         }
     }
 }

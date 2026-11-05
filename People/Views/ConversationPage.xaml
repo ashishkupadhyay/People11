@@ -229,6 +229,11 @@
                                                                             <FontIcon Glyph="&#xE7AC;" />
                                                                         </MenuFlyoutItem.Icon>
                                                                     </MenuFlyoutItem>
+                                                                    <MenuFlyoutItem Text="Save as..." Click="SaveMediaAs_Click">
+                                                                        <MenuFlyoutItem.Icon>
+                                                                            <FontIcon Glyph="&#xE74E;" />
+                                                                        </MenuFlyoutItem.Icon>
+                                                                    </MenuFlyoutItem>
                                                                 </MenuFlyout>
                                                             </Image.ContextFlyout>
                                                         </Image>
@@ -238,12 +243,13 @@
                                                     <Grid Visibility="{x:Bind Content.IsVideo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                           CornerRadius="6"
                                                           Margin="0,2,0,4"
-                                                          MaxWidth="320">
+                                                          MaxWidth="320"
+                                                          Background="Transparent"
+                                                          Tapped="MediaBubble_Tapped">
                                                         <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                                                Stretch="UniformToFill"
                                                                MaxHeight="260"
-                                                               HorizontalAlignment="Center"
-                                                               Tapped="MediaBubble_Tapped" />
+                                                               HorizontalAlignment="Center" />
 
                                                         <!-- Play Button Overlay -->
                                                         <Border Background="#60000000"
@@ -279,6 +285,11 @@
                                                                 <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Save as..." Click="SaveMediaAs_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE74E;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                             </MenuFlyout>
@@ -324,10 +335,46 @@
                                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                             </StackPanel>
 
-                                                            <!-- Action Button / Icon -->
-                                                            <Border Grid.Column="2" VerticalAlignment="Center">
-                                                                <FontIcon Glyph="&#xE896;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                            </Border>
+                                                            <!-- Action Area: Download Icon OR Progress Ring with Cancel OR Open Ready Icon -->
+                                                            <Grid Grid.Column="2" VerticalAlignment="Center" Width="36" Height="36">
+                                                                <!-- Download Icon -->
+                                                                <FontIcon Glyph="&#xE896;"
+                                                                          FontSize="16"
+                                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                          HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                                                <!-- Progress Ring with Cancel Button in center -->
+                                                                <Grid Visibility="{x:Bind Content.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                      HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"
+                                                                      Width="36" Height="36">
+                                                                    <ProgressRing IsIndeterminate="{x:Bind Content.IsProgressIndeterminate, Mode=OneWay}"
+                                                                                  Value="{x:Bind Content.DownloadProgress, Mode=OneWay}"
+                                                                                  Maximum="100"
+                                                                                  Width="34" Height="34" />
+                                                                    <Button Click="CancelDownload_Click"
+                                                                            Width="24" Height="24"
+                                                                            Padding="0"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"
+                                                                            CornerRadius="12"
+                                                                            HorizontalAlignment="Center"
+                                                                            VerticalAlignment="Center"
+                                                                            ToolTipService.ToolTip="Cancel download">
+                                                                        <FontIcon Glyph="&#xE711;" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                                    </Button>
+                                                                </Grid>
+
+                                                                <!-- Open Ready Icon -->
+                                                                <FontIcon Glyph="&#xE8E5;"
+                                                                          FontSize="16"
+                                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                          HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                            </Grid>
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
@@ -335,6 +382,11 @@
                                                                 <MenuFlyoutItem Text="Open with default app" Click="OpenDocumentDefaultApp_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Save as..." Click="SaveMediaAs_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE74E;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                             </MenuFlyout>
@@ -446,12 +498,41 @@
         </Grid>
 
         <!-- In-App Media Viewer Lightbox Modal -->
-        <Grid Grid.RowSpan="3"
+        <Grid x:Name="MediaViewerOverlay"
+              Grid.RowSpan="3"
               Canvas.ZIndex="1000"
               Background="#E6000000"
               Visibility="{x:Bind ViewModel.IsMediaViewerOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               HorizontalAlignment="Stretch"
               VerticalAlignment="Stretch">
+            <Grid.Resources>
+                <Storyboard x:Name="LightboxEntranceStoryboard">
+                    <DoubleAnimation Storyboard.TargetName="MediaViewerOverlay"
+                                     Storyboard.TargetProperty="Opacity"
+                                     From="0.0" To="1.0"
+                                     Duration="0:0:0.25">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="LightboxContentScale"
+                                     Storyboard.TargetProperty="ScaleX"
+                                     From="0.88" To="1.0"
+                                     Duration="0:0:0.25">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="LightboxContentScale"
+                                     Storyboard.TargetProperty="ScaleY"
+                                     From="0.88" To="1.0"
+                                     Duration="0:0:0.25">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                </Storyboard>
+            </Grid.Resources>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -479,6 +560,16 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <!-- Save as... -->
+                    <Button Command="{x:Bind ViewModel.SaveActiveMediaAsCommand}"
+                            ToolTipService.ToolTip="Save as..."
+                            Background="Transparent" BorderThickness="0" Padding="8">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE74E;" FontSize="14" Foreground="White" />
+                            <TextBlock Text="Save as..." FontSize="12" Foreground="White" />
+                        </StackPanel>
+                    </Button>
+
                     <!-- Open with default app -->
                     <Button Command="{x:Bind ViewModel.OpenActiveMediaInDefaultAppCommand}"
                             ToolTipService.ToolTip="Open with default app"
@@ -499,7 +590,10 @@
             </Grid>
 
             <!-- Center Content -->
-            <Grid Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="24">
+            <Grid Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="24" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <ScaleTransform x:Name="LightboxContentScale" ScaleX="1.0" ScaleY="1.0" />
+                </Grid.RenderTransform>
                 <!-- Photo Viewer -->
                 <Image Source="{x:Bind ViewModel.ActiveMediaImageSource, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                        Stretch="Uniform"

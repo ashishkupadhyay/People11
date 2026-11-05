@@ -5,8 +5,11 @@ using People.Core.Interfaces;
 using People.Core.Interfaces.Repositories;
 using People.Core.Models;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace People.ViewModels;
@@ -82,6 +85,23 @@ public partial class ConversationViewModel : ViewModelBase
         }
         _provider.MessageReceived += OnMessageReceived;
         _provider.ChatUpdated += OnChatUpdated;
+        if (_provider is IWhatsAppProvider waProvider)
+        {
+            waProvider.MediaDownloadProgress += OnMediaDownloadProgress;
+        }
+    }
+
+    private void OnMediaDownloadProgress(object? sender, (string MessageId, long BytesReceived, long TotalBytes) e)
+    {
+        _dispatcherService.Enqueue(() =>
+        {
+            var msg = Messages.FirstOrDefault(m => m.Id == e.MessageId);
+            if (msg?.Content != null && msg.Content.IsDownloading)
+            {
+                double pct = e.TotalBytes > 0 ? (double)e.BytesReceived / e.TotalBytes * 100.0 : 0.0;
+                msg.Content.DownloadProgress = Math.Min(100.0, Math.Max(0.0, pct));
+            }
+        });
     }
 
     public event EventHandler<Message>? OlderMessagesLoaded;
@@ -245,6 +265,10 @@ public partial class ConversationViewModel : ViewModelBase
                             {
                                 existing.Status = msg.Status;
                             }
+                            if (msg.Content != null && (existing.Content == null || (existing.Content.Type == MessageContentType.Text && msg.Content.Type != MessageContentType.Text) || (string.IsNullOrEmpty(existing.Content.ThumbnailUrl) && !string.IsNullOrEmpty(msg.Content.ThumbnailUrl))))
+                            {
+                                existing.Content = msg.Content;
+                            }
                         }
                         else
                         {
@@ -342,7 +366,15 @@ public partial class ConversationViewModel : ViewModelBase
                 bool addedAny = false;
                 foreach (var msg in older)
                 {
-                    if (!Messages.Any(m => m.Id == msg.Id))
+                    var existing = Messages.FirstOrDefault(m => m.Id == msg.Id);
+                    if (existing != null)
+                    {
+                        if (msg.Content != null && (existing.Content == null || (existing.Content.Type == MessageContentType.Text && msg.Content.Type != MessageContentType.Text) || (string.IsNullOrEmpty(existing.Content.ThumbnailUrl) && !string.IsNullOrEmpty(msg.Content.ThumbnailUrl))))
+                        {
+                            existing.Content = msg.Content;
+                        }
+                    }
+                    else
                     {
                         int index = 0;
                         while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
@@ -945,6 +977,82 @@ public partial class ConversationViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand]
+    public async Task SaveActiveMediaAsAsync()
+    {
+        if (ActiveMediaItem != null)
+        {
+            await SaveMediaAsAsync(ActiveMediaItem);
+        }
+    }
+
+    [RelayCommand]
+    public async Task SaveMediaAsAsync(Message? msg)
+    {
+        if (msg == null || msg.Content == null) return;
+
+        try
+        {
+            string? localPath = msg.Content.LocalFilePath;
+            if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath))
+            {
+                localPath = await _provider.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName);
+                if (!string.IsNullOrEmpty(localPath))
+                {
+                    msg.Content.LocalFilePath = localPath;
+                }
+            }
+
+            if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath))
+            {
+                return;
+            }
+
+            var ext = Path.GetExtension(localPath).ToLowerInvariant();
+            var picker = new Windows.Storage.Pickers.FileSavePicker();
+
+            var app = (App)App.Current;
+            if (app.MainWindow != null)
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(app.MainWindow);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            }
+
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Downloads;
+            var suggestedName = !string.IsNullOrWhiteSpace(msg.Content.FileName)
+                ? Path.GetFileNameWithoutExtension(msg.Content.FileName)
+                : Path.GetFileNameWithoutExtension(localPath);
+            picker.SuggestedFileName = suggestedName;
+
+            var extFilter = string.IsNullOrEmpty(ext) ? ".bin" : ext;
+            var desc = extFilter switch
+            {
+                ".jpg" or ".jpeg" => "JPEG Image",
+                ".png" => "PNG Image",
+                ".webp" => "WebP Image",
+                ".mp4" => "MP4 Video",
+                ".pdf" => "PDF Document",
+                ".docx" => "Word Document",
+                _ => $"{extFilter.TrimStart('.').ToUpperInvariant()} File"
+            };
+
+            picker.FileTypeChoices.Add(desc, new List<string> { extFilter });
+
+            var destFile = await picker.PickSaveFileAsync();
+            if (destFile != null)
+            {
+                using var inStream = File.OpenRead(localPath);
+                using var outStream = await destFile.OpenStreamForWriteAsync();
+                outStream.SetLength(0);
+                await inStream.CopyToAsync(outStream);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SaveMediaAsAsync failed for {msg.Id}: {ex}");
+        }
+    }
+
     public async Task OpenMessageInDefaultAppAsync(Message? msg)
     {
         if (msg == null || msg.Content == null) return;
@@ -966,18 +1074,116 @@ public partial class ConversationViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand]
     public async Task DownloadAndOpenDocumentAsync(Message? msg)
     {
         if (msg == null || msg.Content == null) return;
-        await OpenMessageInDefaultAppAsync(msg);
+
+        if (msg.Content.IsDownloaded)
+        {
+            await LaunchFileAsync(msg.Content.LocalFilePath!);
+            return;
+        }
+
+        if (msg.Content.IsDownloading)
+        {
+            return;
+        }
+
+        msg.Content.DownloadCts?.Cancel();
+        msg.Content.DownloadCts?.Dispose();
+        msg.Content.DownloadCts = new CancellationTokenSource();
+        var ct = msg.Content.DownloadCts.Token;
+
+        msg.Content.IsDownloading = true;
+        msg.Content.DownloadProgress = 0.0;
+
+        try
+        {
+            var downloadedPath = await _provider.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName, ct);
+            if (!ct.IsCancellationRequested && !string.IsNullOrEmpty(downloadedPath) && File.Exists(downloadedPath))
+            {
+                _dispatcherService.Enqueue(async () =>
+                {
+                    msg.Content.LocalFilePath = downloadedPath;
+                    msg.Content.DownloadProgress = 100.0;
+                    msg.Content.IsDownloading = false;
+                    await LaunchFileAsync(downloadedPath);
+                });
+            }
+            else
+            {
+                _dispatcherService.Enqueue(() =>
+                {
+                    msg.Content.IsDownloading = false;
+                    msg.Content.DownloadProgress = 0.0;
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                msg.Content.IsDownloading = false;
+                msg.Content.DownloadProgress = 0.0;
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"DownloadAndOpenDocumentAsync failed for {msg.Id}: {ex}");
+            _dispatcherService.Enqueue(() =>
+            {
+                msg.Content.IsDownloading = false;
+                msg.Content.DownloadProgress = 0.0;
+            });
+        }
+    }
+
+    [RelayCommand]
+    public void CancelDocumentDownload(Message? msg)
+    {
+        if (msg?.Content == null) return;
+        try
+        {
+            msg.Content.DownloadCts?.Cancel();
+        }
+        catch { }
+        msg.Content.IsDownloading = false;
+        msg.Content.DownloadProgress = 0.0;
     }
 
     private static async Task LaunchFileAsync(string filePath)
     {
         try
         {
-            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(filePath);
-            await Windows.System.Launcher.LaunchFileAsync(file);
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
+
+            // In packaged Windows App SDK apps, sandboxed external viewers (Edge, Chrome) cannot read private app directories.
+            // Copy to user Temp directory so all external readers have full permission.
+            string launchPath = filePath;
+            try
+            {
+                var tempDir = Path.Combine(Path.GetTempPath(), "People", "Media");
+                Directory.CreateDirectory(tempDir);
+                var tempPath = Path.Combine(tempDir, Path.GetFileName(filePath));
+                if (!File.Exists(tempPath) || new FileInfo(tempPath).Length != new FileInfo(filePath).Length)
+                {
+                    File.Copy(filePath, tempPath, true);
+                }
+                launchPath = tempPath;
+            }
+            catch { }
+
+            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(launchPath);
+            var success = await Windows.System.Launcher.LaunchFileAsync(file);
+            if (!success)
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = launchPath,
+                    UseShellExecute = true
+                });
+            }
         }
         catch
         {

@@ -62,6 +62,7 @@ public class WhatsAppProvider : IWhatsAppProvider
     public event EventHandler<string>? QrCodeReceived;
     public event EventHandler<int>? SyncProgressChanged;
     public event EventHandler<string>? ChatMarkedRead;
+    public event EventHandler<(string MessageId, long BytesReceived, long TotalBytes)>? MediaDownloadProgress;
 
     private IntPtr _clientPtr = IntPtr.Zero;
     private readonly ILogger<WhatsAppProvider>? _logger;
@@ -171,6 +172,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         WhatsAppNative.wa_register_sync_progress_callback(_clientPtr, &OnNativeSyncProgress);
                         WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
                         WhatsAppNative.wa_register_chat_read_callback(_clientPtr, &OnNativeChatRead);
+                        WhatsAppNative.wa_register_download_progress_callback(_clientPtr, &OnNativeDownloadProgress);
                     }
 
                     await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
@@ -373,6 +375,21 @@ public class WhatsAppProvider : IWhatsAppProvider
         });
 
         _activeInstance.ChatMarkedRead?.Invoke(_activeInstance, cleanId);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeDownloadProgress(IntPtr msgIdPtr, long written, long total)
+    {
+        if (_activeInstance == null || msgIdPtr == IntPtr.Zero) return;
+        try
+        {
+            var msgId = Marshal.PtrToStringUTF8(msgIdPtr);
+            if (!string.IsNullOrEmpty(msgId))
+            {
+                _activeInstance.MediaDownloadProgress?.Invoke(_activeInstance, (msgId, written, total));
+            }
+        }
+        catch { }
     }
 
     private static readonly object _chatsUpdateLock = new();
@@ -1640,6 +1657,89 @@ public class WhatsAppProvider : IWhatsAppProvider
         _ => MessageContentType.Text
     };
 
+    private static string GetExtensionForMime(string? mimeType, MessageContentType? type = null, string? fileName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(fileName))
+        {
+            var ext = Path.GetExtension(fileName);
+            if (!string.IsNullOrEmpty(ext) && ext.Length >= 2 && ext.Length <= 7)
+            {
+                return ext.ToLowerInvariant();
+            }
+        }
+
+        if (!string.IsNullOrEmpty(mimeType))
+        {
+            var cleanMime = mimeType.Split(';')[0].Trim().ToLowerInvariant();
+            switch (cleanMime)
+            {
+                case "image/jpeg":
+                case "image/jpg":
+                    return ".jpg";
+                case "image/png":
+                    return ".png";
+                case "image/webp":
+                    return ".webp";
+                case "image/gif":
+                    return ".gif";
+                case "video/mp4":
+                    return ".mp4";
+                case "video/3gpp":
+                case "video/3gp":
+                    return ".3gp";
+                case "video/quicktime":
+                    return ".mov";
+                case "video/x-msvideo":
+                    return ".avi";
+                case "audio/ogg":
+                case "audio/opus":
+                    return ".ogg";
+                case "audio/mp4":
+                case "audio/m4a":
+                case "audio/x-m4a":
+                    return ".m4a";
+                case "audio/mpeg":
+                case "audio/mp3":
+                    return ".mp3";
+                case "application/pdf":
+                    return ".pdf";
+                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    return ".docx";
+                case "application/msword":
+                    return ".doc";
+                case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                    return ".xlsx";
+                case "application/vnd.ms-excel":
+                    return ".xls";
+                case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                    return ".pptx";
+                case "application/vnd.ms-powerpoint":
+                    return ".ppt";
+                case "application/zip":
+                    return ".zip";
+                case "text/plain":
+                    return ".txt";
+            }
+        }
+
+        if (type.HasValue)
+        {
+            switch (type.Value)
+            {
+                case MessageContentType.Image:
+                    return ".jpg";
+                case MessageContentType.Video:
+                    return ".mp4";
+                case MessageContentType.Audio:
+                    return ".ogg";
+                case MessageContentType.Document:
+                    return ".pdf";
+            }
+        }
+
+        return ".bin";
+    }
+
     public async Task<string?> DownloadMediaAsync(string chatId, string messageId, string? fileName = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(messageId)) return null;
@@ -1648,15 +1748,40 @@ public class WhatsAppProvider : IWhatsAppProvider
         var mediaDir = Path.Combine(localAppData, "People", "Media");
         Directory.CreateDirectory(mediaDir);
 
+        Message? existingMsg = null;
+        if (_messageRepository != null)
+        {
+            try { existingMsg = await _messageRepository.GetByIdAsync(messageId); } catch { }
+        }
+
+        var mime = existingMsg?.Content?.MimeType;
+        var msgType = existingMsg?.Content?.Type;
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = existingMsg?.Content?.FileName;
+        }
+
+        var ext = GetExtensionForMime(mime, msgType, fileName);
+
         string safeFileName;
         if (!string.IsNullOrWhiteSpace(fileName))
         {
             var invalidChars = Path.GetInvalidFileNameChars();
-            safeFileName = string.Concat(fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+            safeFileName = string.Concat(fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries)).Trim();
+            if (!safeFileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase) && !Path.HasExtension(safeFileName))
+            {
+                safeFileName += ext;
+            }
         }
         else
         {
-            safeFileName = $"{messageId}.bin";
+            safeFileName = msgType switch
+            {
+                MessageContentType.Image => $"IMG_{messageId}{ext}",
+                MessageContentType.Video => $"VID_{messageId}{ext}",
+                MessageContentType.Audio => $"AUD_{messageId}{ext}",
+                _ => $"DOC_{messageId}{ext}"
+            };
         }
 
         var targetPath = Path.Combine(mediaDir, safeFileName);

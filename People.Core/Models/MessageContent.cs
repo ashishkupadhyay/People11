@@ -1,3 +1,9 @@
+using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
+using System.Threading;
+
 namespace People.Core.Models;
 
 public enum MessageContentType
@@ -11,21 +17,167 @@ public enum MessageContentType
     SystemNotice
 }
 
-public class MessageContent
+public class MessageContent : INotifyPropertyChanged
 {
-    public MessageContentType Type { get; set; }
-    public string Text { get; set; } = string.Empty;
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private MessageContentType _type;
+    public MessageContentType Type
+    {
+        get => _type;
+        set
+        {
+            if (_type != value)
+            {
+                _type = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsImage));
+                OnPropertyChanged(nameof(IsVideo));
+                OnPropertyChanged(nameof(IsAudio));
+                OnPropertyChanged(nameof(IsDocument));
+                OnPropertyChanged(nameof(IsMedia));
+                OnPropertyChanged(nameof(DisplayCaptionOrText));
+                OnPropertyChanged(nameof(HasTextOrCaption));
+                OnPropertyChanged(nameof(EffectiveImagePath));
+            }
+        }
+    }
+
+    private string _text = string.Empty;
+    public string Text
+    {
+        get => _text;
+        set
+        {
+            if (_text != value)
+            {
+                _text = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayCaptionOrText));
+                OnPropertyChanged(nameof(HasTextOrCaption));
+            }
+        }
+    }
+
     public string? MediaUrl { get; set; }
     public string? MimeType { get; set; }
     public byte[]? ThumbnailData { get; set; }
 
     // Media properties
-    public string? FileName { get; set; }
+    private string? _fileName;
+    public string? FileName
+    {
+        get => _fileName;
+        set
+        {
+            if (_fileName != value)
+            {
+                _fileName = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
     public long? FileSize { get; set; }
-    public string? ThumbnailUrl { get; set; }
-    public string? LocalFilePath { get; set; }
-    public string? Caption { get; set; }
+
+    private string? _thumbnailUrl;
+    public string? ThumbnailUrl
+    {
+        get => _thumbnailUrl;
+        set
+        {
+            if (_thumbnailUrl != value)
+            {
+                _thumbnailUrl = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(EffectiveImagePath));
+            }
+        }
+    }
+
+    private string? _localFilePath;
+    public string? LocalFilePath
+    {
+        get => _localFilePath;
+        set
+        {
+            if (_localFilePath != value)
+            {
+                _localFilePath = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsDownloaded));
+                OnPropertyChanged(nameof(ShowDownloadIcon));
+                OnPropertyChanged(nameof(EffectiveImagePath));
+            }
+        }
+    }
+
+    private string? _caption;
+    public string? Caption
+    {
+        get => _caption;
+        set
+        {
+            if (_caption != value)
+            {
+                _caption = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+                OnPropertyChanged(nameof(DisplayCaptionOrText));
+                OnPropertyChanged(nameof(HasTextOrCaption));
+            }
+        }
+    }
+
     public int? DurationSeconds { get; set; }
+
+    // Download state properties (transient, not serialized)
+    private bool _isDownloading;
+    [JsonIgnore]
+    public bool IsDownloading
+    {
+        get => _isDownloading;
+        set
+        {
+            if (_isDownloading != value)
+            {
+                _isDownloading = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowDownloadIcon));
+            }
+        }
+    }
+
+    private double _downloadProgress;
+    [JsonIgnore]
+    public double DownloadProgress
+    {
+        get => _downloadProgress;
+        set
+        {
+            if (Math.Abs(_downloadProgress - value) > 0.001)
+            {
+                _downloadProgress = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsProgressIndeterminate));
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public bool IsProgressIndeterminate => DownloadProgress <= 0.0;
+
+    [JsonIgnore]
+    public bool ShowDownloadIcon => !IsDownloading && !IsDownloaded;
+
+    [JsonIgnore]
+    public CancellationTokenSource? DownloadCts { get; set; }
 
     // Helpers
     public bool IsImage => Type == MessageContentType.Image;
@@ -58,6 +210,13 @@ public class MessageContent
     {
         get
         {
+            // IMPORTANT: For video, NEVER return LocalFilePath because LocalFilePath is an MP4 video file, NOT an image.
+            if (Type == MessageContentType.Video)
+            {
+                if (!string.IsNullOrEmpty(ThumbnailUrl))
+                    return ThumbnailUrl;
+                return null;
+            }
             if (!string.IsNullOrEmpty(LocalFilePath) && System.IO.File.Exists(LocalFilePath))
                 return LocalFilePath;
             if (!string.IsNullOrEmpty(ThumbnailUrl))
