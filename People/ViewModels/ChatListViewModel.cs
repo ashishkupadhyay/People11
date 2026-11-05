@@ -378,10 +378,15 @@ public partial class ChatListViewModel : ViewModelBase
             _dispatcherService.Enqueue(() =>
             {
                 IsConnecting = false;
+                ShowQrCode = false;
                 IsSyncing = false;
                 IsInitialSyncing = false;
                 HasError = true;
-                if (string.IsNullOrEmpty(ErrorMessage))
+                if (!string.IsNullOrEmpty(e.ErrorMessage))
+                {
+                    ErrorMessage = e.ErrorMessage;
+                }
+                else if (string.IsNullOrEmpty(ErrorMessage))
                 {
                     ErrorMessage = "Unable to connect to WhatsApp backend. Check your network or use Testing Mode.";
                 }

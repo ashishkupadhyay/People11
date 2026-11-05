@@ -12,10 +12,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="runtimes\win-x64\native\whatsapp_bridge.dll">
+    <None Include="runtimes\win-x64\native\whatsapp_bridge.dll">
       <Link>whatsapp_bridge.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    </None>
   </ItemGroup>
+
+  <Target Name="SyncNativeWhatsAppBridge" BeforeTargets="BeforeBuild;AssignTargetPaths">
+    <PropertyGroup>
+      <NativeBridgeSource Condition="Exists('$(MSBuildThisFileDirectory)..\..\native\whatsapp-bridge\target\release\whatsapp_bridge.dll')">$(MSBuildThisFileDirectory)..\..\native\whatsapp-bridge\target\release\whatsapp_bridge.dll</NativeBridgeSource>
+    </PropertyGroup>
+    <Copy SourceFiles="$(NativeBridgeSource)"
+          DestinationFiles="$(MSBuildThisFileDirectory)runtimes\win-x64\native\whatsapp_bridge.dll"
+          Condition="'$(NativeBridgeSource)' != '' and Exists('$(NativeBridgeSource)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -211,15 +211,17 @@ public class WhatsAppProvider : IWhatsAppProvider
             else
             {
                 _logger?.LogError("Failed to create WhatsApp native client. Pointer is zero.");
+                LogDiagnostic("Failed to create WhatsApp native client. Pointer is zero.");
                 ConnectionState = ConnectionState.Error;
-                OnConnectionStateChanged(ConnectionState);
+                OnConnectionStateChanged(ConnectionState, "Failed to create WhatsApp native client.");
             }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Exception connecting to WhatsApp backend.");
+            LogDiagnostic($"Exception connecting to WhatsApp backend: {ex}");
             ConnectionState = ConnectionState.Error;
-            OnConnectionStateChanged(ConnectionState);
+            OnConnectionStateChanged(ConnectionState, ex.Message);
         }
     }
 
@@ -307,8 +309,9 @@ public class WhatsAppProvider : IWhatsAppProvider
         if (errPtr == IntPtr.Zero || _activeInstance == null) return;
         string? err = Marshal.PtrToStringUTF8(errPtr);
         _activeInstance._logger?.LogError("WhatsApp backend error: {Error}", err);
+        LogDiagnostic($"WhatsApp backend error: {err}");
         _activeInstance.ConnectionState = ConnectionState.Error;
-        _activeInstance.OnConnectionStateChanged(ConnectionState.Error);
+        _activeInstance.OnConnectionStateChanged(ConnectionState.Error, err);
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -1641,9 +1644,20 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
     }
 
-    protected virtual void OnConnectionStateChanged(ConnectionState state)
+    internal static void LogDiagnostic(string message)
     {
-        ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(PlatformId, state));
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), "people_connection.log");
+            File.AppendAllText(path, $"[{DateTime.UtcNow:O}] {message}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
+    protected virtual void OnConnectionStateChanged(ConnectionState state, string? errorMessage = null)
+    {
+        LogDiagnostic($"ConnectionStateChanged -> {state}" + (!string.IsNullOrEmpty(errorMessage) ? $": {errorMessage}" : ""));
+        ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(PlatformId, state, errorMessage));
     }
 
     private static MessageContentType ParseContentType(string? mediaType) => mediaType?.ToLowerInvariant() switch

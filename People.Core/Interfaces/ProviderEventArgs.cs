@@ -6,11 +6,13 @@ public class ConnectionStateChangedEventArgs : EventArgs
 {
     public string PlatformId { get; }
     public ConnectionState State { get; }
+    public string? ErrorMessage { get; }
     
-    public ConnectionStateChangedEventArgs(string platformId, ConnectionState state)
+    public ConnectionStateChangedEventArgs(string platformId, ConnectionState state, string? errorMessage = null)
     {
         PlatformId = platformId;
         State = state;
+        ErrorMessage = errorMessage;
     }
 }
 
