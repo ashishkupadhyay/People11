@@ -455,4 +455,117 @@ public sealed partial class ConversationPage : Page
             ViewModel.CancelDownload(msg);
         }
     }
+
+    private void PlayAudio_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.PlayAudioAsync(msg);
+        }
+    }
+
+    private async void AttachDocument_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.List;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add("*");
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                await ViewModel.SendDocumentFileAsync(file.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"AttachDocument_Click failed: {ex.Message}");
+        }
+    }
+
+    private async void AttachMedia_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.Thumbnail;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+            picker.FileTypeFilter.Add(".jpg");
+            picker.FileTypeFilter.Add(".jpeg");
+            picker.FileTypeFilter.Add(".png");
+            picker.FileTypeFilter.Add(".gif");
+            picker.FileTypeFilter.Add(".webp");
+            picker.FileTypeFilter.Add(".mp4");
+            picker.FileTypeFilter.Add(".mov");
+            picker.FileTypeFilter.Add(".mkv");
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                await ViewModel.SendMediaFileAsync(file.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"AttachMedia_Click failed: {ex.Message}");
+        }
+    }
+
+    private async void AttachCamera_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var captureUI = new Windows.Media.Capture.CameraCaptureUI();
+            captureUI.PhotoSettings.Format = Windows.Media.Capture.CameraCaptureUIPhotoFormat.Jpeg;
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+            WinRT.Interop.InitializeWithWindow.Initialize(captureUI, hwnd);
+
+            var file = await captureUI.CaptureFileAsync(Windows.Media.Capture.CameraCaptureUIMode.PhotoOrVideo);
+            if (file != null)
+            {
+                await ViewModel.SendMediaFileAsync(file.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"AttachCamera_Click failed: {ex.Message}");
+        }
+    }
+
+    private async void AttachAudio_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.List;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.MusicLibrary;
+            picker.FileTypeFilter.Add(".mp3");
+            picker.FileTypeFilter.Add(".m4a");
+            picker.FileTypeFilter.Add(".wav");
+            picker.FileTypeFilter.Add(".ogg");
+            picker.FileTypeFilter.Add(".opus");
+            picker.FileTypeFilter.Add(".flac");
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                await ViewModel.SendAudioFileAsync(file.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"AttachAudio_Click failed: {ex.Message}");
+        }
+    }
 }

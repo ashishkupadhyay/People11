@@ -211,7 +211,7 @@
                                                     <!-- Photo Bubble -->
                                                     <Border Visibility="{x:Bind Content.IsImage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                             CornerRadius="6"
-                                                            Margin="0,2,0,4"
+                                                            Margin="-8,-4,-8,2"
                                                             MaxWidth="320">
                                                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                                             <!-- Image element (when EffectiveImagePath has value) -->
@@ -295,7 +295,7 @@
                                                     <!-- Video Bubble -->
                                                     <Grid Visibility="{x:Bind Content.IsVideo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                           CornerRadius="6"
-                                                          Margin="0,2,0,4"
+                                                          Margin="-8,-4,-8,2"
                                                           MaxWidth="320"
                                                           Background="Transparent"
                                                           Tapped="MediaBubble_Tapped">
@@ -407,56 +407,164 @@
                                                             CornerRadius="8"
                                                             Padding="12,10"
                                                             Margin="0,2,0,4"
-                                                            MinWidth="220"
+                                                            MinWidth="240"
                                                             MaxWidth="320"
                                                             Tapped="DocumentCard_Tapped">
-                                                        <Grid ColumnSpacing="12">
+                                                        <StackPanel Spacing="6">
+                                                            <Grid ColumnSpacing="12">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- Document Icon Badge -->
+                                                                <Border Grid.Column="0"
+                                                                        Width="38" Height="38"
+                                                                        CornerRadius="6"
+                                                                        Background="{ThemeResource AppAccentBrush}"
+                                                                        VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE8A5;" FontSize="18" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Border>
+
+                                                                <!-- File Name & Size + File Type -->
+                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                                                    <TextBlock Text="{x:Bind Content.DisplayName, Mode=OneWay}"
+                                                                               FontWeight="SemiBold"
+                                                                               FontSize="13"
+                                                                               TextTrimming="CharacterEllipsis"
+                                                                               MaxLines="1" />
+                                                                    <TextBlock Text="{x:Bind Content.FormattedSizeAndType, Mode=OneWay}"
+                                                                               FontSize="11"
+                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                                </StackPanel>
+
+                                                                <!-- Action Area: Download Icon OR Progress Ring with Cancel OR Open Ready Icon -->
+                                                                <Grid Grid.Column="2" VerticalAlignment="Center" Width="36" Height="36">
+                                                                    <!-- Download Icon -->
+                                                                    <FontIcon Glyph="&#xE896;"
+                                                                              FontSize="16"
+                                                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                              HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"
+                                                                              Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                                                    <!-- Progress Ring with Cancel Button in center -->
+                                                                    <Grid Visibility="{x:Bind Content.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                          HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Width="36" Height="36">
+                                                                        <ProgressRing IsIndeterminate="{x:Bind Content.IsProgressIndeterminate, Mode=OneWay}"
+                                                                                      Value="{x:Bind Content.DownloadProgress, Mode=OneWay}"
+                                                                                      Maximum="100"
+                                                                                      Width="34" Height="34" />
+                                                                        <Button Click="CancelDownload_Click"
+                                                                                Width="24" Height="24"
+                                                                                Padding="0"
+                                                                                Background="Transparent"
+                                                                                BorderThickness="0"
+                                                                                CornerRadius="12"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center"
+                                                                                ToolTipService.ToolTip="Cancel download">
+                                                                            <FontIcon Glyph="&#xE711;" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                                        </Button>
+                                                                    </Grid>
+
+                                                                    <!-- Open Ready Icon -->
+                                                                    <FontIcon Glyph="&#xE8E5;"
+                                                                              FontSize="16"
+                                                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                              HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"
+                                                                              Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                </Grid>
+                                                            </Grid>
+
+                                                            <!-- Downloaded Action Buttons: Side-by-side Open & Save as -->
+                                                            <Grid Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                  ColumnSpacing="8"
+                                                                  Margin="0,4,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Button Grid.Column="0"
+                                                                        Click="OpenDocumentDefaultApp_Click"
+                                                                        HorizontalAlignment="Stretch"
+                                                                        Padding="8,5"
+                                                                        CornerRadius="4">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                                        <FontIcon Glyph="&#xE7AC;" FontSize="12" />
+                                                                        <TextBlock Text="Open" FontSize="12" />
+                                                                    </StackPanel>
+                                                                </Button>
+                                                                <Button Grid.Column="1"
+                                                                        Click="SaveMediaAs_Click"
+                                                                        HorizontalAlignment="Stretch"
+                                                                        Padding="8,5"
+                                                                        CornerRadius="4">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                                        <FontIcon Glyph="&#xE792;" FontSize="12" />
+                                                                        <TextBlock Text="Save as" FontSize="12" />
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </Grid>
+                                                        </StackPanel>
+
+                                                        <Border.ContextFlyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Open with default app" Click="OpenDocumentDefaultApp_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Save as..." Click="SaveMediaAs_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE74E;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                            </MenuFlyout>
+                                                        </Border.ContextFlyout>
+                                                    </Border>
+
+                                                    <!-- Audio Bubble -->
+                                                    <Border Visibility="{x:Bind Content.IsAudio, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="8"
+                                                            Padding="10,8"
+                                                            Margin="0,2,0,4"
+                                                            MinWidth="240"
+                                                            MaxWidth="320">
+                                                        <Grid ColumnSpacing="10">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
                                                                 <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
 
-                                                            <!-- Document Icon Badge -->
-                                                            <Border Grid.Column="0"
-                                                                    Width="38" Height="38"
-                                                                    CornerRadius="6"
-                                                                    Background="{ThemeResource AppAccentBrush}"
-                                                                    VerticalAlignment="Center">
-                                                                <FontIcon Glyph="&#xE8A5;" FontSize="18" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                            </Border>
+                                                            <!-- Play / Pause / Download Button -->
+                                                            <Grid Grid.Column="0" VerticalAlignment="Center">
+                                                                <!-- Undownloaded: Download Button -->
+                                                                <Button Click="DownloadMedia_Click"
+                                                                        Width="38" Height="38"
+                                                                        Padding="0"
+                                                                        Style="{ThemeResource AppAccentButtonStyle}"
+                                                                        CornerRadius="19"
+                                                                        ToolTipService.ToolTip="Download audio"
+                                                                        Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <FontIcon Glyph="&#xE896;" FontSize="16" />
+                                                                </Button>
 
-                                                            <!-- File Name & Size -->
-                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                                                <TextBlock Text="{x:Bind Content.DisplayName, Mode=OneWay}"
-                                                                           FontWeight="SemiBold"
-                                                                           FontSize="13"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           MaxLines="1" />
-                                                                <TextBlock Text="{x:Bind Content.FormattedFileSize, Mode=OneWay}"
-                                                                           FontSize="11"
-                                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                            </StackPanel>
-
-                                                            <!-- Action Area: Download Icon OR Progress Ring with Cancel OR Open Ready Icon -->
-                                                            <Grid Grid.Column="2" VerticalAlignment="Center" Width="36" Height="36">
-                                                                <!-- Download Icon -->
-                                                                <FontIcon Glyph="&#xE896;"
-                                                                          FontSize="16"
-                                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                          HorizontalAlignment="Center"
-                                                                          VerticalAlignment="Center"
-                                                                          Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-
-                                                                <!-- Progress Ring with Cancel Button in center -->
+                                                                <!-- Downloading: Progress Ring + Cancel -->
                                                                 <Grid Visibility="{x:Bind Content.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                                      HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"
-                                                                      Width="36" Height="36">
+                                                                      Width="38" Height="38">
                                                                     <ProgressRing IsIndeterminate="{x:Bind Content.IsProgressIndeterminate, Mode=OneWay}"
                                                                                   Value="{x:Bind Content.DownloadProgress, Mode=OneWay}"
                                                                                   Maximum="100"
-                                                                                  Width="34" Height="34" />
+                                                                                  Width="36" Height="36" />
                                                                     <Button Click="CancelDownload_Click"
                                                                             Width="24" Height="24"
                                                                             Padding="0"
@@ -470,14 +578,37 @@
                                                                     </Button>
                                                                 </Grid>
 
-                                                                <!-- Open Ready Icon -->
-                                                                <FontIcon Glyph="&#xE8E5;"
-                                                                          FontSize="16"
-                                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                          HorizontalAlignment="Center"
-                                                                          VerticalAlignment="Center"
-                                                                          Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                <!-- Downloaded: Play / Pause Button -->
+                                                                <Button Click="PlayAudio_Click"
+                                                                        Width="38" Height="38"
+                                                                        Padding="0"
+                                                                        Style="{ThemeResource AppAccentButtonStyle}"
+                                                                        CornerRadius="19"
+                                                                        ToolTipService.ToolTip="Play / Pause"
+                                                                        Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <FontIcon Glyph="&#xE768;" FontSize="16" />
+                                                                </Button>
                                                             </Grid>
+
+                                                            <!-- Duration & File Info -->
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                                                <Slider Minimum="0" Maximum="100" Value="0" IsThumbToolTipEnabled="False" Margin="0,-4,0,-4" IsEnabled="{x:Bind Content.IsDownloaded, Mode=OneWay}" />
+                                                                <Grid>
+                                                                    <TextBlock Text="{x:Bind Content.FormattedDuration, Mode=OneWay}"
+                                                                               FontSize="11"
+                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                               HorizontalAlignment="Left" />
+                                                                    <TextBlock Text="{x:Bind Content.FormattedSizeAndType, Mode=OneWay}"
+                                                                               FontSize="11"
+                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                               HorizontalAlignment="Right" />
+                                                                </Grid>
+                                                            </StackPanel>
+
+                                                            <!-- Mic / Audio Glyph -->
+                                                            <Border Grid.Column="2" VerticalAlignment="Center" Margin="2,0,0,0">
+                                                                <FontIcon Glyph="&#xE720;" FontSize="16" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                                            </Border>
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
@@ -590,12 +721,145 @@
         <!-- Input Area -->
         <Grid Grid.Row="2" Padding="16" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             
-            <TextBox x:Name="MessageInputBox" Grid.Column="0" Text="{x:Bind ViewModel.MessageText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewKeyDown="MessageInputBox_PreviewKeyDown" x:Uid="TypeMessageInput" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100" AutomationProperties.Name="Message input box" AutomationProperties.AutomationId="MessageInputBox" />
-            <Button Grid.Column="1" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AppAccentButtonStyle}" VerticalAlignment="Bottom" x:Uid="SendMessageBtn" AutomationProperties.AutomationId="SendBtn">
+            <!-- Composer Action Buttons: Emoji & Attachment -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" Margin="0,0,8,0" VerticalAlignment="Bottom">
+                <!-- Emoji Button (Placeholder) -->
+                <Button Width="38" Height="36"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="4"
+                        ToolTipService.ToolTip="Emoji, GIFs, and Stickers"
+                        AutomationProperties.Name="Emoji button">
+                    <FontIcon Glyph="&#xE76E;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Button>
+
+                <!-- Attachment Button with Styled Flyout -->
+                <Button Width="38" Height="36"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="4"
+                        ToolTipService.ToolTip="Attach"
+                        AutomationProperties.Name="Attachment button">
+                    <FontIcon Glyph="&#xE723;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Button.Flyout>
+                        <Flyout Placement="TopEdgeAlignedLeft">
+                            <Flyout.FlyoutPresenterStyle>
+                                <Style TargetType="FlyoutPresenter">
+                                    <Setter Property="CornerRadius" Value="16" />
+                                    <Setter Property="Padding" Value="6" />
+                                    <Setter Property="MinWidth" Value="210" />
+                                </Style>
+                            </Flyout.FlyoutPresenterStyle>
+                            <StackPanel Spacing="2">
+                                <!-- Document (Purple) -->
+                                <Button Click="AttachDocument_Click"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xE8A5;" FontSize="18" Foreground="#7F66FF" />
+                                        <TextBlock Text="Document" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Photos & videos (Blue) -->
+                                <Button Click="AttachMedia_Click"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xEB9F;" FontSize="18" Foreground="#007AFF" />
+                                        <TextBlock Text="Photos &amp; videos" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Camera (Pink) -->
+                                <Button Click="AttachCamera_Click"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xE722;" FontSize="18" Foreground="#FF2E74" />
+                                        <TextBlock Text="Camera" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Audio (Orange) -->
+                                <Button Click="AttachAudio_Click"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xE767;" FontSize="18" Foreground="#FF6C22" />
+                                        <TextBlock Text="Audio" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Contact (Cyan - Placeholder) -->
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xE77B;" FontSize="18" Foreground="#00B4D8" />
+                                        <TextBlock Text="Contact" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Poll (Yellow - Placeholder) -->
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xF6A9;" FontSize="18" Foreground="#FFB800" />
+                                        <TextBlock Text="Poll" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- New sticker (Green - Placeholder) -->
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <FontIcon Glyph="&#xE710;" FontSize="18" Foreground="#00D084" />
+                                        <TextBlock Text="New sticker" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
+            
+            <TextBox x:Name="MessageInputBox" Grid.Column="1" Text="{x:Bind ViewModel.MessageText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewKeyDown="MessageInputBox_PreviewKeyDown" x:Uid="TypeMessageInput" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100" AutomationProperties.Name="Message input box" AutomationProperties.AutomationId="MessageInputBox" />
+            <Button Grid.Column="2" Margin="12,0,0,0" Command="{x:Bind ViewModel.SendMessageCommand}" Style="{ThemeResource AppAccentButtonStyle}" VerticalAlignment="Bottom" x:Uid="SendMessageBtn" AutomationProperties.AutomationId="SendBtn">
                 <FontIcon Glyph="&#xE122;" />
             </Button>
         </Grid>

@@ -142,6 +142,16 @@
                         <FontIcon Glyph="&#xE710;" FontSize="14" />
                     </Button>
                 </Grid>
+
+                <!-- Launch Sync Progress Bar -->
+                <ProgressBar Height="2"
+                             Margin="0,-4,0,0"
+                             IsIndeterminate="{x:Bind ViewModel.IsSyncIndeterminate, Mode=OneWay}"
+                             Value="{x:Bind ViewModel.SyncProgress, Mode=OneWay}"
+                             Maximum="100"
+                             Foreground="{ThemeResource AppAccentBrush}"
+                             Visibility="{x:Bind ViewModel.IsSyncing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                             AutomationProperties.Name="Syncing messages" />
             </StackPanel>
 
             <ListView x:Name="ChatsListView" Grid.Row="1" ItemsSource="{x:Bind ViewModel.Chats, Mode=OneWay}" 

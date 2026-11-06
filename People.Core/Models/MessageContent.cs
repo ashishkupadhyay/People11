@@ -80,11 +80,27 @@ public class MessageContent : INotifyPropertyChanged
                 _fileName = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
+                OnPropertyChanged(nameof(FormattedFileType));
+                OnPropertyChanged(nameof(FormattedSizeAndType));
             }
         }
     }
 
-    public long? FileSize { get; set; }
+    private long? _fileSize;
+    public long? FileSize
+    {
+        get => _fileSize;
+        set
+        {
+            if (_fileSize != value)
+            {
+                _fileSize = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(FormattedFileSize));
+                OnPropertyChanged(nameof(FormattedSizeAndType));
+            }
+        }
+    }
 
     private string? _thumbnailUrl;
     public string? ThumbnailUrl
@@ -114,6 +130,8 @@ public class MessageContent : INotifyPropertyChanged
                 OnPropertyChanged(nameof(IsDownloaded));
                 OnPropertyChanged(nameof(ShowDownloadIcon));
                 OnPropertyChanged(nameof(EffectiveImagePath));
+                OnPropertyChanged(nameof(FormattedFileType));
+                OnPropertyChanged(nameof(FormattedSizeAndType));
             }
         }
     }
@@ -210,9 +228,15 @@ public class MessageContent : INotifyPropertyChanged
     {
         get
         {
-            // IMPORTANT: For video, NEVER return LocalFilePath because LocalFilePath is an MP4 video file, NOT an image.
+            // IMPORTANT: For video, check for extracted video thumbnail frame first, then fallback to ThumbnailUrl.
             if (Type == MessageContentType.Video)
             {
+                if (!string.IsNullOrEmpty(LocalFilePath))
+                {
+                    var thumbPath = LocalFilePath + ".thumb.jpg";
+                    if (System.IO.File.Exists(thumbPath))
+                        return thumbPath;
+                }
                 if (!string.IsNullOrEmpty(ThumbnailUrl))
                     return ThumbnailUrl;
                 return null;
@@ -240,6 +264,59 @@ public class MessageContent : INotifyPropertyChanged
             if (bytes >= 1024)
                 return $"{bytes / 1024:0} KB";
             return $"{bytes} B";
+        }
+    }
+
+    public string FormattedFileType
+    {
+        get
+        {
+            var target = !string.IsNullOrWhiteSpace(FileName) ? FileName : (!string.IsNullOrWhiteSpace(LocalFilePath) ? LocalFilePath : string.Empty);
+            var ext = System.IO.Path.GetExtension(target).ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext) && !string.IsNullOrEmpty(MimeType))
+            {
+                if (MimeType.Contains("pdf", StringComparison.OrdinalIgnoreCase)) ext = ".pdf";
+                else if (MimeType.Contains("zip", StringComparison.OrdinalIgnoreCase)) ext = ".zip";
+                else if (MimeType.Contains("word", StringComparison.OrdinalIgnoreCase)) ext = ".docx";
+                else if (MimeType.Contains("excel", StringComparison.OrdinalIgnoreCase) || MimeType.Contains("spreadsheet", StringComparison.OrdinalIgnoreCase)) ext = ".xlsx";
+            }
+
+            return ext switch
+            {
+                ".zip" => "Compressed (zipped) Folder",
+                ".rar" or ".7z" or ".tar" or ".gz" => "Compressed Archive",
+                ".pdf" => "PDF Document",
+                ".docx" or ".doc" => "Microsoft Word Document",
+                ".xlsx" or ".xls" => "Microsoft Excel Worksheet",
+                ".pptx" or ".ppt" => "Microsoft PowerPoint Presentation",
+                ".txt" => "Text Document",
+                ".csv" => "CSV File",
+                ".json" => "JSON File",
+                ".xml" => "XML Document",
+                ".html" or ".htm" => "HTML Document",
+                ".mp3" or ".m4a" or ".wav" or ".ogg" or ".opus" or ".flac" => "Audio File",
+                ".mp4" or ".mkv" or ".avi" or ".mov" or ".webm" => "Video File",
+                ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" => "Image File",
+                ".exe" => "Application",
+                ".msi" => "Windows Installer Package",
+                ".apk" => "Android Package",
+                _ when !string.IsNullOrEmpty(ext) => $"{ext.TrimStart('.').ToUpperInvariant()} File",
+                _ => "Document"
+            };
+        }
+    }
+
+    public string FormattedSizeAndType
+    {
+        get
+        {
+            var size = FormattedFileSize;
+            var type = FormattedFileType;
+            if (!string.IsNullOrEmpty(size) && !string.IsNullOrEmpty(type))
+                return $"{size} • {type}";
+            if (!string.IsNullOrEmpty(size))
+                return size;
+            return type ?? string.Empty;
         }
     }
 

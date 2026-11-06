@@ -41,6 +41,14 @@ public partial class ChatListViewModel : ViewModelBase
     public partial int SyncProgress { get; set; }
 
     [ObservableProperty]
+    public partial bool IsSyncIndeterminate { get; set; } = true;
+
+    partial void OnSyncProgressChanged(int value)
+    {
+        IsSyncIndeterminate = value <= 0;
+    }
+
+    [ObservableProperty]
     public partial string SyncStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -149,15 +157,16 @@ public partial class ChatListViewModel : ViewModelBase
 
         if (isAuth)
         {
-            // Already authenticated: show chat list directly and connect in background
+            // Already authenticated: show chat list directly, show sync bar, and connect in background
             _dispatcherService.Enqueue(() =>
             {
                 IsConnecting = false;
                 ShowQrCode = false;
                 HasError = false;
                 ErrorMessage = string.Empty;
-                IsSyncing = false;
+                IsSyncing = true;
                 SyncProgress = 0;
+                IsSyncIndeterminate = true;
                 SyncStatusText = string.Empty;
             });
 
@@ -177,6 +186,10 @@ public partial class ChatListViewModel : ViewModelBase
 
             // Immediately load all live/cached chats now that native client is connected
             await LoadChatsAsync();
+            _dispatcherService.Enqueue(() =>
+            {
+                IsSyncing = false;
+            });
             return;
         }
 
@@ -281,6 +294,12 @@ public partial class ChatListViewModel : ViewModelBase
                     IsInitialSyncing = true;
                     InitialSyncProgress = Math.Max(0, progress);
                     InitialSyncText = "Downloading your recent messages...";
+                }
+                else
+                {
+                    IsSyncing = true;
+                    SyncProgress = Math.Max(0, progress);
+                    IsSyncIndeterminate = progress <= 0;
                 }
             }
         });

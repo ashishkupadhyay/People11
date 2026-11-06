@@ -1203,6 +1203,12 @@ public partial class ConversationViewModel : ViewModelBase
                     msg.Content.LocalFilePath = downloadedPath;
                     msg.Content.DownloadProgress = 100.0;
                     msg.Content.IsDownloading = false;
+
+                    if (msg.Content.Type == MessageContentType.Video)
+                    {
+                        await EnsureVideoThumbnailAsync(msg.Content);
+                    }
+
                     try
                     {
                         var repo = App.Current.Services.GetService<IMessageRepository>();
@@ -1303,5 +1309,171 @@ public partial class ConversationViewModel : ViewModelBase
             }
             catch { }
         }
+    }
+
+    private Windows.Media.Playback.MediaPlayer? _audioPlayer;
+
+    public async Task PlayAudioAsync(Message? msg)
+    {
+        if (msg?.Content == null) return;
+        if (!msg.Content.IsDownloaded)
+        {
+            await DownloadMediaAsync(msg);
+        }
+
+        if (msg.Content.IsDownloaded && !string.IsNullOrEmpty(msg.Content.LocalFilePath) && File.Exists(msg.Content.LocalFilePath))
+        {
+            try
+            {
+                _audioPlayer ??= new Windows.Media.Playback.MediaPlayer();
+                _audioPlayer.Source = Windows.Media.Core.MediaSource.CreateFromUri(new Uri(msg.Content.LocalFilePath));
+                _audioPlayer.Play();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PlayAudioAsync failed: {ex.Message}");
+                await LaunchFileAsync(msg.Content.LocalFilePath);
+            }
+        }
+    }
+
+    public static async Task EnsureVideoThumbnailAsync(MessageContent? content)
+    {
+        if (content == null || string.IsNullOrEmpty(content.LocalFilePath) || !File.Exists(content.LocalFilePath))
+            return;
+
+        var thumbPath = content.LocalFilePath + ".thumb.jpg";
+        if (File.Exists(thumbPath) && new FileInfo(thumbPath).Length > 0)
+        {
+            content.ThumbnailUrl = thumbPath;
+            return;
+        }
+
+        try
+        {
+            var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(content.LocalFilePath);
+            using var thumb = await storageFile.GetThumbnailAsync(
+                Windows.Storage.FileProperties.ThumbnailMode.VideosView,
+                320,
+                Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
+
+            if (thumb != null && thumb.Size > 0)
+            {
+                using var fileStream = File.Create(thumbPath);
+                using var readStream = thumb.AsStreamForRead();
+                await readStream.CopyToAsync(fileStream);
+                content.ThumbnailUrl = thumbPath;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"EnsureVideoThumbnailAsync failed: {ex.Message}");
+        }
+    }
+
+    public async Task SendDocumentFileAsync(string filePath)
+    {
+        if (CurrentChat == null || string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
+
+        var fi = new FileInfo(filePath);
+        var content = new MessageContent
+        {
+            Type = MessageContentType.Document,
+            LocalFilePath = filePath,
+            FileName = fi.Name,
+            FileSize = fi.Length,
+            Text = string.Empty
+        };
+
+        await SendCustomMessageAsync(content);
+    }
+
+    public async Task SendMediaFileAsync(string filePath)
+    {
+        if (CurrentChat == null || string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
+
+        var fi = new FileInfo(filePath);
+        var ext = fi.Extension.ToLowerInvariant();
+        bool isVideo = ext is ".mp4" or ".mov" or ".mkv" or ".avi" or ".webm";
+        var content = new MessageContent
+        {
+            Type = isVideo ? MessageContentType.Video : MessageContentType.Image,
+            LocalFilePath = filePath,
+            FileName = fi.Name,
+            FileSize = fi.Length,
+            ThumbnailUrl = isVideo ? null : filePath,
+            Text = string.Empty
+        };
+
+        if (isVideo)
+        {
+            await EnsureVideoThumbnailAsync(content);
+        }
+
+        await SendCustomMessageAsync(content);
+    }
+
+    public async Task SendAudioFileAsync(string filePath)
+    {
+        if (CurrentChat == null || string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
+
+        var fi = new FileInfo(filePath);
+        var content = new MessageContent
+        {
+            Type = MessageContentType.Audio,
+            LocalFilePath = filePath,
+            FileName = fi.Name,
+            FileSize = fi.Length,
+            Text = string.Empty
+        };
+
+        await SendCustomMessageAsync(content);
+    }
+
+    private async Task SendCustomMessageAsync(MessageContent content)
+    {
+        if (CurrentChat == null) return;
+        var pendingId = "pending_" + Guid.NewGuid().ToString("N");
+        var pendingMsg = new Message
+        {
+            Id = pendingId,
+            ChatId = CurrentChat.Id,
+            PlatformId = CurrentChat.PlatformId,
+            Content = content,
+            Timestamp = DateTimeOffset.UtcNow,
+            Status = MessageStatus.Sending,
+            SenderId = "me",
+            IsOutgoing = true
+        };
+
+        Messages.Add(pendingMsg);
+        RecalculateDateSeparators();
+        UpdateChatDateString();
+        CurrentChat.LastMessage = pendingMsg;
+        CurrentChat.LastMessageTime = pendingMsg.Timestamp;
+
+        try
+        {
+            var repo = App.Current.Services.GetService<IMessageRepository>();
+            if (repo != null) await repo.SaveAsync(pendingMsg);
+            var chatRepo = App.Current.Services.GetService<IChatRepository>();
+            if (chatRepo != null) await chatRepo.SaveAsync(CurrentChat);
+        }
+        catch { }
+
+        try
+        {
+            var sentMsg = await _provider.SendMessageAsync(CurrentChat.Id, content, pendingMsg.Id);
+            _dispatcherService.Enqueue(() =>
+            {
+                var existing = Messages.FirstOrDefault(m => m.Id == pendingId);
+                if (existing != null)
+                {
+                    existing.Id = sentMsg.Id;
+                    existing.Status = sentMsg.Status;
+                }
+            });
+        }
+        catch { }
     }
 }

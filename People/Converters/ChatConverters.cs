@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
@@ -89,6 +90,8 @@ public class StringToVisibilityConverter : IValueConverter
 
 public class StringToImageSourceConverter : IValueConverter
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ImageSource> _blurCache = new(StringComparer.Ordinal);
+
     public object? Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is string url && !string.IsNullOrWhiteSpace(url))
@@ -97,15 +100,62 @@ public class StringToImageSourceConverter : IValueConverter
             {
                 if (url.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (_blurCache.TryGetValue(url, out var cached))
+                    {
+                        return cached;
+                    }
+
                     var commaIdx = url.IndexOf(',');
                     if (commaIdx >= 0)
                     {
                         var base64 = url.Substring(commaIdx + 1);
                         var bytes = System.Convert.FromBase64String(base64);
+
+                        try
+                        {
+                            var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                            using (var writer = new Windows.Storage.Streams.DataWriter(ras))
+                            {
+                                writer.WriteBytes(bytes);
+                                writer.StoreAsync().AsTask().GetAwaiter().GetResult();
+                            }
+                            ras.Seek(0);
+                            var decoder = Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras).AsTask().GetAwaiter().GetResult();
+                            var width = (int)decoder.PixelWidth;
+                            var height = (int)decoder.PixelHeight;
+
+                            if (width > 0 && height > 0)
+                            {
+                                var pixelProvider = decoder.GetPixelDataAsync(
+                                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+                                    new Windows.Graphics.Imaging.BitmapTransform(),
+                                    Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
+                                    Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb).AsTask().GetAwaiter().GetResult();
+                                var pixels = pixelProvider.DetachPixelData();
+
+                                ApplyBoxBlur(pixels, width, height, 4);
+
+                                var wb = new WriteableBitmap(width, height);
+                                using (var pixelStream = wb.PixelBuffer.AsStream())
+                                {
+                                    pixelStream.Write(pixels, 0, pixels.Length);
+                                }
+                                wb.Invalidate();
+                                _blurCache[url] = wb;
+                                return wb;
+                            }
+                        }
+                        catch
+                        {
+                            // Fallback to standard BitmapImage if decoding or WIC is unavailable
+                        }
+
                         var ms = new System.IO.MemoryStream(bytes);
                         var bitmap = new BitmapImage();
                         ms.Position = 0;
                         bitmap.SetSource(ms.AsRandomAccessStream());
+                        _blurCache[url] = bitmap;
                         return bitmap;
                     }
                 }
@@ -126,6 +176,71 @@ public class StringToImageSourceConverter : IValueConverter
             }
         }
         return null;
+    }
+
+    private static void ApplyBoxBlur(byte[] pixels, int w, int h, int r)
+    {
+        if (w <= 1 || h <= 1 || r <= 0) return;
+        byte[] temp = new byte[pixels.Length];
+        for (int pass = 0; pass < 3; pass++)
+        {
+            BoxBlurHorizontal(pixels, temp, w, h, r);
+            BoxBlurVertical(temp, pixels, w, h, r);
+        }
+    }
+
+    private static void BoxBlurHorizontal(byte[] src, byte[] dst, int w, int h, int r)
+    {
+        for (int y = 0; y < h; y++)
+        {
+            int rowStart = y * w * 4;
+            for (int x = 0; x < w; x++)
+            {
+                int bSum = 0, gSum = 0, rSum = 0, count = 0;
+                int xMin = Math.Max(0, x - r);
+                int xMax = Math.Min(w - 1, x + r);
+                for (int kx = xMin; kx <= xMax; kx++)
+                {
+                    int idx = rowStart + (kx * 4);
+                    bSum += src[idx];
+                    gSum += src[idx + 1];
+                    rSum += src[idx + 2];
+                    count++;
+                }
+                int dstIdx = rowStart + (x * 4);
+                dst[dstIdx] = (byte)(bSum / count);
+                dst[dstIdx + 1] = (byte)(gSum / count);
+                dst[dstIdx + 2] = (byte)(rSum / count);
+                dst[dstIdx + 3] = src[dstIdx + 3];
+            }
+        }
+    }
+
+    private static void BoxBlurVertical(byte[] src, byte[] dst, int w, int h, int r)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            int colOffset = x * 4;
+            for (int y = 0; y < h; y++)
+            {
+                int bSum = 0, gSum = 0, rSum = 0, count = 0;
+                int yMin = Math.Max(0, y - r);
+                int yMax = Math.Min(h - 1, y + r);
+                for (int ky = yMin; ky <= yMax; ky++)
+                {
+                    int idx = (ky * w * 4) + colOffset;
+                    bSum += src[idx];
+                    gSum += src[idx + 1];
+                    rSum += src[idx + 2];
+                    count++;
+                }
+                int dstIdx = (y * w * 4) + colOffset;
+                dst[dstIdx] = (byte)(bSum / count);
+                dst[dstIdx + 1] = (byte)(gSum / count);
+                dst[dstIdx + 2] = (byte)(rSum / count);
+                dst[dstIdx + 3] = src[dstIdx + 3];
+            }
+        }
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

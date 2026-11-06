@@ -33,12 +33,49 @@ public partial class Chat : ObservableObject
         get
         {
             var msg = LastMessage;
-            if (msg == null || string.IsNullOrWhiteSpace(msg.Content?.Text))
+            if (msg == null)
             {
                 return string.Empty;
             }
 
-            var text = msg.Content.Text.Trim();
+            string text;
+            if (msg.Content == null)
+            {
+                text = string.Empty;
+            }
+            else
+            {
+                switch (msg.Content.Type)
+                {
+                    case MessageContentType.Image:
+                        text = string.IsNullOrWhiteSpace(msg.Content.Caption)
+                            ? "📷 Photo"
+                            : $"📷 {msg.Content.Caption.Trim()}";
+                        break;
+                    case MessageContentType.Video:
+                        text = string.IsNullOrWhiteSpace(msg.Content.Caption)
+                            ? "🎥 Video"
+                            : $"🎥 {msg.Content.Caption.Trim()}";
+                        break;
+                    case MessageContentType.Document:
+                        text = string.IsNullOrWhiteSpace(msg.Content.FileName)
+                            ? "📄 Document"
+                            : $"📄 {msg.Content.FileName.Trim()}";
+                        break;
+                    case MessageContentType.Audio:
+                        text = "🎵 Audio";
+                        break;
+                    default:
+                        text = msg.Content.Text?.Trim() ?? string.Empty;
+                        break;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
             if (IsGroup)
             {
                 if (msg.IsOutgoing)
