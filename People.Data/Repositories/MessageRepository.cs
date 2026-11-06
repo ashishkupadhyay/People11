@@ -94,6 +94,7 @@ public class MessageRepository : IMessageRepository
                 {
                     m.Content.Caption = text[10..].Trim();
                 }
+                m.Content.Text = string.Empty;
             }
             else if (text == "🎥 Video" || text.StartsWith("🎥 Video:"))
             {
@@ -102,17 +103,51 @@ public class MessageRepository : IMessageRepository
                 {
                     m.Content.Caption = text[10..].Trim();
                 }
+                m.Content.Text = string.Empty;
             }
             else if (text.StartsWith("📄 "))
             {
                 m.Content.Type = MessageContentType.Document;
-                m.Content.FileName = text[3..].Trim();
+                m.Content.FileName = text.Length > 2 ? text[2..].Trim() : "Document";
+                m.Content.Text = string.Empty;
             }
             else if (text == "🎤 Voice message" || text == "🎵 Audio")
             {
                 m.Content.Type = MessageContentType.Audio;
+                m.Content.Text = string.Empty;
             }
         }
+    }
+
+    public async Task HealPersistedLegacyMessagesAsync()
+    {
+        try
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            var candidates = await context.Messages
+                .Where(m => m.Content != null)
+                .ToListAsync();
+
+            bool anyChanged = false;
+            foreach (var m in candidates)
+            {
+                if (m.Content != null && m.Content.Type == MessageContentType.Text && !string.IsNullOrWhiteSpace(m.Content.Text))
+                {
+                    var oldText = m.Content.Text;
+                    HealLegacyMessage(m);
+                    if (m.Content.Type != MessageContentType.Text || m.Content.Text != oldText)
+                    {
+                        anyChanged = true;
+                    }
+                }
+            }
+
+            if (anyChanged)
+            {
+                await context.SaveChangesAsync();
+            }
+        }
+        catch { }
     }
 
     public async Task<IReadOnlyList<Message>> GetPendingOutgoingMessagesAsync(string platformId)

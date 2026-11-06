@@ -95,7 +95,7 @@ public partial class App : Application
 
             MainWindow.Activate();
 
-            _ = System.Threading.Tasks.Task.Run(() =>
+            _ = System.Threading.Tasks.Task.Run(async () =>
             {
                 try
                 {
@@ -104,6 +104,11 @@ public partial class App : Application
                     {
                         using var db = dbFactory.CreateDbContext();
                         db.Database.EnsureCreated();
+                    }
+                    var messageRepo = Services.GetService<People.Core.Interfaces.Repositories.IMessageRepository>();
+                    if (messageRepo != null)
+                    {
+                        await messageRepo.HealPersistedLegacyMessagesAsync();
                     }
                 }
                 catch { }

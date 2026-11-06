@@ -559,14 +559,47 @@ public partial class ConversationViewModel : ViewModelBase
         }
     }
 
+    public static bool ChatIdsMatch(string? id1, string? id2)
+    {
+        if (string.Equals(id1, id2, StringComparison.OrdinalIgnoreCase)) return true;
+        if (string.IsNullOrEmpty(id1) || string.IsNullOrEmpty(id2)) return false;
+
+        var clean1 = id1.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? id1[3..] : id1;
+        var clean2 = id2.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? id2[3..] : id2;
+
+        if (string.Equals(clean1, clean2, StringComparison.OrdinalIgnoreCase)) return true;
+
+        var parts1 = clean1.Split('@');
+        var parts2 = clean2.Split('@');
+        var user1 = parts1[0].Split(':')[0];
+        var user2 = parts2[0].Split(':')[0];
+
+        if (parts1.Length > 1 && parts2.Length > 1)
+        {
+            var server1 = parts1[1].ToLowerInvariant();
+            var server2 = parts2[1].ToLowerInvariant();
+            if (server1 == server2 && string.Equals(user1, user2, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        else if (string.Equals(user1, user2, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        if (CurrentChat != null && (e.Message.ChatId == CurrentChat.Id || CurrentChat.Id.Contains(e.Message.ChatId) || e.Message.ChatId.Contains(CurrentChat.Id)))
+        if (CurrentChat != null && ChatIdsMatch(CurrentChat.Id, e.Message.ChatId))
         {
             _dispatcherService.Enqueue(() =>
             {
                 var existing = Messages.FirstOrDefault(m => m.Id == e.Message.Id ||
-                    (m.IsOutgoing && (m.Status == MessageStatus.Sending || m.Id.StartsWith("pending_")) && m.Content?.Text == e.Message.Content?.Text));
+                    (m.IsOutgoing && (m.Status == MessageStatus.Sending || m.Id.StartsWith("pending_")) &&
+                     (m.Content?.Text == e.Message.Content?.Text || (m.Content?.Type != MessageContentType.Text && m.Content?.Type == e.Message.Content?.Type))));
                 if (existing != null)
                 {
                     existing.Id = e.Message.Id;
@@ -574,10 +607,17 @@ public partial class ConversationViewModel : ViewModelBase
                     {
                         existing.Status = e.Message.Status;
                     }
+                    if (e.Message.Content != null && existing.Content != null)
+                    {
+                        if (!string.IsNullOrEmpty(e.Message.Content.LocalFilePath))
+                            existing.Content.LocalFilePath = e.Message.Content.LocalFilePath;
+                        if (!string.IsNullOrEmpty(e.Message.Content.ThumbnailUrl))
+                            existing.Content.ThumbnailUrl = e.Message.Content.ThumbnailUrl;
+                    }
                 }
                 else
                 {
-                    if (e.Message.Content != null && !string.IsNullOrWhiteSpace(e.Message.Content.Text))
+                    if (e.Message.Content != null && (!string.IsNullOrWhiteSpace(e.Message.Content.Text) || e.Message.Content.Type != MessageContentType.Text))
                     {
                         Messages.Add(e.Message);
                         RecalculateDateSeparators();
@@ -1140,7 +1180,70 @@ public partial class ConversationViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public void CancelDocumentDownload(Message? msg)
+    public async Task DownloadMediaAsync(Message? msg)
+    {
+        if (msg?.Content == null || string.IsNullOrEmpty(msg.ChatId) || string.IsNullOrEmpty(msg.Id)) return;
+        if (msg.Content.IsDownloaded || msg.Content.IsDownloading) return;
+
+        msg.Content.DownloadCts?.Cancel();
+        msg.Content.DownloadCts?.Dispose();
+        msg.Content.DownloadCts = new CancellationTokenSource();
+        var ct = msg.Content.DownloadCts.Token;
+
+        msg.Content.IsDownloading = true;
+        msg.Content.DownloadProgress = 0.0;
+
+        try
+        {
+            var downloadedPath = await _provider.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName, ct);
+            if (!ct.IsCancellationRequested && !string.IsNullOrEmpty(downloadedPath) && File.Exists(downloadedPath))
+            {
+                _dispatcherService.Enqueue(async () =>
+                {
+                    msg.Content.LocalFilePath = downloadedPath;
+                    msg.Content.DownloadProgress = 100.0;
+                    msg.Content.IsDownloading = false;
+                    try
+                    {
+                        var repo = App.Current.Services.GetService<IMessageRepository>();
+                        if (repo != null)
+                        {
+                            await repo.SaveAsync(msg);
+                        }
+                    }
+                    catch { }
+                });
+            }
+            else
+            {
+                _dispatcherService.Enqueue(() =>
+                {
+                    msg.Content.IsDownloading = false;
+                    msg.Content.DownloadProgress = 0.0;
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                msg.Content.IsDownloading = false;
+                msg.Content.DownloadProgress = 0.0;
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"DownloadMediaAsync failed for {msg.Id}: {ex}");
+            _dispatcherService.Enqueue(() =>
+            {
+                msg.Content.IsDownloading = false;
+                msg.Content.DownloadProgress = 0.0;
+            });
+        }
+    }
+
+    [RelayCommand]
+    public void CancelDownload(Message? msg)
     {
         if (msg?.Content == null) return;
         try
@@ -1151,6 +1254,9 @@ public partial class ConversationViewModel : ViewModelBase
         msg.Content.IsDownloading = false;
         msg.Content.DownloadProgress = 0.0;
     }
+
+    [RelayCommand]
+    public void CancelDocumentDownload(Message? msg) => CancelDownload(msg);
 
     private static async Task LaunchFileAsync(string filePath)
     {

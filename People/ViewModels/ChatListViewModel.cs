@@ -326,11 +326,7 @@ public partial class ChatListViewModel : ViewModelBase
                 return;
             }
 
-            var cleanMsgChatId = msg.ChatId.StartsWith("wa_") ? msg.ChatId.Substring(3) : msg.ChatId;
-            var chat = Chats.FirstOrDefault(c => {
-                var cleanCId = c.Id.StartsWith("wa_") ? c.Id.Substring(3) : c.Id;
-                return cleanCId.Equals(cleanMsgChatId, StringComparison.OrdinalIgnoreCase);
-            });
+            var chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.ChatId));
             if (chat != null)
             {
                 if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)

@@ -17,6 +17,7 @@
         <converters:OutgoingSubtextColorConverter x:Key="OutgoingSubtextColorConverter" />
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+        <converters:StringNullOrEmptyToVisibilityConverter x:Key="StringNullOrEmptyToVisibilityConverter" />
         <converters:CollectionToVisibilityConverter x:Key="CollectionToVisibilityConverter" />
         <converters:GroupSenderVisibilityConverter x:Key="GroupSenderVisibilityConverter" />
         <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
@@ -212,31 +213,83 @@
                                                             CornerRadius="6"
                                                             Margin="0,2,0,4"
                                                             MaxWidth="320">
-                                                        <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
-                                                               Stretch="UniformToFill"
-                                                               MaxHeight="260"
-                                                               HorizontalAlignment="Center"
-                                                               Tapped="MediaBubble_Tapped">
-                                                            <Image.ContextFlyout>
-                                                                <MenuFlyout>
-                                                                    <MenuFlyoutItem Text="Open in app" Click="OpenMediaInApp_Click">
-                                                                        <MenuFlyoutItem.Icon>
-                                                                            <FontIcon Glyph="&#xE7AC;" />
-                                                                        </MenuFlyoutItem.Icon>
-                                                                    </MenuFlyoutItem>
-                                                                    <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
-                                                                        <MenuFlyoutItem.Icon>
-                                                                            <FontIcon Glyph="&#xE7AC;" />
-                                                                        </MenuFlyoutItem.Icon>
-                                                                    </MenuFlyoutItem>
-                                                                    <MenuFlyoutItem Text="Save as..." Click="SaveMediaAs_Click">
-                                                                        <MenuFlyoutItem.Icon>
-                                                                            <FontIcon Glyph="&#xE74E;" />
-                                                                        </MenuFlyoutItem.Icon>
-                                                                    </MenuFlyoutItem>
-                                                                </MenuFlyout>
-                                                            </Image.ContextFlyout>
-                                                        </Image>
+                                                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <!-- Image element (when EffectiveImagePath has value) -->
+                                                            <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                                                   Stretch="UniformToFill"
+                                                                   MaxHeight="260"
+                                                                   HorizontalAlignment="Center"
+                                                                   Tapped="MediaBubble_Tapped"
+                                                                   Visibility="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+
+                                                            <!-- Placeholder (when EffectiveImagePath is null/empty, e.g. older media not yet downloaded) -->
+                                                            <Border Width="240" Height="180"
+                                                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                                    CornerRadius="6"
+                                                                    Tapped="MediaBubble_Tapped"
+                                                                    Visibility="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringNullOrEmptyToVisibilityConverter}}">
+                                                                <FontIcon Glyph="&#xEB9F;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+
+                                                            <!-- Overlay: Download Button (visible when !IsDownloaded && !IsDownloading) -->
+                                                            <Button Click="DownloadMedia_Click"
+                                                                    Width="44" Height="44"
+                                                                    Padding="0"
+                                                                    Background="#99000000"
+                                                                    BorderThickness="0"
+                                                                    CornerRadius="22"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center"
+                                                                    ToolTipService.ToolTip="Download photo"
+                                                                    Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <FontIcon Glyph="&#xE896;" FontSize="18" Foreground="White" />
+                                                            </Button>
+
+                                                            <!-- Overlay: Circular ProgressRing with embedded Cancel Button (visible when IsDownloading) -->
+                                                            <Grid Visibility="{x:Bind Content.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                  HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"
+                                                                  Width="44" Height="44">
+                                                                <Border Background="#99000000" CornerRadius="22" Width="44" Height="44" />
+                                                                <ProgressRing IsIndeterminate="{x:Bind Content.IsProgressIndeterminate, Mode=OneWay}"
+                                                                              Value="{x:Bind Content.DownloadProgress, Mode=OneWay}"
+                                                                              Maximum="100"
+                                                                              Width="40" Height="40"
+                                                                              Foreground="White" />
+                                                                <Button Click="CancelDownload_Click"
+                                                                        Width="28" Height="28"
+                                                                        Padding="0"
+                                                                        Background="Transparent"
+                                                                        BorderThickness="0"
+                                                                        CornerRadius="14"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"
+                                                                        ToolTipService.ToolTip="Cancel download">
+                                                                    <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="White" />
+                                                                </Button>
+                                                            </Grid>
+                                                        </Grid>
+
+                                                        <Border.ContextFlyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Open" Click="OpenMediaInApp_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE7AC;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Save as..." Click="SaveMediaAs_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xE74E;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                            </MenuFlyout>
+                                                        </Border.ContextFlyout>
                                                     </Border>
 
                                                     <!-- Video Bubble -->
@@ -246,20 +299,70 @@
                                                           MaxWidth="320"
                                                           Background="Transparent"
                                                           Tapped="MediaBubble_Tapped">
+                                                        <!-- Image element (thumbnail/poster) -->
                                                         <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                                                Stretch="UniformToFill"
                                                                MaxHeight="260"
-                                                               HorizontalAlignment="Center" />
+                                                               HorizontalAlignment="Center"
+                                                               Visibility="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
 
-                                                        <!-- Play Button Overlay -->
+                                                        <!-- Placeholder (when EffectiveImagePath is null/empty) -->
+                                                        <Border Width="240" Height="180"
+                                                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                                CornerRadius="6"
+                                                                Visibility="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringNullOrEmptyToVisibilityConverter}}">
+                                                            <FontIcon Glyph="&#xE714;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+
+                                                        <!-- Overlay: Play Button (visible when IsDownloaded) -->
                                                         <Border Background="#60000000"
                                                                 CornerRadius="24"
                                                                 Width="48" Height="48"
                                                                 HorizontalAlignment="Center"
                                                                 VerticalAlignment="Center"
-                                                                IsHitTestVisible="False">
+                                                                IsHitTestVisible="False"
+                                                                Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                                             <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="White" Margin="2,0,0,0" />
                                                         </Border>
+
+                                                        <!-- Overlay: Download Button (visible when !IsDownloaded && !IsDownloading) -->
+                                                        <Button Click="DownloadMedia_Click"
+                                                                Width="44" Height="44"
+                                                                Padding="0"
+                                                                Background="#99000000"
+                                                                BorderThickness="0"
+                                                                CornerRadius="22"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                ToolTipService.ToolTip="Download video"
+                                                                Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <FontIcon Glyph="&#xE896;" FontSize="18" Foreground="White" />
+                                                        </Button>
+
+                                                        <!-- Overlay: Circular ProgressRing with embedded Cancel Button (visible when IsDownloading) -->
+                                                        <Grid Visibility="{x:Bind Content.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              Width="44" Height="44">
+                                                            <Border Background="#99000000" CornerRadius="22" Width="44" Height="44" />
+                                                            <ProgressRing IsIndeterminate="{x:Bind Content.IsProgressIndeterminate, Mode=OneWay}"
+                                                                          Value="{x:Bind Content.DownloadProgress, Mode=OneWay}"
+                                                                          Maximum="100"
+                                                                          Width="40" Height="40"
+                                                                          Foreground="White" />
+                                                            <Button Click="CancelDownload_Click"
+                                                                    Width="28" Height="28"
+                                                                    Padding="0"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    CornerRadius="14"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center"
+                                                                    ToolTipService.ToolTip="Cancel download">
+                                                                <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="White" />
+                                                            </Button>
+                                                        </Grid>
 
                                                         <!-- Duration Badge -->
                                                         <Border Background="#80000000"
@@ -277,7 +380,7 @@
 
                                                         <Grid.ContextFlyout>
                                                             <MenuFlyout>
-                                                                <MenuFlyoutItem Text="Open in app" Click="OpenMediaInApp_Click">
+                                                                <MenuFlyoutItem Text="Open" Click="OpenMediaInApp_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE7AC;" />
                                                                     </MenuFlyoutItem.Icon>
@@ -576,7 +679,7 @@
                             Background="Transparent" BorderThickness="0" Padding="8">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE7AC;" FontSize="14" Foreground="White" />
-                            <TextBlock Text="Open in app" FontSize="12" Foreground="White" />
+                            <TextBlock Text="Open with default app" FontSize="12" Foreground="White" />
                         </StackPanel>
                     </Button>
 

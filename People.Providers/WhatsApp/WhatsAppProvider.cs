@@ -473,12 +473,35 @@ public class WhatsAppProvider : IWhatsAppProvider
                 int? duration = root.TryGetProperty("durationSeconds", out var durProp) ? durProp.GetInt32() : null;
 
                 var contentType = ParseContentType(mediaType);
+                if (contentType == MessageContentType.Text && !string.IsNullOrEmpty(text))
+                {
+                    if (text == "📷 Photo" || text.StartsWith("📷 Photo:"))
+                    {
+                        contentType = MessageContentType.Image;
+                        caption ??= (text.Length > 9 && text.StartsWith("📷 Photo: ")) ? text[10..].Trim() : null;
+                        text = string.Empty;
+                    }
+                    else if (text == "🎥 Video" || text.StartsWith("🎥 Video:"))
+                    {
+                        contentType = MessageContentType.Video;
+                        caption ??= (text.Length > 9 && text.StartsWith("🎥 Video: ")) ? text[10..].Trim() : null;
+                        text = string.Empty;
+                    }
+                    else if (text.StartsWith("📄 "))
+                    {
+                        contentType = MessageContentType.Document;
+                        fileName ??= text.Length > 2 ? text[2..].Trim() : "Document";
+                        text = string.Empty;
+                    }
+                }
 
                 // Filter out empty protocol / stub messages (unless it's an alert/notice with text or real media)
                 if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(text))
                 {
                     return;
                 }
+
+                var localDownloaded = !string.IsNullOrEmpty(mediaUrl) && File.Exists(mediaUrl);
 
                 var msg = new Message
                 {
@@ -489,10 +512,10 @@ public class WhatsAppProvider : IWhatsAppProvider
                     PlatformId = "WhatsApp",
                     Content = new MessageContent
                     {
-                        Text = text,
+                        Text = (contentType == MessageContentType.Text) ? text : string.Empty,
                         Type = contentType,
                         MediaUrl = mediaUrl,
-                        LocalFilePath = mediaUrl,
+                        LocalFilePath = localDownloaded ? mediaUrl : null,
                         FileName = fileName,
                         FileSize = fileSize,
                         MimeType = mimeType,
@@ -507,6 +530,34 @@ public class WhatsAppProvider : IWhatsAppProvider
                     QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
                     Reactions = reactionsList
                 };
+
+                var shouldAutoDownload = contentType switch
+                {
+                    MessageContentType.Image => _activeInstance._settingsService?.GetValue<bool>("WhatsAppAutoDownloadPhotos", true) ?? true,
+                    MessageContentType.Video => _activeInstance._settingsService?.GetValue<bool>("WhatsAppAutoDownloadVideos", false) ?? false,
+                    MessageContentType.Document => _activeInstance._settingsService?.GetValue<bool>("WhatsAppAutoDownloadDocuments", true) ?? true,
+                    _ => false
+                };
+
+                if (shouldAutoDownload && !localDownloaded && (contentType == MessageContentType.Image || contentType == MessageContentType.Video || contentType == MessageContentType.Document))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var downloadedPath = await _activeInstance.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName);
+                            if (!string.IsNullOrEmpty(downloadedPath) && File.Exists(downloadedPath))
+                            {
+                                msg.Content.LocalFilePath = downloadedPath;
+                                if (_activeInstance._messageRepository != null)
+                                {
+                                    await _activeInstance._messageRepository.SaveAsync(msg);
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                }
 
                 // Persist to SQLite repository
                 if (_activeInstance._messageRepository != null)
@@ -998,6 +1049,71 @@ public class WhatsAppProvider : IWhatsAppProvider
         return await Task.Run(() => ReadMessagesFromNative(_clientPtr, chatId, beforeTs, limit), ct);
     }
 
+    private static Message? ConvertDtoToMessage(NativeMessageDto dto, string fallbackChatId)
+    {
+        var contentType = ParseContentType(dto.MediaType);
+        if (contentType == MessageContentType.Text && !string.IsNullOrEmpty(dto.Text))
+        {
+            if (dto.Text == "📷 Photo" || dto.Text.StartsWith("📷 Photo:"))
+            {
+                contentType = MessageContentType.Image;
+                dto.Caption ??= (dto.Text.Length > 9 && dto.Text.StartsWith("📷 Photo: ")) ? dto.Text[10..].Trim() : null;
+                dto.Text = string.Empty;
+            }
+            else if (dto.Text == "🎥 Video" || dto.Text.StartsWith("🎥 Video:"))
+            {
+                contentType = MessageContentType.Video;
+                dto.Caption ??= (dto.Text.Length > 9 && dto.Text.StartsWith("🎥 Video: ")) ? dto.Text[10..].Trim() : null;
+                dto.Text = string.Empty;
+            }
+            else if (dto.Text.StartsWith("📄 "))
+            {
+                contentType = MessageContentType.Document;
+                dto.FileName ??= dto.Text.Length > 2 ? dto.Text[2..].Trim() : "Document";
+                dto.Text = string.Empty;
+            }
+        }
+
+        // Filter empty protocol messages
+        if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
+        {
+            return null;
+        }
+
+        var localFilePath = dto.MediaUrl;
+        var isDownloaded = !string.IsNullOrEmpty(localFilePath) && File.Exists(localFilePath);
+
+        return new Message
+        {
+            Id = dto.Id ?? Guid.NewGuid().ToString(),
+            ChatId = dto.ChatId ?? fallbackChatId,
+            PlatformId = "WhatsApp",
+            SenderId = dto.SenderId ?? string.Empty,
+            SenderName = dto.SenderName,
+            IsOutgoing = dto.IsOutgoing,
+            Content = new MessageContent
+            {
+                Text = (contentType == MessageContentType.Text) ? (dto.Text ?? string.Empty) : string.Empty,
+                Type = contentType,
+                MediaUrl = dto.MediaUrl,
+                LocalFilePath = isDownloaded ? localFilePath : null,
+                FileName = dto.FileName,
+                FileSize = dto.FileSize,
+                MimeType = dto.MimeType,
+                ThumbnailUrl = dto.ThumbnailBase64,
+                Caption = dto.Caption,
+                DurationSeconds = dto.DurationSeconds
+            },
+            Timestamp = dto.Timestamp > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
+                : DateTimeOffset.UnixEpoch,
+            Status = (MessageStatus)dto.Status,
+            QuotedText = dto.QuotedText,
+            QuotedSender = dto.QuotedSender,
+            Reactions = dto.Reactions ?? new()
+        };
+    }
+
     private IReadOnlyList<Message> ReadMessagesFromNative(IntPtr clientPtr, string chatId, long beforeTs, int limit)
     {
         if (clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId)) return Array.Empty<Message>();
@@ -1016,41 +1132,11 @@ public class WhatsAppProvider : IWhatsAppProvider
             var messages = new List<Message>(dtos.Count);
             foreach (var dto in dtos)
             {
-                var contentType = ParseContentType(dto.MediaType);
-                // Filter empty protocol messages
-                if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
+                var msg = ConvertDtoToMessage(dto, chatId);
+                if (msg != null)
                 {
-                    continue;
+                    messages.Add(msg);
                 }
-
-                messages.Add(new Message
-                {
-                    Id = dto.Id ?? Guid.NewGuid().ToString(),
-                    ChatId = dto.ChatId ?? chatId,
-                    PlatformId = "WhatsApp",
-                    SenderId = dto.SenderId ?? string.Empty,
-                    SenderName = dto.SenderName,
-                    IsOutgoing = dto.IsOutgoing,
-                    Content = new MessageContent { 
-                        Text = dto.Text ?? string.Empty,
-                        Type = contentType,
-                        MediaUrl = dto.MediaUrl,
-                        LocalFilePath = dto.MediaUrl,
-                        FileName = dto.FileName,
-                        FileSize = dto.FileSize,
-                        MimeType = dto.MimeType,
-                        ThumbnailUrl = dto.ThumbnailBase64,
-                        Caption = dto.Caption,
-                        DurationSeconds = dto.DurationSeconds
-                    },
-                    Timestamp = dto.Timestamp > 0
-                        ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
-                        : DateTimeOffset.UnixEpoch,
-                    Status = (MessageStatus)dto.Status,
-                    QuotedText = dto.QuotedText,
-                    QuotedSender = dto.QuotedSender,
-                    Reactions = dto.Reactions ?? new()
-                });
             }
 
             return messages;
@@ -1193,41 +1279,11 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var messages = new List<Message>();
                 foreach (var dto in dtos)
                 {
-                    var contentType = ParseContentType(dto.MediaType);
-                    // Filter empty protocol messages
-                    if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
+                    var msg = ConvertDtoToMessage(dto, chatId);
+                    if (msg != null)
                     {
-                        continue;
+                        messages.Add(msg);
                     }
-
-                    messages.Add(new Message
-                    {
-                        Id = dto.Id ?? Guid.NewGuid().ToString(),
-                        ChatId = dto.ChatId ?? chatId,
-                        PlatformId = "WhatsApp",
-                        SenderId = dto.SenderId ?? string.Empty,
-                        SenderName = dto.SenderName,
-                        IsOutgoing = dto.IsOutgoing,
-                        Content = new MessageContent { 
-                            Text = dto.Text ?? string.Empty,
-                            Type = contentType,
-                            MediaUrl = dto.MediaUrl,
-                            LocalFilePath = dto.MediaUrl,
-                            FileName = dto.FileName,
-                            FileSize = dto.FileSize,
-                            MimeType = dto.MimeType,
-                            ThumbnailUrl = dto.ThumbnailBase64,
-                            Caption = dto.Caption,
-                            DurationSeconds = dto.DurationSeconds
-                        },
-                        Timestamp = dto.Timestamp > 0
-                            ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
-                            : DateTimeOffset.UnixEpoch,
-                        Status = (MessageStatus)dto.Status,
-                        QuotedText = dto.QuotedText,
-                        QuotedSender = dto.QuotedSender,
-                        Reactions = dto.Reactions ?? new()
-                    });
                 }
 
                 return (IReadOnlyList<Message>)messages;

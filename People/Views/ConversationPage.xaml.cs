@@ -440,11 +440,19 @@ public sealed partial class ConversationPage : Page
         }
     }
 
+    private void DownloadMedia_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        {
+            _ = ViewModel.DownloadMediaAsync(msg);
+        }
+    }
+
     private void CancelDownload_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is Message msg)
         {
-            ViewModel.CancelDocumentDownload(msg);
+            ViewModel.CancelDownload(msg);
         }
     }
 }
