@@ -32,7 +32,17 @@
         <converters:MessageStatusSentVisibilityConverter x:Key="MessageStatusSentVisibilityConverter" />
         <converters:MessageStatusDoubleCheckVisibilityConverter x:Key="MessageStatusDoubleCheckVisibilityConverter" />
         <converters:MessageStatusBrushConverter x:Key="MessageStatusBrushConverter" />
+        <converters:BoolToPlayPauseGlyphConverter x:Key="BoolToPlayPauseGlyphConverter" />
         <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
+
+        <Style x:Key="AttachmentMenuButtonStyle" TargetType="Button">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,9" />
+        </Style>
     </Page.Resources>
 
     <Grid>
@@ -545,32 +555,65 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
 
-                                                            <!-- Play / Pause / Download Button -->
-                                                            <Grid Grid.Column="0" VerticalAlignment="Center">
+                                                            <!-- Left: Mic / Audio Icon -->
+                                                            <Border Grid.Column="0" VerticalAlignment="Center" Width="36" Height="36" CornerRadius="18"
+                                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                                                <FontIcon Glyph="&#xE720;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+
+                                                            <!-- Center: Waveform / Slider + Duration & File Info -->
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                                                <Slider Minimum="0" Maximum="100"
+                                                                        Value="{x:Bind Content.PlaybackProgress, Mode=OneWay}"
+                                                                        ValueChanged="AudioSlider_ValueChanged"
+                                                                        IsThumbToolTipEnabled="False"
+                                                                        Margin="0,-4,0,-4"
+                                                                        IsEnabled="{x:Bind Content.IsDownloaded, Mode=OneWay}" />
+                                                                <Grid>
+                                                                    <TextBlock Text="{x:Bind Content.PlaybackTimeText, Mode=OneWay}"
+                                                                               FontSize="11"
+                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                               HorizontalAlignment="Left"
+                                                                               Visibility="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                    <TextBlock Text="{x:Bind Content.FormattedDuration, Mode=OneWay}"
+                                                                               FontSize="11"
+                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                               HorizontalAlignment="Left"
+                                                                               Visibility="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                                                                    <TextBlock Text="{x:Bind Content.FormattedSizeAndType, Mode=OneWay}"
+                                                                               FontSize="11"
+                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                               HorizontalAlignment="Right" />
+                                                                </Grid>
+                                                            </StackPanel>
+
+                                                            <!-- Right: Play / Pause / Download Action Button -->
+                                                            <Grid Grid.Column="2" VerticalAlignment="Center">
                                                                 <!-- Undownloaded: Download Button -->
                                                                 <Button Click="DownloadMedia_Click"
-                                                                        Width="38" Height="38"
+                                                                        Width="36" Height="36"
                                                                         Padding="0"
                                                                         Style="{ThemeResource AppAccentButtonStyle}"
-                                                                        CornerRadius="19"
+                                                                        CornerRadius="18"
                                                                         ToolTipService.ToolTip="Download audio"
                                                                         Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                    <FontIcon Glyph="&#xE896;" FontSize="16" />
+                                                                    <FontIcon Glyph="&#xE896;" FontSize="15" />
                                                                 </Button>
 
                                                                 <!-- Downloading: Progress Ring + Cancel -->
                                                                 <Grid Visibility="{x:Bind Content.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                                      Width="38" Height="38">
+                                                                      Width="36" Height="36">
                                                                     <ProgressRing IsIndeterminate="{x:Bind Content.IsProgressIndeterminate, Mode=OneWay}"
                                                                                   Value="{x:Bind Content.DownloadProgress, Mode=OneWay}"
                                                                                   Maximum="100"
-                                                                                  Width="36" Height="36" />
+                                                                                  Width="34" Height="34" />
                                                                     <Button Click="CancelDownload_Click"
-                                                                            Width="24" Height="24"
+                                                                            Width="22" Height="22"
                                                                             Padding="0"
                                                                             Background="Transparent"
                                                                             BorderThickness="0"
-                                                                            CornerRadius="12"
+                                                                            CornerRadius="11"
                                                                             HorizontalAlignment="Center"
                                                                             VerticalAlignment="Center"
                                                                             ToolTipService.ToolTip="Cancel download">
@@ -580,35 +623,15 @@
 
                                                                 <!-- Downloaded: Play / Pause Button -->
                                                                 <Button Click="PlayAudio_Click"
-                                                                        Width="38" Height="38"
+                                                                        Width="36" Height="36"
                                                                         Padding="0"
                                                                         Style="{ThemeResource AppAccentButtonStyle}"
-                                                                        CornerRadius="19"
+                                                                        CornerRadius="18"
                                                                         ToolTipService.ToolTip="Play / Pause"
                                                                         Visibility="{x:Bind Content.IsDownloaded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                    <FontIcon Glyph="&#xE768;" FontSize="16" />
+                                                                    <FontIcon Glyph="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToPlayPauseGlyphConverter}}" FontSize="15" />
                                                                 </Button>
                                                             </Grid>
-
-                                                            <!-- Duration & File Info -->
-                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-                                                                <Slider Minimum="0" Maximum="100" Value="0" IsThumbToolTipEnabled="False" Margin="0,-4,0,-4" IsEnabled="{x:Bind Content.IsDownloaded, Mode=OneWay}" />
-                                                                <Grid>
-                                                                    <TextBlock Text="{x:Bind Content.FormattedDuration, Mode=OneWay}"
-                                                                               FontSize="11"
-                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                               HorizontalAlignment="Left" />
-                                                                    <TextBlock Text="{x:Bind Content.FormattedSizeAndType, Mode=OneWay}"
-                                                                               FontSize="11"
-                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                               HorizontalAlignment="Right" />
-                                                                </Grid>
-                                                            </StackPanel>
-
-                                                            <!-- Mic / Audio Glyph -->
-                                                            <Border Grid.Column="2" VerticalAlignment="Center" Margin="2,0,0,0">
-                                                                <FontIcon Glyph="&#xE720;" FontSize="16" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                                            </Border>
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
@@ -749,106 +772,73 @@
                         AutomationProperties.Name="Attachment button">
                     <FontIcon Glyph="&#xE723;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     <Button.Flyout>
-                        <Flyout Placement="TopEdgeAlignedLeft">
+                        <Flyout x:Name="AttachFlyout" Placement="TopEdgeAlignedLeft">
                             <Flyout.FlyoutPresenterStyle>
                                 <Style TargetType="FlyoutPresenter">
                                     <Setter Property="CornerRadius" Value="16" />
                                     <Setter Property="Padding" Value="6" />
                                     <Setter Property="MinWidth" Value="210" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}" />
                                 </Style>
                             </Flyout.FlyoutPresenterStyle>
-                            <StackPanel Spacing="2">
+                            <StackPanel Spacing="3">
                                 <!-- Document (Purple) -->
                                 <Button Click="AttachDocument_Click"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                        Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xE8A5;" FontSize="18" Foreground="#7F66FF" />
+                                        <FontIcon Glyph="&#xE8A5;" FontSize="20" Foreground="#8B5CF6" />
                                         <TextBlock Text="Document" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
                                 <!-- Photos & videos (Blue) -->
                                 <Button Click="AttachMedia_Click"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                        Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xEB9F;" FontSize="18" Foreground="#007AFF" />
+                                        <FontIcon Glyph="&#xEB9F;" FontSize="20" Foreground="#0EA5E9" />
                                         <TextBlock Text="Photos &amp; videos" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
                                 <!-- Camera (Pink) -->
                                 <Button Click="AttachCamera_Click"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                        Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xE722;" FontSize="18" Foreground="#FF2E74" />
+                                        <FontIcon Glyph="&#xE722;" FontSize="20" Foreground="#EC4899" />
                                         <TextBlock Text="Camera" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Audio (Orange) -->
+                                <!-- Audio (Orange - Headphones) -->
                                 <Button Click="AttachAudio_Click"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                        Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xE767;" FontSize="18" Foreground="#FF6C22" />
+                                        <FontIcon Glyph="&#xE7F6;" FontSize="20" Foreground="#F97316" />
                                         <TextBlock Text="Audio" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
                                 <!-- Contact (Cyan - Placeholder) -->
-                                <Button HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                <Button Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xE77B;" FontSize="18" Foreground="#00B4D8" />
+                                        <FontIcon Glyph="&#xE77B;" FontSize="20" Foreground="#06B6D4" />
                                         <TextBlock Text="Contact" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
                                 <!-- Poll (Yellow - Placeholder) -->
-                                <Button HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                <Button Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xF6A9;" FontSize="18" Foreground="#FFB800" />
+                                        <FontIcon Glyph="&#xF4A5;" FontSize="20" Foreground="#EAB308" />
                                         <TextBlock Text="Poll" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
                                 <!-- New sticker (Green - Placeholder) -->
-                                <Button HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        CornerRadius="8"
-                                        Padding="10,8">
+                                <Button Style="{StaticResource AttachmentMenuButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
-                                        <FontIcon Glyph="&#xE710;" FontSize="18" Foreground="#00D084" />
+                                        <FontIcon Glyph="&#xF4AA;" FontSize="20" Foreground="#10B981" />
                                         <TextBlock Text="New sticker" FontWeight="Medium" FontSize="14" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>

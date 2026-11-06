@@ -294,10 +294,12 @@ public partial class ConversationViewModel : ViewModelBase
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
 
-                // If chat only has a few messages (e.g. months-old chat with only 1-3 messages), auto-fetch older messages
-                if (Messages.Count <= 3 && HasMoreOlderMessages && !IsLoadingOlder)
+                foreach (var m in Messages)
                 {
-                    _ = LoadOlderMessagesCommand.ExecuteAsync(null);
+                    if (m.Content?.IsVideo == true && !string.IsNullOrEmpty(m.Content.LocalFilePath))
+                    {
+                        _ = EnsureVideoThumbnailAsync(m.Content);
+                    }
                 }
             });
         }
@@ -588,7 +590,14 @@ public partial class ConversationViewModel : ViewModelBase
             return true;
         }
 
-        return false;
+        try
+        {
+            return People.Interop.WhatsAppNative.wa_chat_ids_match(clean1, clean2) == 1;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
@@ -1312,6 +1321,7 @@ public partial class ConversationViewModel : ViewModelBase
     }
 
     private Windows.Media.Playback.MediaPlayer? _audioPlayer;
+    private MessageContent? _currentlyPlayingContent;
 
     public async Task PlayAudioAsync(Message? msg)
     {
@@ -1319,21 +1329,93 @@ public partial class ConversationViewModel : ViewModelBase
         if (!msg.Content.IsDownloaded)
         {
             await DownloadMediaAsync(msg);
+            return;
         }
 
-        if (msg.Content.IsDownloaded && !string.IsNullOrEmpty(msg.Content.LocalFilePath) && File.Exists(msg.Content.LocalFilePath))
+        if (string.IsNullOrEmpty(msg.Content.LocalFilePath) || !File.Exists(msg.Content.LocalFilePath))
+            return;
+
+        // Toggle pause/play if same track
+        if (_currentlyPlayingContent == msg.Content && _audioPlayer != null)
         {
-            try
+            if (msg.Content.IsPlaying)
             {
-                _audioPlayer ??= new Windows.Media.Playback.MediaPlayer();
-                _audioPlayer.Source = Windows.Media.Core.MediaSource.CreateFromUri(new Uri(msg.Content.LocalFilePath));
+                _audioPlayer.Pause();
+                msg.Content.IsPlaying = false;
+            }
+            else
+            {
                 _audioPlayer.Play();
+                msg.Content.IsPlaying = true;
             }
-            catch (Exception ex)
+            return;
+        }
+
+        // Switching track: reset previous
+        if (_currentlyPlayingContent != null)
+        {
+            _currentlyPlayingContent.IsPlaying = false;
+            _currentlyPlayingContent.PlaybackProgress = 0;
+            _currentlyPlayingContent.PlaybackTimeText = null;
+            _currentlyPlayingContent = null;
+        }
+
+        try
+        {
+            _audioPlayer?.Dispose();
+            _audioPlayer = new Windows.Media.Playback.MediaPlayer();
+            _currentlyPlayingContent = msg.Content;
+            msg.Content.IsPlaying = true;
+            msg.Content.PlaybackProgress = 0;
+
+            _audioPlayer.Source = Windows.Media.Core.MediaSource.CreateFromUri(new Uri(msg.Content.LocalFilePath));
+            _audioPlayer.PlaybackSession.PositionChanged += (session, _) =>
             {
-                System.Diagnostics.Debug.WriteLine($"PlayAudioAsync failed: {ex.Message}");
-                await LaunchFileAsync(msg.Content.LocalFilePath);
-            }
+                _dispatcherService.Enqueue(() =>
+                {
+                    if (_currentlyPlayingContent == msg.Content)
+                    {
+                        var dur = session.NaturalDuration.TotalSeconds;
+                        var pos = session.Position.TotalSeconds;
+                        if (dur > 0)
+                        {
+                            msg.Content.PlaybackProgress = Math.Clamp((pos / dur) * 100.0, 0, 100);
+                            msg.Content.PlaybackTimeText = $"{session.Position:mm\\:ss}";
+                        }
+                    }
+                });
+            };
+            _audioPlayer.MediaEnded += (_, _) =>
+            {
+                _dispatcherService.Enqueue(() =>
+                {
+                    if (_currentlyPlayingContent == msg.Content)
+                    {
+                        msg.Content.IsPlaying = false;
+                        msg.Content.PlaybackProgress = 0;
+                        msg.Content.PlaybackTimeText = null;
+                        _currentlyPlayingContent = null;
+                    }
+                });
+            };
+            _audioPlayer.Play();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"PlayAudioAsync failed: {ex.Message}");
+            msg.Content.IsPlaying = false;
+            _currentlyPlayingContent = null;
+            await LaunchFileAsync(msg.Content.LocalFilePath);
+        }
+    }
+
+    public void SeekAudio(MessageContent? content, double percent)
+    {
+        if (content == null || _currentlyPlayingContent != content || _audioPlayer == null) return;
+        var dur = _audioPlayer.PlaybackSession.NaturalDuration;
+        if (dur.TotalSeconds > 0)
+        {
+            _audioPlayer.PlaybackSession.Position = TimeSpan.FromSeconds((percent / 100.0) * dur.TotalSeconds);
         }
     }
 

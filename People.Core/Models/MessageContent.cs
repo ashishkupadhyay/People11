@@ -197,6 +197,52 @@ public class MessageContent : INotifyPropertyChanged
     [JsonIgnore]
     public CancellationTokenSource? DownloadCts { get; set; }
 
+    // Audio Playback state (transient, not serialized)
+    private bool _isPlaying;
+    [JsonIgnore]
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        set
+        {
+            if (_isPlaying != value)
+            {
+                _isPlaying = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private double _playbackProgress;
+    [JsonIgnore]
+    public double PlaybackProgress
+    {
+        get => _playbackProgress;
+        set
+        {
+            if (Math.Abs(_playbackProgress - value) > 0.05)
+            {
+                _playbackProgress = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private string? _playbackTimeText;
+    [JsonIgnore]
+    public string? PlaybackTimeText
+    {
+        get => _playbackTimeText;
+        set
+        {
+            if (_playbackTimeText != value)
+            {
+                _playbackTimeText = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     // Helpers
     public bool IsImage => Type == MessageContentType.Image;
     public bool IsVideo => Type == MessageContentType.Video;
@@ -271,6 +317,11 @@ public class MessageContent : INotifyPropertyChanged
     {
         get
         {
+            if (IsAudio)
+            {
+                return DurationSeconds.HasValue ? "Voice message" : "Audio";
+            }
+
             var target = !string.IsNullOrWhiteSpace(FileName) ? FileName : (!string.IsNullOrWhiteSpace(LocalFilePath) ? LocalFilePath : string.Empty);
             var ext = System.IO.Path.GetExtension(target).ToLowerInvariant();
             if (string.IsNullOrEmpty(ext) && !string.IsNullOrEmpty(MimeType))

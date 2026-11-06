@@ -464,8 +464,20 @@ public sealed partial class ConversationPage : Page
         }
     }
 
+    private void AudioSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (sender is Slider slider && slider.DataContext is Message msg && msg.Content != null)
+        {
+            if (slider.FocusState != FocusState.Unfocused)
+            {
+                ViewModel.SeekAudio(msg.Content, e.NewValue);
+            }
+        }
+    }
+
     private async void AttachDocument_Click(object sender, RoutedEventArgs e)
     {
+        AttachFlyout?.Hide();
         try
         {
             var picker = new Windows.Storage.Pickers.FileOpenPicker();
@@ -490,6 +502,7 @@ public sealed partial class ConversationPage : Page
 
     private async void AttachMedia_Click(object sender, RoutedEventArgs e)
     {
+        AttachFlyout?.Hide();
         try
         {
             var picker = new Windows.Storage.Pickers.FileOpenPicker();
@@ -521,6 +534,7 @@ public sealed partial class ConversationPage : Page
 
     private async void AttachCamera_Click(object sender, RoutedEventArgs e)
     {
+        AttachFlyout?.Hide();
         try
         {
             var captureUI = new Windows.Media.Capture.CameraCaptureUI();
@@ -542,6 +556,7 @@ public sealed partial class ConversationPage : Page
 
     private async void AttachAudio_Click(object sender, RoutedEventArgs e)
     {
+        AttachFlyout?.Hide();
         try
         {
             var picker = new Windows.Storage.Pickers.FileOpenPicker();

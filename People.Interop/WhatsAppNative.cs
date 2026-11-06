@@ -55,6 +55,12 @@ public static unsafe partial class WhatsAppNative
     public static partial IntPtr wa_get_messages(IntPtr clientPtr, string chatId);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_chat_ids_match(string id1, string id2);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr wa_canonicalize_chat_id(string chatId);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_is_self_chat(IntPtr clientPtr, string chatId);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]

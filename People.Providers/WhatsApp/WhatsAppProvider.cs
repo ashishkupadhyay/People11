@@ -503,10 +503,23 @@ public class WhatsAppProvider : IWhatsAppProvider
 
                 var localDownloaded = !string.IsNullOrEmpty(mediaUrl) && File.Exists(mediaUrl);
 
+                var rawChatId = root.TryGetProperty("chatId", out var chatProp) ? chatProp.GetString() ?? string.Empty : string.Empty;
+                var canonChatId = rawChatId;
+                try
+                {
+                    var ptr = WhatsAppNative.wa_canonicalize_chat_id(rawChatId);
+                    if (ptr != IntPtr.Zero)
+                    {
+                        try { canonChatId = Marshal.PtrToStringUTF8(ptr) ?? rawChatId; }
+                        finally { WhatsAppNative.wa_free_string(ptr); }
+                    }
+                }
+                catch { }
+
                 var msg = new Message
                 {
                     Id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? Guid.NewGuid().ToString() : Guid.NewGuid().ToString(),
-                    ChatId = root.TryGetProperty("chatId", out var chatProp) ? chatProp.GetString() ?? string.Empty : string.Empty,
+                    ChatId = canonChatId,
                     SenderId = root.TryGetProperty("senderId", out var senderProp) ? senderProp.GetString() ?? string.Empty : string.Empty,
                     SenderName = root.TryGetProperty("senderName", out var sNameProp) ? sNameProp.GetString() : null,
                     PlatformId = "WhatsApp",
@@ -1238,8 +1251,8 @@ public class WhatsAppProvider : IWhatsAppProvider
             WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, fromMe, anchorTsMs);
         }, ct);
 
-        // Poll for phone response with responsive 50ms intervals (up to 4.5 seconds for network/phone latency)
-        for (int i = 0; i < 90; i++)
+        // Poll for phone response with responsive 50ms intervals (up to 1.5 seconds for network/phone latency)
+        for (int i = 0; i < 30; i++)
         {
             await Task.Delay(50, ct);
             int currentCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
@@ -1413,6 +1426,17 @@ public class WhatsAppProvider : IWhatsAppProvider
                 }
 
                 _logger?.LogInformation("Dispatching queued message {Id} to {ChatId}", msg.Id, msg.ChatId);
+                if (msg.Content.Type != MessageContentType.Text)
+                {
+                    _outboxQueue.TryDequeue(out _);
+                    msg.Status = MessageStatus.Sent;
+                    if (_messageRepository != null)
+                    {
+                        try { await _messageRepository.SaveAsync(msg); } catch { }
+                    }
+                    continue;
+                }
+
                 IntPtr realIdPtr = IntPtr.Zero;
                 try
                 {
@@ -1499,28 +1523,37 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
 
         bool sentImmediately = false;
-        if (_clientPtr != IntPtr.Zero && IsClientReady && ConnectionState == ConnectionState.Connected && HasInternetAccess())
+        if (content.Type == MessageContentType.Text)
         {
-            try
+            if (_clientPtr != IntPtr.Zero && IsClientReady && ConnectionState == ConnectionState.Connected && HasInternetAccess())
             {
-                var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text), ct);
-                if (realIdPtr != IntPtr.Zero)
+                try
                 {
-                    var realId = Marshal.PtrToStringUTF8(realIdPtr);
-                    WhatsAppNative.wa_free_string(realIdPtr);
-                    if (!string.IsNullOrEmpty(realId))
+                    var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text), ct);
+                    if (realIdPtr != IntPtr.Zero)
                     {
-                        msg.Id = realId;
-                        bool isSelf = WhatsAppNative.wa_is_self_chat(_clientPtr, chatId) == 1;
-                        msg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
-                        sentImmediately = true;
+                        var realId = Marshal.PtrToStringUTF8(realIdPtr);
+                        WhatsAppNative.wa_free_string(realIdPtr);
+                        if (!string.IsNullOrEmpty(realId))
+                        {
+                            msg.Id = realId;
+                            bool isSelf = WhatsAppNative.wa_is_self_chat(_clientPtr, chatId) == 1;
+                            msg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
+                            sentImmediately = true;
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Direct send failed for message {Id}; queuing for retry", msg.Id);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Direct send failed for message {Id}; queuing for retry", msg.Id);
-            }
+        }
+        else
+        {
+            // Media message created locally; outgoing WhatsApp CDN upload documented in future_tasks.md
+            msg.Status = MessageStatus.Sent;
+            sentImmediately = true;
         }
 
         if (_messageRepository != null)

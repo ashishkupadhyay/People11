@@ -134,12 +134,14 @@ public class StringToImageSourceConverter : IValueConverter
                                     Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb).AsTask().GetAwaiter().GetResult();
                                 var pixels = pixelProvider.DetachPixelData();
 
-                                ApplyBoxBlur(pixels, width, height, 4);
+                                int targetW = Math.Clamp(width * 8, 256, 384);
+                                int targetH = Math.Clamp(height * 8, 256, 384);
+                                var smoothPixels = BilinearScaleAndBlur(pixels, width, height, targetW, targetH, 14);
 
-                                var wb = new WriteableBitmap(width, height);
+                                var wb = new WriteableBitmap(targetW, targetH);
                                 using (var pixelStream = wb.PixelBuffer.AsStream())
                                 {
-                                    pixelStream.Write(pixels, 0, pixels.Length);
+                                    pixelStream.Write(smoothPixels, 0, smoothPixels.Length);
                                 }
                                 wb.Invalidate();
                                 _blurCache[url] = wb;
@@ -176,6 +178,49 @@ public class StringToImageSourceConverter : IValueConverter
             }
         }
         return null;
+    }
+
+    private static byte[] BilinearScaleAndBlur(byte[] src, int srcW, int srcH, int dstW, int dstH, int blurRadius)
+    {
+        var scaled = new byte[dstW * dstH * 4];
+        float xRatio = (float)(srcW - 1) / Math.Max(1, dstW - 1);
+        float yRatio = (float)(srcH - 1) / Math.Max(1, dstH - 1);
+
+        for (int y = 0; y < dstH; y++)
+        {
+            float srcY = y * yRatio;
+            int yLow = (int)srcY;
+            int yHigh = Math.Min(srcH - 1, yLow + 1);
+            float yWeight = srcY - yLow;
+
+            int dstRowStart = y * dstW * 4;
+            int srcRowLow = yLow * srcW * 4;
+            int srcRowHigh = yHigh * srcW * 4;
+
+            for (int x = 0; x < dstW; x++)
+            {
+                float srcX = x * xRatio;
+                int xLow = (int)srcX;
+                int xHigh = Math.Min(srcW - 1, xLow + 1);
+                float xWeight = srcX - xLow;
+
+                int idxTL = srcRowLow + (xLow * 4);
+                int idxTR = srcRowLow + (xHigh * 4);
+                int idxBL = srcRowHigh + (xLow * 4);
+                int idxBR = srcRowHigh + (xHigh * 4);
+
+                int dstIdx = dstRowStart + (x * 4);
+                for (int c = 0; c < 4; c++)
+                {
+                    float top = src[idxTL + c] * (1f - xWeight) + src[idxTR + c] * xWeight;
+                    float bottom = src[idxBL + c] * (1f - xWeight) + src[idxBR + c] * xWeight;
+                    scaled[dstIdx + c] = (byte)(top * (1f - yWeight) + bottom * yWeight);
+                }
+            }
+        }
+
+        ApplyBoxBlur(scaled, dstW, dstH, blurRadius);
+        return scaled;
     }
 
     private static void ApplyBoxBlur(byte[] pixels, int w, int h, int r)
@@ -241,6 +286,20 @@ public class StringToImageSourceConverter : IValueConverter
                 dst[dstIdx + 3] = src[dstIdx + 3];
             }
         }
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class BoolToPlayPauseGlyphConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool isPlaying && isPlaying)
+        {
+            return "\uE769"; // Pause
+        }
+        return "\uE768"; // Play
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
