@@ -106,6 +106,15 @@ public static unsafe partial class WhatsAppNative
         IntPtr clientPtr,
         delegate* unmanaged[Cdecl]<IntPtr, long, long, void> callback);
 
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr wa_send_media(
+        IntPtr clientPtr,
+        string chatId,
+        string filePath,
+        int mediaType,
+        string? caption,
+        string? fileName);
+
     [LibraryImport(DllName)]
     public static partial void wa_destroy_client(IntPtr clientPtr);
 

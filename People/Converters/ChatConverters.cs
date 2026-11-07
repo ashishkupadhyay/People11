@@ -113,35 +113,37 @@ public class StringToImageSourceConverter : IValueConverter
 
                         try
                         {
-                            var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                            using (var writer = new Windows.Storage.Streams.DataWriter(ras))
+                            var decodeResult = Task.Run<(byte[]? smooth, int targetW, int targetH)>(async () =>
                             {
-                                writer.WriteBytes(bytes);
-                                writer.StoreAsync().AsTask().GetAwaiter().GetResult();
-                            }
-                            ras.Seek(0);
-                            var decoder = Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras).AsTask().GetAwaiter().GetResult();
-                            var width = (int)decoder.PixelWidth;
-                            var height = (int)decoder.PixelHeight;
+                                using var memStream = new System.IO.MemoryStream(bytes);
+                                using var ras = memStream.AsRandomAccessStream();
+                                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
+                                var w = (int)decoder.PixelWidth;
+                                var h = (int)decoder.PixelHeight;
 
-                            if (width > 0 && height > 0)
+                                if (w > 0 && h > 0)
+                                {
+                                    var pixelProvider = await decoder.GetPixelDataAsync(
+                                        Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                                        Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+                                        new Windows.Graphics.Imaging.BitmapTransform(),
+                                        Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
+                                        Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
+                                    var px = pixelProvider.DetachPixelData();
+                                    int targetW = Math.Clamp(w * 8, 256, 384);
+                                    int targetH = Math.Clamp(h * 8, 256, 384);
+                                    var smooth = BilinearScaleAndBlur(px, w, h, targetW, targetH, 16);
+                                    return (smooth, targetW, targetH);
+                                }
+                                return (null, 0, 0);
+                            }).GetAwaiter().GetResult();
+
+                            if (decodeResult.smooth != null && decodeResult.targetW > 0 && decodeResult.targetH > 0)
                             {
-                                var pixelProvider = decoder.GetPixelDataAsync(
-                                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-                                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
-                                    new Windows.Graphics.Imaging.BitmapTransform(),
-                                    Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
-                                    Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb).AsTask().GetAwaiter().GetResult();
-                                var pixels = pixelProvider.DetachPixelData();
-
-                                int targetW = Math.Clamp(width * 8, 256, 384);
-                                int targetH = Math.Clamp(height * 8, 256, 384);
-                                var smoothPixels = BilinearScaleAndBlur(pixels, width, height, targetW, targetH, 14);
-
-                                var wb = new WriteableBitmap(targetW, targetH);
+                                var wb = new WriteableBitmap(decodeResult.targetW, decodeResult.targetH);
                                 using (var pixelStream = wb.PixelBuffer.AsStream())
                                 {
-                                    pixelStream.Write(smoothPixels, 0, smoothPixels.Length);
+                                    pixelStream.Write(decodeResult.smooth, 0, decodeResult.smooth.Length);
                                 }
                                 wb.Invalidate();
                                 _blurCache[url] = wb;

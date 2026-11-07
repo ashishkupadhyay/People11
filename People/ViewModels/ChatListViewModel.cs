@@ -29,7 +29,12 @@ public partial class ChatListViewModel : ViewModelBase
     public partial bool ShowQrCode { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBlockingError))]
+    [NotifyPropertyChangedFor(nameof(HasNonBlockingError))]
     public partial bool HasError { get; set; }
+
+    public bool HasBlockingError => HasError && Chats.Count == 0;
+    public bool HasNonBlockingError => HasError && Chats.Count > 0;
 
     [ObservableProperty]
     public partial string ErrorMessage { get; set; } = string.Empty;
@@ -351,11 +356,13 @@ public partial class ChatListViewModel : ViewModelBase
                 if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)
                 {
                     chat.LastMessage.Status = msg.Status;
+                    chat.RefreshLastMessagePreview();
                 }
                 else
                 {
                     chat.LastMessage = msg;
                     chat.LastMessageTime = msg.Timestamp;
+                    chat.RefreshLastMessagePreview();
                     SortChatsInPlace();
                 }
             }
@@ -595,6 +602,7 @@ public partial class ChatListViewModel : ViewModelBase
                             if (incoming.LastMessage != null)
                             {
                                 existing.LastMessage = incoming.LastMessage;
+                                existing.RefreshLastMessagePreview();
                             }
                             existing.UnreadCount = incoming.UnreadCount;
                             if (!string.IsNullOrEmpty(incoming.PictureUrl) && existing.PictureUrl != incoming.PictureUrl)

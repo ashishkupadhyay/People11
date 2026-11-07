@@ -154,6 +154,19 @@
                              AutomationProperties.Name="Syncing messages" />
             </StackPanel>
 
+            <InfoBar Grid.Row="1"
+                     IsOpen="{x:Bind ViewModel.HasNonBlockingError, Mode=OneWay}"
+                     Severity="Warning"
+                     Title="WhatsApp Connection"
+                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                     IsClosable="False"
+                     Canvas.ZIndex="10"
+                     VerticalAlignment="Top">
+                <InfoBar.ActionButton>
+                    <Button Content="Retry" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind ViewModel.RetryConnectCommand}" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
             <ListView x:Name="ChatsListView" Grid.Row="1" ItemsSource="{x:Bind ViewModel.Chats, Mode=OneWay}" 
                       SelectionMode="Single"
                       IsItemClickEnabled="True"
@@ -294,8 +307,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- Error Overlay -->
-        <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+        <!-- Error Overlay (only when blocking with no chats loaded) -->
+        <Grid Grid.ColumnSpan="2" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="{x:Bind ViewModel.HasBlockingError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="360">
                 <FontIcon Glyph="&#xE783;" FontSize="48" Foreground="{ThemeResource SystemFillColorCautionBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="WhatsApp Connection Failed" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />

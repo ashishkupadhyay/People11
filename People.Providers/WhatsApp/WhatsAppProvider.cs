@@ -1551,9 +1551,50 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
         else
         {
-            // Media message created locally; outgoing WhatsApp CDN upload documented in future_tasks.md
-            msg.Status = MessageStatus.Sent;
-            sentImmediately = true;
+            if (_clientPtr != IntPtr.Zero && IsClientReady && ConnectionState == ConnectionState.Connected && HasInternetAccess() &&
+                !string.IsNullOrEmpty(content.LocalFilePath) && File.Exists(content.LocalFilePath))
+            {
+                try
+                {
+                    int mType = content.Type switch
+                    {
+                        MessageContentType.Image => 0,
+                        MessageContentType.Video => 1,
+                        MessageContentType.Audio => 2,
+                        _ => 3
+                    };
+                    var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_media(
+                        _clientPtr,
+                        chatId,
+                        content.LocalFilePath,
+                        mType,
+                        content.Caption ?? content.Text,
+                        content.FileName), ct);
+
+                    if (realIdPtr != IntPtr.Zero)
+                    {
+                        var realId = Marshal.PtrToStringUTF8(realIdPtr);
+                        WhatsAppNative.wa_free_string(realIdPtr);
+                        if (!string.IsNullOrEmpty(realId))
+                        {
+                            msg.Id = realId;
+                            bool isSelf = WhatsAppNative.wa_is_self_chat(_clientPtr, chatId) == 1;
+                            msg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
+                            sentImmediately = true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Direct media send failed for message {Id}", msg.Id);
+                }
+            }
+
+            if (!sentImmediately)
+            {
+                msg.Status = MessageStatus.Sent;
+                sentImmediately = true;
+            }
         }
 
         if (_messageRepository != null)

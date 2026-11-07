@@ -197,6 +197,14 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateSenderPushName();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+
+                foreach (var m in Messages)
+                {
+                    if (m.Content?.IsVideo == true && !string.IsNullOrEmpty(m.Content.LocalFilePath))
+                    {
+                        _ = EnsureVideoThumbnailAsync(m.Content);
+                    }
+                }
             }
         }
 
@@ -229,6 +237,14 @@ public partial class ConversationViewModel : ViewModelBase
                         UpdateSenderPushName();
                         IsLoading = false;
                         InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+
+                        foreach (var m in Messages)
+                        {
+                            if (m.Content?.IsVideo == true && !string.IsNullOrEmpty(m.Content.LocalFilePath))
+                            {
+                                _ = EnsureVideoThumbnailAsync(m.Content);
+                            }
+                        }
                     }
                 }
                 catch { }
@@ -1434,6 +1450,31 @@ public partial class ConversationViewModel : ViewModelBase
         try
         {
             var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(content.LocalFilePath);
+
+            // 1. Primary: Extract an exact video frame via Windows Media Composition
+            try
+            {
+                var clip = await Windows.Media.Editing.MediaClip.CreateFromFileAsync(storageFile);
+                var composition = new Windows.Media.Editing.MediaComposition();
+                composition.Clips.Add(clip);
+                using var imageStream = await composition.GetThumbnailAsync(
+                    TimeSpan.FromMilliseconds(200),
+                    320,
+                    0,
+                    Windows.Media.Editing.VideoFramePrecision.NearestFrame);
+
+                if (imageStream != null && imageStream.Size > 0)
+                {
+                    using var fileStream = File.Create(thumbPath);
+                    using var readStream = imageStream.AsStreamForRead();
+                    await readStream.CopyToAsync(fileStream);
+                    content.ThumbnailUrl = thumbPath;
+                    return;
+                }
+            }
+            catch { }
+
+            // 2. Fallback: Shell thumbnail
             using var thumb = await storageFile.GetThumbnailAsync(
                 Windows.Storage.FileProperties.ThumbnailMode.VideosView,
                 320,

@@ -14,6 +14,7 @@ public partial class Chat : ObservableObject
     private string _title = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastMessagePreview))]
     private bool _isGroup;
 
     [ObservableProperty]
@@ -26,7 +27,13 @@ public partial class Chat : ObservableObject
     private DateTimeOffset _lastMessageTime;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastMessagePreview))]
     private Message? _lastMessage;
+
+    public void RefreshLastMessagePreview()
+    {
+        OnPropertyChanged(nameof(LastMessagePreview));
+    }
 
     public string LastMessagePreview
     {
