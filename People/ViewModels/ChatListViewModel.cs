@@ -312,10 +312,6 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
-        lock (_failedPictureJids)
-        {
-            _failedPictureJids.Clear();
-        }
         _ = LoadChatsAsync();
     }
 
@@ -324,9 +320,10 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             var existing = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, chatId));
-            if (existing != null && existing.UnreadCount > 0)
+            if (existing != null)
             {
                 existing.UnreadCount = 0;
+                existing.RefreshLastMessagePreview();
             }
         });
     }
@@ -577,7 +574,7 @@ public partial class ChatListViewModel : ViewModelBase
                             var digits = new string(user.Where(char.IsDigit).ToArray());
                             if (digits.Length >= 7 && existingMap.TryGetValue(digits, out found)) return found;
                         }
-                        return null;
+                        return Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, id));
                     }
 
                     // Update existing or add new

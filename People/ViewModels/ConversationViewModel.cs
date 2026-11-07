@@ -108,6 +108,7 @@ public partial class ConversationViewModel : ViewModelBase
     private CancellationTokenSource? _loadChatCts;
     private int _consecutiveEmptyOlderLoads;
     private static readonly SemaphoreSlim _thumbSemaphore = new(1, 1);
+    private static readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
 
     public void CancelLoading()
     {
@@ -155,13 +156,19 @@ public partial class ConversationViewModel : ViewModelBase
             waSubProvider.SubscribePresence(chat.Id);
         }
 
-        if (string.IsNullOrEmpty(chat.PictureUrl) && _provider is IWhatsAppProvider waProvider)
+        bool shouldFetchPic = false;
+        lock (_failedPictureJids)
+        {
+            shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl) && !_failedPictureJids.Contains(chat.Id);
+        }
+
+        if (shouldFetchPic && _provider is IWhatsAppProvider waProvider)
         {
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id);
+                    var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id, token);
                     if (!string.IsNullOrEmpty(picUrl))
                     {
                         _dispatcherService.Enqueue(() =>
@@ -171,8 +178,15 @@ public partial class ConversationViewModel : ViewModelBase
                             OnPropertyChanged(nameof(CurrentChat));
                         });
                     }
+                    else
+                    {
+                        lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
+                    }
                 }
-                catch { }
+                catch
+                {
+                    lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
+                }
             }, token);
         }
 
