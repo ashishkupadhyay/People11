@@ -107,6 +107,7 @@ public partial class ConversationViewModel : ViewModelBase
     public event EventHandler<Message>? OlderMessagesLoaded;
     private CancellationTokenSource? _loadChatCts;
     private int _consecutiveEmptyOlderLoads;
+    private static readonly SemaphoreSlim _thumbSemaphore = new(1, 1);
 
     public void CancelLoading()
     {
@@ -197,14 +198,6 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateSenderPushName();
                 IsLoading = false;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
-
-                foreach (var m in Messages)
-                {
-                    if (m.Content?.IsVideo == true && !string.IsNullOrEmpty(m.Content.LocalFilePath))
-                    {
-                        _ = EnsureVideoThumbnailAsync(m.Content);
-                    }
-                }
             }
         }
 
@@ -237,14 +230,6 @@ public partial class ConversationViewModel : ViewModelBase
                         UpdateSenderPushName();
                         IsLoading = false;
                         InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
-
-                        foreach (var m in Messages)
-                        {
-                            if (m.Content?.IsVideo == true && !string.IsNullOrEmpty(m.Content.LocalFilePath))
-                            {
-                                _ = EnsureVideoThumbnailAsync(m.Content);
-                            }
-                        }
                     }
                 }
                 catch { }
@@ -510,10 +495,9 @@ public partial class ConversationViewModel : ViewModelBase
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
         if (CurrentChat == null) return;
-        _dispatcherService.Enqueue(async () =>
+        _dispatcherService.Enqueue(() =>
         {
             UpdateHeaderDetails();
-            await RefreshMessagesAsync();
         });
     }
 
@@ -605,6 +589,13 @@ public partial class ConversationViewModel : ViewModelBase
             }
         }
         else if (string.Equals(user1, user2, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var digits1 = new string(user1.Where(char.IsDigit).ToArray());
+        var digits2 = new string(user2.Where(char.IsDigit).ToArray());
+        if (digits1.Length >= 7 && digits2.Length >= 7 && (digits1.Contains(digits2) || digits2.Contains(digits1)))
         {
             return true;
         }
@@ -1443,6 +1434,13 @@ public partial class ConversationViewModel : ViewModelBase
         if (content == null || string.IsNullOrEmpty(content.LocalFilePath) || !File.Exists(content.LocalFilePath))
             return;
 
+        if (!string.IsNullOrEmpty(content.ThumbnailUrl) &&
+            !content.ThumbnailUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(content.ThumbnailUrl))
+        {
+            return;
+        }
+
         var thumbPath = content.LocalFilePath + ".thumb.jpg";
         if (File.Exists(thumbPath) && new FileInfo(thumbPath).Length > 0)
         {
@@ -1450,51 +1448,83 @@ public partial class ConversationViewModel : ViewModelBase
             return;
         }
 
-        try
+        _ = Task.Run(async () =>
         {
-            var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(content.LocalFilePath);
-
-            // 1. Primary: Extract an exact video frame via Windows Media Composition
+            bool acquired = false;
             try
             {
-                var clip = await Windows.Media.Editing.MediaClip.CreateFromFileAsync(storageFile);
-                var composition = new Windows.Media.Editing.MediaComposition();
-                composition.Clips.Add(clip);
-                using var imageStream = await composition.GetThumbnailAsync(
-                    TimeSpan.FromMilliseconds(200),
-                    320,
-                    0,
-                    Windows.Media.Editing.VideoFramePrecision.NearestFrame);
+                acquired = await _thumbSemaphore.WaitAsync(100);
+                if (!acquired) return;
 
-                if (imageStream != null && imageStream.Size > 0)
+                if (File.Exists(thumbPath) && new FileInfo(thumbPath).Length > 0)
                 {
-                    using var fileStream = File.Create(thumbPath);
-                    using var readStream = imageStream.AsStreamForRead();
-                    await readStream.CopyToAsync(fileStream);
-                    content.ThumbnailUrl = thumbPath;
+                    var dispatcher = App.Current.Services.GetService<IDispatcherService>();
+                    if (dispatcher != null)
+                        dispatcher.Enqueue(() => content.ThumbnailUrl = thumbPath);
+                    else
+                        content.ThumbnailUrl = thumbPath;
                     return;
                 }
+
+                var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(content.LocalFilePath);
+
+                // 1. Primary: Extract an exact video frame via Windows Media Composition
+                try
+                {
+                    var clip = await Windows.Media.Editing.MediaClip.CreateFromFileAsync(storageFile);
+                    var composition = new Windows.Media.Editing.MediaComposition();
+                    composition.Clips.Add(clip);
+                    using var imageStream = await composition.GetThumbnailAsync(
+                        TimeSpan.FromMilliseconds(200),
+                        320,
+                        0,
+                        Windows.Media.Editing.VideoFramePrecision.NearestFrame);
+
+                    if (imageStream != null && imageStream.Size > 0)
+                    {
+                        using var fileStream = File.Create(thumbPath);
+                        using var readStream = imageStream.AsStreamForRead();
+                        await readStream.CopyToAsync(fileStream);
+                        var dispatcher = App.Current.Services.GetService<IDispatcherService>();
+                        if (dispatcher != null)
+                            dispatcher.Enqueue(() => content.ThumbnailUrl = thumbPath);
+                        else
+                            content.ThumbnailUrl = thumbPath;
+                        return;
+                    }
+                }
+                catch { }
+
+                // 2. Fallback: Shell thumbnail
+                using var thumb = await storageFile.GetThumbnailAsync(
+                    Windows.Storage.FileProperties.ThumbnailMode.VideosView,
+                    320,
+                    Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
+
+                if (thumb != null && thumb.Size > 0)
+                {
+                    using var fileStream = File.Create(thumbPath);
+                    using var readStream = thumb.AsStreamForRead();
+                    await readStream.CopyToAsync(fileStream);
+                    var dispatcher = App.Current.Services.GetService<IDispatcherService>();
+                    if (dispatcher != null)
+                        dispatcher.Enqueue(() => content.ThumbnailUrl = thumbPath);
+                    else
+                        content.ThumbnailUrl = thumbPath;
+                }
             }
-            catch { }
-
-            // 2. Fallback: Shell thumbnail
-            using var thumb = await storageFile.GetThumbnailAsync(
-                Windows.Storage.FileProperties.ThumbnailMode.VideosView,
-                320,
-                Windows.Storage.FileProperties.ThumbnailOptions.UseCurrentScale);
-
-            if (thumb != null && thumb.Size > 0)
+            catch (Exception ex)
             {
-                using var fileStream = File.Create(thumbPath);
-                using var readStream = thumb.AsStreamForRead();
-                await readStream.CopyToAsync(fileStream);
-                content.ThumbnailUrl = thumbPath;
+                System.Diagnostics.Debug.WriteLine($"EnsureVideoThumbnailAsync failed: {ex.Message}");
             }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"EnsureVideoThumbnailAsync failed: {ex.Message}");
-        }
+            finally
+            {
+                if (acquired)
+                {
+                    _thumbSemaphore.Release();
+                }
+            }
+        });
     }
 
     public async Task SendDocumentFileAsync(string filePath)

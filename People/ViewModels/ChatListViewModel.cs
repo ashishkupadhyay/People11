@@ -323,16 +323,7 @@ public partial class ChatListViewModel : ViewModelBase
     {
         _dispatcherService.Enqueue(() =>
         {
-            var cleanTarget = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
-            var targetBare = cleanTarget.Split('@')[0].Split(':')[0];
-            var existing = Chats.FirstOrDefault(c =>
-            {
-                var cleanC = c.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? c.Id[3..] : c.Id;
-                if (string.Equals(cleanC, cleanTarget, StringComparison.OrdinalIgnoreCase)) return true;
-                var u = cleanC.Split('@')[0].Split(':')[0];
-                return !string.IsNullOrEmpty(u) && string.Equals(u, targetBare, StringComparison.OrdinalIgnoreCase);
-            });
-
+            var existing = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, chatId));
             if (existing != null && existing.UnreadCount > 0)
             {
                 existing.UnreadCount = 0;
@@ -362,6 +353,10 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     chat.LastMessage = msg;
                     chat.LastMessageTime = msg.Timestamp;
+                    if (!msg.IsOutgoing)
+                    {
+                        chat.UnreadCount++;
+                    }
                     chat.RefreshLastMessagePreview();
                     SortChatsInPlace();
                 }
