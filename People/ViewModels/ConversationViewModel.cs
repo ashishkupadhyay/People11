@@ -596,7 +596,10 @@ public partial class ConversationViewModel : ViewModelBase
         {
             var server1 = parts1[1].ToLowerInvariant();
             var server2 = parts2[1].ToLowerInvariant();
-            if (server1 == server2 && string.Equals(user1, user2, StringComparison.OrdinalIgnoreCase))
+            bool serverMatch = server1 == server2
+                || (server1 == "s.whatsapp.net" && server2 == "c.us")
+                || (server1 == "c.us" && server2 == "s.whatsapp.net");
+            if (serverMatch && string.Equals(user1, user2, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

@@ -582,7 +582,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                             await _activeInstance._messageRepository.SaveAsync(msg);
                             if (_activeInstance._chatRepository != null && msg.Content?.Type != MessageContentType.SystemNotice)
                             {
-                                var existingChat = await _activeInstance._chatRepository.GetByIdAsync(msg.ChatId);
+                                var existingChat = await _activeInstance._chatRepository.GetByIdAsync(msg.ChatId)
+                                    ?? await _activeInstance._chatRepository.GetByIdAsync(msg.ChatId.StartsWith("wa_") ? msg.ChatId[3..] : ("wa_" + msg.ChatId));
                                 if (existingChat != null)
                                 {
                                     existingChat.LastMessage = msg;
@@ -869,25 +870,9 @@ public class WhatsAppProvider : IWhatsAppProvider
                         : DateTimeOffset.MinValue
                 };
 
-                if (dto.LastMessage != null && !string.IsNullOrWhiteSpace(dto.LastMessage.Text))
+                if (dto.LastMessage != null)
                 {
-                    chat.LastMessage = new Message
-                    {
-                        Id = dto.LastMessage.Id ?? Guid.NewGuid().ToString(),
-                        ChatId = dto.LastMessage.ChatId ?? chat.Id,
-                        PlatformId = "WhatsApp",
-                        SenderId = dto.LastMessage.SenderId ?? string.Empty,
-                        SenderName = dto.LastMessage.SenderName,
-                        IsOutgoing = dto.LastMessage.IsOutgoing,
-                        Content = new MessageContent { Text = dto.LastMessage.Text ?? string.Empty },
-                        Timestamp = dto.LastMessage.Timestamp > 0
-                            ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessage.Timestamp)
-                            : (chat.LastMessageTime != DateTimeOffset.MinValue ? chat.LastMessageTime : DateTimeOffset.UnixEpoch),
-                        Status = (MessageStatus)dto.LastMessage.Status,
-                        QuotedText = dto.LastMessage.QuotedText,
-                        QuotedSender = dto.LastMessage.QuotedSender,
-                        Reactions = dto.LastMessage.Reactions ?? new()
-                    };
+                    chat.LastMessage = ConvertDtoToMessage(dto.LastMessage, chat.Id);
                 }
 
                 chats.Add(chat);
