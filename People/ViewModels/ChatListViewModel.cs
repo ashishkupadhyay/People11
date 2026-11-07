@@ -339,6 +339,11 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.ChatId));
+            if (chat == null && !string.IsNullOrEmpty(msg.SenderName))
+            {
+                chat = Chats.FirstOrDefault(c => !c.IsGroup && string.Equals(c.Title, msg.SenderName, StringComparison.OrdinalIgnoreCase));
+            }
+
             if (chat != null)
             {
                 if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)
@@ -356,6 +361,11 @@ public partial class ChatListViewModel : ViewModelBase
                     }
                     chat.RefreshLastMessagePreview();
                     SortChatsInPlace();
+                }
+
+                if (_chatRepository != null)
+                {
+                    _ = _chatRepository.SaveAsync(chat);
                 }
             }
             else
@@ -520,7 +530,9 @@ public partial class ChatListViewModel : ViewModelBase
                         {
                             var cId = Chats[i].Id;
                             var clean = cId.StartsWith("wa_") ? cId.Substring(3) : cId;
-                            if (!newChatIds.Contains(cId) && !newChatIds.Contains(clean) && !newChatIds.Contains("wa_" + clean))
+                            bool existsInValid = newChatIds.Contains(cId) || newChatIds.Contains(clean) || newChatIds.Contains("wa_" + clean)
+                                || validChats.Any(v => ConversationViewModel.ChatIdsMatch(v.Id, cId));
+                            if (!existsInValid)
                             {
                                 Chats.RemoveAt(i);
                             }

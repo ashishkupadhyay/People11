@@ -626,7 +626,12 @@ public partial class ConversationViewModel : ViewModelBase
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        if (CurrentChat != null && ChatIdsMatch(CurrentChat.Id, e.Message.ChatId))
+        bool isMatch = CurrentChat != null && (
+            ChatIdsMatch(CurrentChat.Id, e.Message.ChatId)
+            || (!CurrentChat.IsGroup && !string.IsNullOrEmpty(e.Message.SenderName) && string.Equals(CurrentChat.Title, e.Message.SenderName, StringComparison.OrdinalIgnoreCase))
+        );
+
+        if (isMatch)
         {
             _dispatcherService.Enqueue(() =>
             {

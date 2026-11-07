@@ -80,6 +80,11 @@ public sealed partial class ConversationPage : Page
                     MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
                 }
             }
+
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                _initialLoadComplete = true;
+            });
         };
 
         ViewModel.OlderMessagesLoaded += (s, anchor) =>
@@ -129,6 +134,7 @@ public sealed partial class ConversationPage : Page
     }
 
     private ScrollViewer? _messagesScrollViewer;
+    private bool _initialLoadComplete;
 
     private void MessagesListView_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
@@ -142,13 +148,13 @@ public sealed partial class ConversationPage : Page
 
     private void MessagesListView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        if (ViewModel == null || ViewModel.IsLoadingOlder || !ViewModel.HasMoreOlderMessages || ViewModel.Messages.Count == 0) return;
+        if (ViewModel == null || !_initialLoadComplete || ViewModel.IsLoadingOlder || !ViewModel.HasMoreOlderMessages || ViewModel.Messages.Count == 0) return;
 
         var pointerPoint = e.GetCurrentPoint(MessagesListView);
         int delta = pointerPoint.Properties.MouseWheelDelta;
         if (delta > 0) // Scrolling up
         {
-            if (_messagesScrollViewer == null || _messagesScrollViewer.ScrollableHeight <= 50 || _messagesScrollViewer.VerticalOffset <= 20)
+            if (_messagesScrollViewer == null || _messagesScrollViewer.VerticalOffset <= 20)
             {
                 _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
             }
@@ -159,8 +165,8 @@ public sealed partial class ConversationPage : Page
     {
         if (_messagesScrollViewer == null || ViewModel == null) return;
 
-        // When user scrolls near top (within 150px) or on a sparse list, dynamically load older messages
-        if ((_messagesScrollViewer.ScrollableHeight <= 50 || _messagesScrollViewer.VerticalOffset <= 150) && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
+        // When user scrolls near top (within 60px) on an established chat, dynamically load older messages
+        if (_initialLoadComplete && _messagesScrollViewer.ScrollableHeight > 100 && _messagesScrollViewer.VerticalOffset <= 60 && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
         {
             _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
         }
@@ -373,6 +379,7 @@ public sealed partial class ConversationPage : Page
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
+        _initialLoadComplete = false;
         if (e.Parameter is Chat chat)
         {
             ViewModel.LoadChat(chat);
