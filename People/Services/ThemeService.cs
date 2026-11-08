@@ -213,7 +213,7 @@ public class ThemeService : IThemeService
         if (!string.IsNullOrEmpty(_activePlatform))
         {
             appPalette = GetBrandPaletteIfEnabled(_activePlatform);
-            bool useBrandColor = _settingsService.GetValue<bool>("BrandColor_" + _activePlatform, false);
+            bool useBrandColor = _settingsService.GetValue<bool>("BrandColor_" + _activePlatform, _activePlatform == "WhatsApp");
 
             System.Diagnostics.Debug.WriteLine($"[ThemeService] Brand color enabled setting for {_activePlatform}: {useBrandColor}");
             System.Diagnostics.Debug.WriteLine($"[ThemeService] Brand palette available: {appPalette != null}");
@@ -241,7 +241,7 @@ public class ThemeService : IThemeService
                 : App.Current.RequestedTheme == ApplicationTheme.Dark
         };
 
-        bool isWhatsAppBrand = _activePlatform == "WhatsApp" && _settingsService.GetValue<bool>("BrandColor_WhatsApp", false);
+        bool isWhatsAppBrand = _activePlatform == "WhatsApp" && _settingsService.GetValue<bool>("BrandColor_WhatsApp", true);
 
         Windows.UI.Color effectiveAccent;
         Windows.UI.Color effectiveHover;
@@ -484,7 +484,7 @@ public class ThemeService : IThemeService
         if (!IsBrandAccentEligible(platform))
             return null;
 
-        bool useBrandColor = _settingsService.GetValue<bool>("BrandColor_" + platform, false);
+        bool useBrandColor = _settingsService.GetValue<bool>("BrandColor_" + platform, platform == "WhatsApp");
 
         if (!useBrandColor)
             return null;

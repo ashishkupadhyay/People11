@@ -25,7 +25,7 @@ public partial class ConversationViewModel : ViewModelBase
 
     public void UpdateDoodleWallpaperVisibility()
     {
-        var enabled = _settingsService?.GetValue<bool>("WhatsAppDoodleWallpaper", false) ?? false;
+        var enabled = _settingsService?.GetValue<bool>("WhatsAppDoodleWallpaper", true) ?? true;
         var isWhatsApp = CurrentChat != null && CurrentChat.PlatformId == "WhatsApp";
         IsDoodleWallpaperVisible = isWhatsApp && enabled;
     }

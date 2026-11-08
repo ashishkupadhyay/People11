@@ -20,7 +20,24 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly object _contactsLock = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOnboardingActive))]
+    public partial bool IsWelcomeVisible { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOnboardingActive))]
+    public partial bool IsQrLinkVisible { get; set; }
+
+    public bool IsOnboardingActive => IsWelcomeVisible || IsQrLinkVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasQrCodeBytes))]
     public partial byte[]? QrCodeBytes { get; set; }
+
+    public bool HasQrCodeBytes => QrCodeBytes != null && QrCodeBytes.Length > 0;
+
+    public event EventHandler? RequestSlideToQr;
+    public event EventHandler? RequestDrillInToSync;
+    public event EventHandler? RequestDrillInToMain;
 
     [ObservableProperty]
     public partial bool IsConnecting { get; set; }
@@ -165,6 +182,8 @@ public partial class ChatListViewModel : ViewModelBase
             // Already authenticated: show chat list directly, show sync bar, and connect in background
             _dispatcherService.Enqueue(() =>
             {
+                IsWelcomeVisible = false;
+                IsQrLinkVisible = false;
                 IsConnecting = false;
                 ShowQrCode = false;
                 HasError = false;
@@ -198,29 +217,51 @@ public partial class ChatListViewModel : ViewModelBase
             return;
         }
 
-        // Fresh login: show connecting then QR code
+        // First app launch / unauthenticated: Show Welcome screen first
+        _dispatcherService.Enqueue(() =>
+        {
+            IsWelcomeVisible = true;
+            IsQrLinkVisible = false;
+            IsConnecting = false;
+            ShowQrCode = false;
+            HasError = false;
+            ErrorMessage = string.Empty;
+            QrCodeBytes = null;
+        });
+
+        // Pre-connect WebSocket in background so it's ready when user taps "Get started"
         try
         {
-            _dispatcherService.Enqueue(() =>
-            {
-                IsConnecting = true;
-                ShowQrCode = false;
-                HasError = false;
-                ErrorMessage = string.Empty;
-                QrCodeBytes = null;
-            });
-
             await provider.ConnectAsync();
-            await provider.AuthenticateAsync();
         }
-        catch (Exception ex)
+        catch { }
+    }
+
+    [RelayCommand]
+    public async Task StartLinkingAsync()
+    {
+        IsWelcomeVisible = false;
+        IsQrLinkVisible = true;
+        RequestSlideToQr?.Invoke(this, EventArgs.Empty);
+
+        if (_provider is IWhatsAppProvider waProvider)
         {
-            _dispatcherService.Enqueue(() =>
+            try
             {
-                IsConnecting = false;
-                HasError = true;
-                ErrorMessage = ex.Message;
-            });
+                if (_provider.ConnectionState != ConnectionState.Connected)
+                {
+                    await _provider.ConnectAsync();
+                }
+                await waProvider.AuthenticateAsync();
+            }
+            catch (Exception ex)
+            {
+                _dispatcherService.Enqueue(() =>
+                {
+                    HasError = true;
+                    ErrorMessage = ex.Message;
+                });
+            }
         }
     }
 
@@ -254,6 +295,10 @@ public partial class ChatListViewModel : ViewModelBase
     {
         var settingsService = App.Current.Services.GetRequiredService<ISettingsService>();
         settingsService.SetValue("WhatsAppTestingMode", true);
+        IsWelcomeVisible = false;
+        IsQrLinkVisible = false;
+        ShowQrCode = false;
+        IsInitialSyncing = false;
         if (_provider is IWhatsAppProvider waProvider)
         {
             await waProvider.DisconnectAsync();
@@ -274,6 +319,7 @@ public partial class ChatListViewModel : ViewModelBase
                     InitialSyncText = "Finishing sync...";
                     IsInitialSyncing = false;
                     IsSyncing = false;
+                    RequestDrillInToMain?.Invoke(this, EventArgs.Empty);
                     lock (_failedPictureJids)
                     {
                         _failedPictureJids.Clear();
@@ -400,12 +446,15 @@ public partial class ChatListViewModel : ViewModelBase
             _dispatcherService.Enqueue(() =>
             {
                 IsConnecting = false;
-                if (ShowQrCode)
+                if (IsQrLinkVisible || ShowQrCode || IsWelcomeVisible)
                 {
+                    IsWelcomeVisible = false;
+                    IsQrLinkVisible = false;
                     ShowQrCode = false;
                     IsInitialSyncing = true;
                     InitialSyncProgress = 0;
                     InitialSyncText = "Downloading your recent messages...";
+                    RequestDrillInToSync?.Invoke(this, EventArgs.Empty);
                 }
                 HasError = false;
             });
@@ -1007,9 +1056,12 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             IsConnecting = false;
-            ShowQrCode = true;
             HasError = false;
             QrCodeBytes = GenerateQrCodeBytes(qrString);
+            if (!IsWelcomeVisible)
+            {
+                IsQrLinkVisible = true;
+            }
         });
     }
 

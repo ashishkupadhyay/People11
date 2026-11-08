@@ -33,13 +33,13 @@ public partial class SettingsViewModel : ViewModelBase
     public partial bool WhatsAppAutoDownloadDocuments { get; set; } = true;
 
     [ObservableProperty]
-    public partial bool WhatsAppDoodleWallpaperEnabled { get; set; } = false;
+    public partial bool WhatsAppDoodleWallpaperEnabled { get; set; } = true;
 
     [ObservableProperty]
     public partial bool EnterSendsMessage { get; set; } = true;
 
     [ObservableProperty]
-    public partial string WhatsAppBubbleColorOption { get; set; } = "Accent";
+    public partial string WhatsAppBubbleColorOption { get; set; } = "Brand";
 
     [ObservableProperty]
     public partial string TelegramBubbleColorOption { get; set; } = "Accent";
@@ -243,11 +243,11 @@ public partial class SettingsViewModel : ViewModelBase
         WhatsAppAutoDownloadPhotos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadPhotos", true);
         WhatsAppAutoDownloadVideos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadVideos", false);
         WhatsAppAutoDownloadDocuments = _settingsService.GetValue<bool>("WhatsAppAutoDownloadDocuments", true);
-        WhatsAppDoodleWallpaperEnabled = _settingsService.GetValue<bool>("WhatsAppDoodleWallpaper", false);
+        WhatsAppDoodleWallpaperEnabled = _settingsService.GetValue<bool>("WhatsAppDoodleWallpaper", true);
         EnterSendsMessage = _settingsService.GetValue<bool>("EnterSendsMessage", true);
         IsFlyoutEnabled = _settingsService.GetValue<bool>("FlyoutEnabled", true);
         ShowUnreadBadge = _settingsService.GetValue<bool>("ShowUnreadBadge", true);
-        WhatsAppBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_WhatsApp", false) ? "Brand" : "Accent";
+        WhatsAppBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_WhatsApp", true) ? "Brand" : "Accent";
         TelegramBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Telegram", false) ? "Brand" : "Accent";
         DiscordBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Discord", false) ? "Brand" : "Accent";
         SignalBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Signal", false) ? "Brand" : "Accent";

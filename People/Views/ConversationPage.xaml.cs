@@ -68,25 +68,27 @@ public sealed partial class ConversationPage : Page
         ViewModel.InitialMessagesLoaded += (s, e) =>
         {
             _initialLoadComplete = false;
-            if (ViewModel.Messages.Count > 0)
-            {
-                var unreadTarget = ViewModel.Messages.FirstOrDefault(m => m.ShowUnreadSeparator);
-                if (unreadTarget != null)
-                {
-                    MessagesListView.ScrollIntoView(unreadTarget, ScrollIntoViewAlignment.Leading);
-                }
-                else
-                {
-                    MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
-                }
-            }
+            ScrollToTarget();
 
-            // Allow the initial scroll pass to complete before enabling older messages trigger
+            // Perform post-layout adjustment once virtualization containers begin measuring
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                ScrollToTarget();
+            });
+
+            // Allow the layout pass and container virtualization to settle at the true scroll extent
             _ = Task.Run(async () =>
             {
-                await Task.Delay(350);
-                DispatcherQueue.TryEnqueue(() =>
+                await Task.Delay(80);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                 {
+                    ScrollToTarget();
+                });
+
+                await Task.Delay(180);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    ScrollToTarget();
                     _initialLoadComplete = true;
                 });
             });
@@ -140,6 +142,30 @@ public sealed partial class ConversationPage : Page
     private ScrollViewer? _messagesScrollViewer;
     private bool _initialLoadComplete;
 
+    private void ScrollToTarget(bool forceBottom = false)
+    {
+        if (ViewModel == null || ViewModel.Messages.Count == 0) return;
+
+        if (_messagesScrollViewer == null)
+        {
+            _messagesScrollViewer = FindVisualChild<ScrollViewer>(MessagesListView);
+        }
+
+        var unreadTarget = forceBottom ? null : ViewModel.Messages.FirstOrDefault(m => m.ShowUnreadSeparator);
+        if (unreadTarget != null)
+        {
+            MessagesListView.ScrollIntoView(unreadTarget, ScrollIntoViewAlignment.Leading);
+        }
+        else
+        {
+            if (_messagesScrollViewer != null && _messagesScrollViewer.ScrollableHeight > 0)
+            {
+                _messagesScrollViewer.ChangeView(null, _messagesScrollViewer.ScrollableHeight, null, disableAnimation: true);
+            }
+            MessagesListView.ScrollIntoView(ViewModel.Messages[^1], ScrollIntoViewAlignment.Default);
+        }
+    }
+
     private void MessagesListView_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         _messagesScrollViewer = FindVisualChild<ScrollViewer>(MessagesListView);
@@ -148,6 +174,7 @@ public sealed partial class ConversationPage : Page
             _messagesScrollViewer.ViewChanged += MessagesScrollViewer_ViewChanged;
         }
         MessagesListView.PointerWheelChanged += MessagesListView_PointerWheelChanged;
+        ScrollToTarget();
     }
 
     private void MessagesListView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)

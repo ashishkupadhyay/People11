@@ -10,6 +10,9 @@ public sealed partial class ChatListPage : Page
 
     private bool _isFlyout = false;
 
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
+    private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource _darkDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_dark.svg"));
+
     public ChatListPage()
     {
         ViewModel = App.Current.Services.GetRequiredService<ChatListViewModel>();
@@ -19,7 +22,32 @@ public sealed partial class ChatListPage : Page
         DetailFrame.Navigated += DetailFrame_Navigated;
         this.SizeChanged += ChatListPage_SizeChanged;
         this.Loaded += (s, e) => UpdateEmptyStateAnimation(_platformId);
-        this.ActualThemeChanged += (s, e) => UpdateEmptyStateAnimation(_platformId);
+        this.ActualThemeChanged += (s, e) =>
+        {
+            UpdateEmptyStateAnimation(_platformId);
+            if (OnboardingDoodleCanvas != null)
+            {
+                UpdateOnboardingDoodleTiles(OnboardingDoodleCanvas.ActualWidth, OnboardingDoodleCanvas.ActualHeight);
+            }
+        };
+
+        ViewModel.RequestSlideToQr += (s, e) => PlaySlideToQrAnimation();
+        ViewModel.RequestDrillInToSync += (s, e) => PlayDrillInToSyncAnimation();
+        ViewModel.RequestDrillInToMain += (s, e) => PlayDrillInToMainAnimation();
+
+        ViewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ChatListViewModel.IsWelcomeVisible) ||
+                e.PropertyName == nameof(ChatListViewModel.IsQrLinkVisible) ||
+                e.PropertyName == nameof(ChatListViewModel.IsInitialSyncing))
+            {
+                if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
+                {
+                    MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                }
+            }
+        };
+
         NewChatFlyout.Opened += (s, e) =>
         {
             SearchContactsBox.Text = string.Empty;
@@ -140,6 +168,16 @@ public sealed partial class ChatListPage : Page
             DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
         }
 
+        if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
+        {
+            MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
+        else
+        {
+            MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            MainContentGrid.Opacity = 1.0;
+        }
+
         UpdateAccentColor();
     }
 
@@ -213,6 +251,212 @@ public sealed partial class ChatListPage : Page
         {
             DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo() { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromLeft });
         }
+    }
+
+    private void OnboardingDoodleCanvas_SizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)
+    {
+        UpdateOnboardingDoodleTiles(e.NewSize.Width, e.NewSize.Height);
+    }
+
+    private void UpdateOnboardingDoodleTiles(double width, double height)
+    {
+        if (width <= 0 || height <= 0 || OnboardingDoodleCanvas == null) return;
+
+        OnboardingDoodleCanvas.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry
+        {
+            Rect = new Windows.Foundation.Rect(0, 0, width, height)
+        };
+
+        const double tileWidth = 300.0;
+        const double tileHeight = 534.22;
+
+        int cols = (int)Math.Ceiling(width / tileWidth);
+        int rows = (int)Math.Ceiling(height / tileHeight);
+        int totalNeeded = cols * rows;
+
+        bool isDark = App.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Dark;
+        if (this.ActualTheme != Microsoft.UI.Xaml.ElementTheme.Default)
+        {
+            isDark = this.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark;
+        }
+        var currentSource = isDark ? _darkDoodleSource : _lightDoodleSource;
+
+        while (OnboardingDoodleCanvas.Children.Count < totalNeeded)
+        {
+            var img = new Microsoft.UI.Xaml.Controls.Image
+            {
+                Width = tileWidth,
+                Height = tileHeight,
+                Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+                Source = currentSource,
+                IsHitTestVisible = false
+            };
+            OnboardingDoodleCanvas.Children.Add(img);
+        }
+
+        int idx = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                var img = (Microsoft.UI.Xaml.Controls.Image)OnboardingDoodleCanvas.Children[idx++];
+                img.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                img.Source = currentSource;
+                Microsoft.UI.Xaml.Controls.Canvas.SetLeft(img, c * tileWidth);
+                Microsoft.UI.Xaml.Controls.Canvas.SetTop(img, r * tileHeight);
+            }
+        }
+
+        for (int i = idx; i < OnboardingDoodleCanvas.Children.Count; i++)
+        {
+            OnboardingDoodleCanvas.Children[i].Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
+    }
+
+    private void PlaySlideToQrAnimation()
+    {
+        QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        double startX = this.ActualWidth > 0 ? this.ActualWidth : 800;
+        QrLinkTransform.TranslateX = startX;
+        QrLinkOverlay.Opacity = 0;
+
+        var animSlideOut = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = -250,
+            Duration = TimeSpan.FromMilliseconds(350),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSlideOut, WelcomeTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSlideOut, "TranslateX");
+
+        var animFadeOut = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = 0.0,
+            Duration = TimeSpan.FromMilliseconds(250)
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animFadeOut, WelcomeOverlay);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animFadeOut, "Opacity");
+
+        var animSlideIn = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(350),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSlideIn, QrLinkTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSlideIn, "TranslateX");
+
+        var animFadeIn = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = 1.0,
+            Duration = TimeSpan.FromMilliseconds(300)
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animFadeIn, QrLinkOverlay);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animFadeIn, "Opacity");
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(animSlideOut);
+        sb.Children.Add(animFadeOut);
+        sb.Children.Add(animSlideIn);
+        sb.Children.Add(animFadeIn);
+        sb.Completed += (s, e) =>
+        {
+            WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        };
+        sb.Begin();
+    }
+
+    private void PlayDrillInToSyncAnimation()
+    {
+        SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        SyncingTransform.ScaleX = 0.90;
+        SyncingTransform.ScaleY = 0.90;
+        SyncingTransform.CenterX = this.ActualWidth / 2;
+        SyncingTransform.CenterY = this.ActualHeight / 2;
+        SyncingOverlay.Opacity = 0;
+
+        QrLinkTransform.CenterX = this.ActualWidth / 2;
+        QrLinkTransform.CenterY = this.ActualHeight / 2;
+
+        var animQrScaleX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.08, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animQrScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.08, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animQrFade = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 0.0, Duration = TimeSpan.FromMilliseconds(250) };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animQrScaleX, QrLinkTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animQrScaleX, "ScaleX");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animQrScaleY, QrLinkTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animQrScaleY, "ScaleY");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animQrFade, QrLinkOverlay);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animQrFade, "Opacity");
+
+        var animSyncScaleX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(350), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animSyncScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(350), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animSyncFade = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(250) };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSyncScaleX, SyncingTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSyncScaleX, "ScaleX");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSyncScaleY, SyncingTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSyncScaleY, "ScaleY");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSyncFade, SyncingOverlay);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSyncFade, "Opacity");
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(animQrScaleX);
+        sb.Children.Add(animQrScaleY);
+        sb.Children.Add(animQrFade);
+        sb.Children.Add(animSyncScaleX);
+        sb.Children.Add(animSyncScaleY);
+        sb.Children.Add(animSyncFade);
+        sb.Completed += (s, e) =>
+        {
+            QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        };
+        sb.Begin();
+    }
+
+    private void PlayDrillInToMainAnimation()
+    {
+        MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        MainLayoutTransform.ScaleX = 0.92;
+        MainLayoutTransform.ScaleY = 0.92;
+        MainLayoutTransform.CenterX = this.ActualWidth / 2;
+        MainLayoutTransform.CenterY = this.ActualHeight / 2;
+        MainContentGrid.Opacity = 0;
+
+        SyncingTransform.CenterX = this.ActualWidth / 2;
+        SyncingTransform.CenterY = this.ActualHeight / 2;
+
+        var animSyncScaleX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.08, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animSyncScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.08, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animSyncFade = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 0.0, Duration = TimeSpan.FromMilliseconds(250) };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSyncScaleX, SyncingTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSyncScaleX, "ScaleX");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSyncScaleY, SyncingTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSyncScaleY, "ScaleY");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animSyncFade, SyncingOverlay);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animSyncFade, "Opacity");
+
+        var animMainScaleX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(350), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animMainScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(350), EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut } };
+        var animMainFade = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(250) };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animMainScaleX, MainLayoutTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animMainScaleX, "ScaleX");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animMainScaleY, MainLayoutTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animMainScaleY, "ScaleY");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animMainFade, MainContentGrid);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animMainFade, "Opacity");
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(animSyncScaleX);
+        sb.Children.Add(animSyncScaleY);
+        sb.Children.Add(animSyncFade);
+        sb.Children.Add(animMainScaleX);
+        sb.Children.Add(animMainScaleY);
+        sb.Children.Add(animMainFade);
+        sb.Completed += (s, e) =>
+        {
+            SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        };
+        sb.Begin();
     }
 }
 
