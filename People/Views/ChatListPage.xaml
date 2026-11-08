@@ -300,11 +300,12 @@
                                HorizontalAlignment="Center"
                                TextAlignment="Center" />
 
-                    <!-- "Get started" button styled strictly according to Fluent Design -->
+                    <!-- "Get started" button following WhatsApp selected accent settings -->
                     <Button Content="Get started"
-                            Style="{ThemeResource AccentButtonStyle}"
+                            Style="{ThemeResource AppAccentButtonStyle}"
                             Command="{x:Bind ViewModel.StartLinkingCommand}"
                             MinWidth="130"
+                            Padding="16,6"
                             HorizontalAlignment="Center" />
                 </StackPanel>
             </Grid>
@@ -362,46 +363,51 @@
                                 <!-- Circle 1 -->
                                 <Border Grid.Row="0" Grid.Column="0" Width="26" Height="26" CornerRadius="13"
                                         BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Top">
                                     <TextBlock Text="1" FontSize="13" FontWeight="SemiBold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+                                <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,3,0,0" VerticalAlignment="Top"
                                            Text="Open WhatsApp on your phone"
                                            Style="{ThemeResource BodyTextBlockStyle}" />
 
                                 <!-- Connector 1-2 -->
                                 <Rectangle Grid.Row="1" Grid.Column="0" Width="1.5"
                                            Fill="{ThemeResource TextFillColorSecondaryBrush}"
-                                           HorizontalAlignment="Center" />
+                                           HorizontalAlignment="Center"
+                                           Margin="0,-1,0,-1" />
 
                                 <!-- Circle 2 -->
                                 <Border Grid.Row="2" Grid.Column="0" Width="26" Height="26" CornerRadius="13"
                                         BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Top">
                                     <TextBlock Text="2" FontSize="13" FontWeight="SemiBold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="14,3,0,0" VerticalAlignment="Top"
                                            Text="Tap Menu on Android, or Settings on iPhone"
                                            Style="{ThemeResource BodyTextBlockStyle}" />
 
                                 <!-- Connector 2-3 -->
                                 <Rectangle Grid.Row="3" Grid.Column="0" Width="1.5"
                                            Fill="{ThemeResource TextFillColorSecondaryBrush}"
-                                           HorizontalAlignment="Center" />
+                                           HorizontalAlignment="Center"
+                                           Margin="0,-1,0,-1" />
 
                                 <!-- Circle 3 -->
                                 <Border Grid.Row="4" Grid.Column="0" Width="26" Height="26" CornerRadius="13"
                                         BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
-                                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0">
+                                        Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Top">
                                     <TextBlock Text="3" FontSize="13" FontWeight="SemiBold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
-                                <StackPanel Grid.Row="4" Grid.Column="1" Margin="14,0,0,0" Spacing="4" VerticalAlignment="Top">
+                                <StackPanel Grid.Row="4" Grid.Column="1" Margin="14,3,0,0" Spacing="4" VerticalAlignment="Top">
                                     <TextBlock Text="Tap Linked devices and then Link a device"
                                                Style="{ThemeResource BodyTextBlockStyle}" />
                                     <TextBlock Text="Point your phone at this screen to capture the QR code."

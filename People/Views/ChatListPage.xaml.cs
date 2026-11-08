@@ -76,7 +76,7 @@ public sealed partial class ChatListPage : Page
         UpdateAccentColor();
     }
     
-    private string? _platformId;
+    private string? _platformId = "WhatsApp";
     private string? _lastEmptyStateKey;
     
     public void UpdateAccentColor()
