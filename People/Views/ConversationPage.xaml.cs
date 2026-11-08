@@ -67,9 +67,9 @@ public sealed partial class ConversationPage : Page
 
         ViewModel.InitialMessagesLoaded += (s, e) =>
         {
+            _initialLoadComplete = false;
             if (ViewModel.Messages.Count > 0)
             {
-                MessagesListView.UpdateLayout();
                 var unreadTarget = ViewModel.Messages.FirstOrDefault(m => m.ShowUnreadSeparator);
                 if (unreadTarget != null)
                 {
@@ -81,9 +81,14 @@ public sealed partial class ConversationPage : Page
                 }
             }
 
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            // Allow the initial scroll pass to complete before enabling older messages trigger
+            _ = Task.Run(async () =>
             {
-                _initialLoadComplete = true;
+                await Task.Delay(350);
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    _initialLoadComplete = true;
+                });
             });
         };
 
@@ -91,7 +96,6 @@ public sealed partial class ConversationPage : Page
         {
             if (anchor != null)
             {
-                MessagesListView.UpdateLayout();
                 MessagesListView.ScrollIntoView(anchor, ScrollIntoViewAlignment.Leading);
             }
         };

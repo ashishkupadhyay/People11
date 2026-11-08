@@ -190,6 +190,8 @@ public partial class ConversationViewModel : ViewModelBase
             }, token);
         }
 
+        bool initialLoadedFired = false;
+
         // Fast path 1: Instant synchronous in-memory messages from native bridge cache
         if (_provider is IWhatsAppProvider waFastProvider && Messages.Count == 0)
         {
@@ -211,6 +213,7 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateChatDateString();
                 UpdateSenderPushName();
                 IsLoading = false;
+                initialLoadedFired = true;
                 InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -243,6 +246,7 @@ public partial class ConversationViewModel : ViewModelBase
                         UpdateChatDateString();
                         UpdateSenderPushName();
                         IsLoading = false;
+                        initialLoadedFired = true;
                         InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
                     }
                 }
@@ -307,7 +311,10 @@ public partial class ConversationViewModel : ViewModelBase
                 UpdateChatDateString();
                 UpdateSenderPushName();
                 IsLoading = false;
-                InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+                if (!initialLoadedFired && Messages.Count > 0)
+                {
+                    InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+                }
 
                 foreach (var m in Messages)
                 {

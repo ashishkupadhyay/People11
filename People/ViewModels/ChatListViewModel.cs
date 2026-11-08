@@ -339,9 +339,21 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.ChatId));
-            if (chat == null && !string.IsNullOrEmpty(msg.SenderName))
+            if (chat == null && !string.IsNullOrEmpty(msg.SenderName) && msg.SenderName != "You")
             {
                 chat = Chats.FirstOrDefault(c => !c.IsGroup && string.Equals(c.Title, msg.SenderName, StringComparison.OrdinalIgnoreCase));
+            }
+            if (chat == null && !string.IsNullOrEmpty(msg.SenderId) && msg.SenderId != "me")
+            {
+                chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.SenderId));
+            }
+            if (chat == null && msg.IsOutgoing)
+            {
+                var convVm = App.Current.Services.GetService<ConversationViewModel>();
+                if (convVm?.CurrentChat != null && !convVm.CurrentChat.IsGroup)
+                {
+                    chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, convVm.CurrentChat.Id));
+                }
             }
 
             if (chat != null)
@@ -355,9 +367,15 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     chat.LastMessage = msg;
                     chat.LastMessageTime = msg.Timestamp;
-                    if (!msg.IsOutgoing)
+                    var convVm = App.Current.Services.GetService<ConversationViewModel>();
+                    bool isCurrentChatActive = convVm?.CurrentChat != null && ConversationViewModel.ChatIdsMatch(convVm.CurrentChat.Id, chat.Id);
+                    if (!msg.IsOutgoing && !isCurrentChatActive)
                     {
                         chat.UnreadCount++;
+                    }
+                    else if (isCurrentChatActive)
+                    {
+                        chat.UnreadCount = 0;
                     }
                     chat.RefreshLastMessagePreview();
                     SortChatsInPlace();
@@ -599,16 +617,26 @@ public partial class ChatListViewModel : ViewModelBase
                             {
                                 existing.Title = incoming.Title;
                             }
-                            if (existing.LastMessageTime != incoming.LastMessageTime)
+                            if (existing.LastMessage == null || incoming.LastMessageTime >= existing.LastMessageTime)
                             {
                                 existing.LastMessageTime = incoming.LastMessageTime;
+                                if (incoming.LastMessage != null)
+                                {
+                                    existing.LastMessage = incoming.LastMessage;
+                                    existing.RefreshLastMessagePreview();
+                                }
                             }
-                            if (incoming.LastMessage != null)
+
+                            var convVm = App.Current.Services.GetService<ConversationViewModel>();
+                            bool isCurrentChatActive = convVm?.CurrentChat != null && ConversationViewModel.ChatIdsMatch(convVm.CurrentChat.Id, existing.Id);
+                            if (isCurrentChatActive)
                             {
-                                existing.LastMessage = incoming.LastMessage;
-                                existing.RefreshLastMessagePreview();
+                                existing.UnreadCount = 0;
                             }
-                            existing.UnreadCount = incoming.UnreadCount;
+                            else if (existing.LastMessage == null || incoming.LastMessageTime >= existing.LastMessageTime)
+                            {
+                                existing.UnreadCount = incoming.UnreadCount;
+                            }
                             if (!string.IsNullOrEmpty(incoming.PictureUrl) && existing.PictureUrl != incoming.PictureUrl)
                             {
                                 existing.PictureUrl = incoming.PictureUrl;
