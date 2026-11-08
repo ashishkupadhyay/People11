@@ -300,15 +300,11 @@
                                HorizontalAlignment="Center"
                                TextAlignment="Center" />
 
-                    <!-- "Get started" button in accent selected for WhatsApp -->
+                    <!-- "Get started" button styled strictly according to Fluent Design -->
                     <Button Content="Get started"
+                            Style="{ThemeResource AccentButtonStyle}"
                             Command="{x:Bind ViewModel.StartLinkingCommand}"
-                            Background="{ThemeResource AppAccentBrush}"
-                            Foreground="{ThemeResource AppAccentForegroundBrush}"
-                            Padding="36,10,36,10"
-                            FontSize="15"
-                            FontWeight="SemiBold"
-                            CornerRadius="8"
+                            MinWidth="130"
                             HorizontalAlignment="Center" />
                 </StackPanel>
             </Grid>
@@ -319,11 +315,12 @@
                 <Grid.RenderTransform>
                     <CompositeTransform x:Name="QrLinkTransform" />
                 </Grid.RenderTransform>
-                <!-- Large rectangular card virtually divided into two sections -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                <!-- Large rectangular card virtually divided into two sections (Opaque background) -->
+                <Border Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                         BorderThickness="1"
-                        CornerRadius="12"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        BackgroundSizing="InnerBorderEdge"
                         Padding="36,32,36,32"
                         MaxWidth="780"
                         HorizontalAlignment="Center"
@@ -420,9 +417,10 @@
                         </Grid>
 
                         <!-- Right section: Live QR code -->
-                        <Border Grid.Column="1" Background="White" Padding="14" CornerRadius="8"
+                        <Border Grid.Column="1" Background="White" Padding="14"
+                                CornerRadius="{ThemeResource OverlayCornerRadius}"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
                             <Grid Width="256" Height="256">
                                 <Image Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}"
                                        Width="256" Height="256"
