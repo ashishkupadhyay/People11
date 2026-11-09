@@ -735,31 +735,40 @@
                                             </Border>
                                         </Grid>
 
-                                        <!-- Reaction pills -->
-                                        <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneWay}"
-                                                      Visibility="{x:Bind Reactions, Mode=OneWay, Converter={StaticResource CollectionToVisibilityConverter}}"
-                                                      HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                                      Margin="4,-4,4,0">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal" Spacing="4"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="x:String">
-                                                    <Button Click="ReactionPill_Click"
-                                                            Tag="{x:Bind}"
-                                                            Padding="6,2"
-                                                            CornerRadius="10"
-                                                            BorderThickness="1"
-                                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                            MinHeight="22" MinWidth="24">
-                                                        <TextBlock Text="{x:Bind}" FontSize="12"/>
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                        <!-- Single Unified Reaction Pill -->
+                                        <Button Click="ReactionPill_Click"
+                                                Visibility="{x:Bind HasReactions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                                Margin="4,-4,4,0"
+                                                Padding="6,2,7,2"
+                                                CornerRadius="11"
+                                                BorderThickness="1"
+                                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                MinHeight="22">
+                                            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                                                <ItemsControl ItemsSource="{x:Bind DistinctReactionEmojis, Mode=OneWay}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="x:String">
+                                                            <TextBlock Text="{x:Bind}" FontSize="12" FontFamily="Segoe UI Emoji" VerticalAlignment="Center"/>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <TextBlock Text="{x:Bind TotalReactionCount, Mode=OneWay}"
+                                                           Visibility="{x:Bind HasMultipleReactions, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="2,0,0,0"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
 
                                     <!-- Incoming Reaction Trigger (Right of incoming bubble) -->

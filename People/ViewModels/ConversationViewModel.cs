@@ -659,7 +659,7 @@ public partial class ConversationViewModel : ViewModelBase
                         if (!string.IsNullOrEmpty(e.Message.Content.ThumbnailUrl))
                             existing.Content.ThumbnailUrl = e.Message.Content.ThumbnailUrl;
                     }
-                    existing.Reactions = new List<string>(e.Message.Reactions);
+                    existing.Reactions = new List<MessageReaction>(e.Message.Reactions);
                 }
                 else
                 {
@@ -1639,33 +1639,30 @@ public partial class ConversationViewModel : ViewModelBase
     {
         if (CurrentChat == null || message == null || string.IsNullOrWhiteSpace(message.Id)) return;
 
+        var currentReaction = message.UserReaction;
         string targetEmoji = emoji;
-        if (message.Reactions.Contains(emoji))
+        if (currentReaction != null && currentReaction.Emoji == emoji)
         {
+            // Clicking same reaction removes it
             targetEmoji = string.Empty;
         }
 
-        var updatedList = new List<string>(message.Reactions);
-        if (string.IsNullOrEmpty(targetEmoji))
-        {
-            updatedList.Remove(emoji);
-        }
-        else
-        {
-            if (!updatedList.Contains(targetEmoji))
-            {
-                updatedList.Add(targetEmoji);
-            }
-        }
-        message.Reactions = updatedList;
+        var previousReactions = new List<MessageReaction>(message.Reactions);
+        message.SetUserReaction("me", "You", isFromMe: true, targetEmoji);
 
         try
         {
+            var repo = App.Current.Services.GetService<IMessageRepository>();
+            if (repo != null) await repo.SaveAsync(message);
+
             await _provider.SendReactionAsync(CurrentChat.Id, message.Id, targetEmoji);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to send reaction {targetEmoji} for message {message.Id}: {ex}");
+            message.Reactions = previousReactions;
+            var repo = App.Current.Services.GetService<IMessageRepository>();
+            if (repo != null) await repo.SaveAsync(message);
         }
     }
 

@@ -57,18 +57,66 @@ public class Message : INotifyPropertyChanged
     public string? QuotedSender { get; set; }
 
     // Reactions
-    private List<string> _reactions = new();
-    public List<string> Reactions
+    private List<MessageReaction> _reactions = new();
+    public List<MessageReaction> Reactions
     {
         get => _reactions;
         set
         {
             if (_reactions != value)
             {
-                _reactions = value;
+                _reactions = value ?? new List<MessageReaction>();
                 OnPropertyChanged();
+                NotifyReactionPropertiesChanged();
             }
         }
+    }
+
+    [NotMapped]
+    public IReadOnlyList<string> DistinctReactionEmojis =>
+        _reactions.Select(r => r.Emoji).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+
+    [NotMapped]
+    public int TotalReactionCount => _reactions.Count;
+
+    [NotMapped]
+    public bool HasReactions => _reactions.Count > 0;
+
+    [NotMapped]
+    public bool HasMultipleReactions => _reactions.Count > 1;
+
+    [NotMapped]
+    public bool HasUserReacted => _reactions.Any(r => r.IsFromMe);
+
+    [NotMapped]
+    public MessageReaction? UserReaction => _reactions.FirstOrDefault(r => r.IsFromMe);
+
+    public void NotifyReactionPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(DistinctReactionEmojis));
+        OnPropertyChanged(nameof(TotalReactionCount));
+        OnPropertyChanged(nameof(HasReactions));
+        OnPropertyChanged(nameof(HasMultipleReactions));
+        OnPropertyChanged(nameof(HasUserReacted));
+        OnPropertyChanged(nameof(UserReaction));
+    }
+
+    public void SetUserReaction(string senderId, string? senderName, bool isFromMe, string emoji)
+    {
+        var updated = new List<MessageReaction>(_reactions);
+        updated.RemoveAll(r => (isFromMe && r.IsFromMe) || (!string.IsNullOrEmpty(senderId) && r.SenderId == senderId));
+        if (!string.IsNullOrWhiteSpace(emoji))
+        {
+            updated.Add(new MessageReaction
+            {
+                Emoji = emoji,
+                SenderId = senderId,
+                SenderName = senderName,
+                IsFromMe = isFromMe,
+                Timestamp = DateTimeOffset.UtcNow
+            });
+        }
+        Reactions = updated;
     }
 
     public string FormattedTime => Timestamp != default ? Timestamp.ToLocalTime().ToString("t") : string.Empty;

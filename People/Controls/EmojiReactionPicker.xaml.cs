@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 
 namespace People.Controls;
 
@@ -11,24 +13,40 @@ public sealed partial class EmojiReactionPicker : UserControl
     public event EventHandler<string>? EmojiSelected;
 
     private string _activeCategory = "Smileys";
+    private bool _isCatalogInitialized;
+    private DispatcherTimer? _searchDebounceTimer;
+
+    // Static cached lookup by category - zero allocation, O(1) instantaneous category switching
+    private static readonly Dictionary<string, List<EmojiItem>> CategoryCache =
+        EmojiData.Categories.ToDictionary(
+            cat => cat,
+            cat => EmojiData.AllEmojis.Where(e => e.Category == cat).ToList()
+        );
 
     public EmojiReactionPicker()
     {
         InitializeComponent();
         BuildCategoryTabs();
-        LoadCategoryEmojis(_activeCategory);
+
+        // Setup 120ms debouncing for responsive, frame-rate safe search
+        _searchDebounceTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+        _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
 
         Loaded += (s, e) => Reset();
     }
 
     public void Reset()
     {
+        _searchDebounceTimer?.Stop();
         QuickBarBorder.Visibility = Visibility.Visible;
         ExpandedPickerBorder.Visibility = Visibility.Collapsed;
         SearchBox.Text = string.Empty;
+        CategoryScrollViewer.Visibility = Visibility.Visible;
         _activeCategory = "Smileys";
         HighlightCategoryTab(_activeCategory);
-        LoadCategoryEmojis(_activeCategory);
     }
 
     private void BuildCategoryTabs()
@@ -37,19 +55,55 @@ public sealed partial class EmojiReactionPicker : UserControl
         foreach (var cat in EmojiData.Categories)
         {
             var icon = EmojiData.CategoryIcons.TryGetValue(cat, out var ic) ? ic : cat[..1];
+
+            var containerGrid = new Grid
+            {
+                Width = 32,
+                Height = 32,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var textBlock = new TextBlock
+            {
+                Text = icon,
+                FontSize = 16,
+                FontFamily = new FontFamily("Segoe UI Emoji"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+
+            var indicator = new Rectangle
+            {
+                Name = "ActiveIndicator",
+                Height = 2.5,
+                Width = 16,
+                RadiusX = 1.25,
+                RadiusY = 1.25,
+                Fill = GetAccentBrush(),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Visibility = cat == _activeCategory ? Visibility.Visible : Visibility.Collapsed
+            };
+
+            containerGrid.Children.Add(textBlock);
+            containerGrid.Children.Add(indicator);
+
             var btn = new Button
             {
-                Content = new TextBlock { Text = icon, FontSize = 16 },
+                Content = containerGrid,
                 Tag = cat,
                 Padding = new Thickness(0),
                 Width = 32,
                 Height = 32,
-                CornerRadius = new CornerRadius(16),
-                Background = cat == _activeCategory
-                    ? (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Microsoft.UI.Xaml.Media.Brush br ? br : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent))
-                    : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
-                BorderThickness = new Thickness(0)
+                CornerRadius = new CornerRadius(6),
+                Background = cat == _activeCategory ? GetSubtleSecondaryBrush() : GetTransparentBrush(),
+                BorderThickness = new Thickness(0),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center
             };
+
             ToolTipService.SetToolTip(btn, cat);
             btn.Click += CategoryTab_Click;
             CategoryTabsPanel.Children.Add(btn);
@@ -63,9 +117,18 @@ public sealed partial class EmojiReactionPicker : UserControl
             if (child is Button btn && btn.Tag is string cat)
             {
                 var isSelected = cat == category;
-                btn.Background = isSelected
-                    ? (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Microsoft.UI.Xaml.Media.Brush br ? br : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent))
-                    : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                btn.Background = isSelected ? GetSubtleSecondaryBrush() : GetTransparentBrush();
+
+                if (btn.Content is Grid grid)
+                {
+                    foreach (var element in grid.Children)
+                    {
+                        if (element is Rectangle rect && rect.Name == "ActiveIndicator")
+                        {
+                            rect.Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
+                        }
+                    }
+                }
             }
         }
     }
@@ -83,9 +146,11 @@ public sealed partial class EmojiReactionPicker : UserControl
 
     private void LoadCategoryEmojis(string category)
     {
-        var filtered = EmojiData.AllEmojis.Where(x => x.Category == category).ToList();
-        EmojiItemsControl.ItemsSource = filtered;
-        EmptySearchText.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (CategoryCache.TryGetValue(category, out var items))
+        {
+            EmojiRepeater.ItemsSource = items;
+            EmptySearchText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private void QuickEmoji_Click(object sender, RoutedEventArgs e)
@@ -102,7 +167,20 @@ public sealed partial class EmojiReactionPicker : UserControl
         ExpandedPickerBorder.Visibility = Visibility.Visible;
         SearchBox.Text = string.Empty;
         HighlightCategoryTab(_activeCategory);
-        LoadCategoryEmojis(_activeCategory);
+
+        // Lazy initialize repeater data on first expand
+        if (!_isCatalogInitialized)
+        {
+            _isCatalogInitialized = true;
+            LoadCategoryEmojis(_activeCategory);
+        }
+        else
+        {
+            LoadCategoryEmojis(_activeCategory);
+        }
+
+        // Run fluid entrance animation
+        ExpandStoryboard.Begin();
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
@@ -115,10 +193,28 @@ public sealed partial class EmojiReactionPicker : UserControl
         Reset();
     }
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
-        var query = SearchBox.Text?.Trim() ?? string.Empty;
+        var query = sender.Text?.Trim() ?? string.Empty;
 
+        if (string.IsNullOrEmpty(query))
+        {
+            _searchDebounceTimer?.Stop();
+            CategoryScrollViewer.Visibility = Visibility.Visible;
+            LoadCategoryEmojis(_activeCategory);
+            return;
+        }
+
+        // Debounce multi-character typing to keep frame rate locked at 60fps
+        _searchDebounceTimer?.Stop();
+        _searchDebounceTimer?.Start();
+    }
+
+    private void SearchDebounceTimer_Tick(object? sender, object e)
+    {
+        _searchDebounceTimer?.Stop();
+
+        var query = SearchBox.Text?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(query))
         {
             CategoryScrollViewer.Visibility = Visibility.Visible;
@@ -134,16 +230,46 @@ public sealed partial class EmojiReactionPicker : UserControl
                         x.Emoji.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        EmojiItemsControl.ItemsSource = matches;
+        EmojiRepeater.ItemsSource = matches;
         EmptySearchText.Visibility = matches.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmojiScrollViewer.ChangeView(0, 0, 1.0f, true);
     }
 
     private void EmojiButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string emoji)
+        if (sender is Button btn)
         {
-            EmojiSelected?.Invoke(this, emoji);
-            Reset();
+            var emoji = btn.Tag as string ?? (btn.DataContext as EmojiItem)?.Emoji;
+            if (!string.IsNullOrEmpty(emoji))
+            {
+                EmojiSelected?.Invoke(this, emoji);
+                Reset();
+            }
         }
+    }
+
+    private static Brush GetSubtleSecondaryBrush()
+    {
+        return Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Brush brush
+            ? brush
+            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+    }
+
+    private static Brush GetTransparentBrush()
+    {
+        return new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+    }
+
+    private static Brush GetAccentBrush()
+    {
+        if (Application.Current.Resources.TryGetValue("AppAccentBrush", out var b) && b is Brush brush)
+        {
+            return brush;
+        }
+        if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var ab) && ab is Brush aBrush)
+        {
+            return aBrush;
+        }
+        return new SolidColorBrush(Microsoft.UI.Colors.DodgerBlue);
     }
 }

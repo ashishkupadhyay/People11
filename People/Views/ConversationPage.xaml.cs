@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -21,6 +22,9 @@ public sealed partial class ConversationPage : Page
     private readonly DispatcherTimer _pillHideTimer = new() { Interval = TimeSpan.FromMilliseconds(1500) };
     private bool _isPillVisible;
 
+    private readonly Flyout _reactionDetailsFlyout = new();
+    private readonly People.Controls.ReactionDetailsControl _reactionDetailsControl = new();
+
     private static readonly SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
     private static readonly SvgImageSource _darkDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_dark.svg"));
 
@@ -28,6 +32,26 @@ public sealed partial class ConversationPage : Page
     {
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
+
+        _reactionDetailsFlyout.Content = _reactionDetailsControl;
+        _reactionDetailsFlyout.Placement = FlyoutPlacementMode.Top;
+        var flyoutPresenterStyle = new Style(typeof(FlyoutPresenter));
+        flyoutPresenterStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(8)));
+        flyoutPresenterStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(12)));
+        if (Application.Current.Resources.TryGetValue("SolidBackgroundFillColorSecondaryBrush", out var bgBrush) && bgBrush is Brush br)
+        {
+            flyoutPresenterStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, br));
+        }
+        _reactionDetailsFlyout.FlyoutPresenterStyle = flyoutPresenterStyle;
+
+        _reactionDetailsControl.ReactionClicked += (s, reaction) =>
+        {
+            if (reaction.IsFromMe && _reactionDetailsControl.CurrentMessage is Message msg)
+            {
+                _reactionDetailsFlyout.Hide();
+                _ = ViewModel.ReactToMessageAsync(msg, reaction.Emoji);
+            }
+        };
 
         Loaded += (s, e) =>
         {
@@ -684,17 +708,27 @@ public sealed partial class ConversationPage : Page
 
     private void ReactionPill_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string emoji)
+        if (sender is Button btn)
         {
-            DependencyObject? current = btn;
-            while (current != null)
+            Message? targetMsg = btn.DataContext as Message;
+            if (targetMsg == null)
             {
-                if (current is FrameworkElement fe && fe.DataContext is Message msg)
+                DependencyObject? current = btn;
+                while (current != null)
                 {
-                    _ = ViewModel.ReactToMessageAsync(msg, emoji);
-                    break;
+                    if (current is FrameworkElement fe && fe.DataContext is Message msg)
+                    {
+                        targetMsg = msg;
+                        break;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
                 }
-                current = VisualTreeHelper.GetParent(current);
+            }
+
+            if (targetMsg != null && targetMsg.HasReactions)
+            {
+                _reactionDetailsControl.SetMessage(targetMsg);
+                _reactionDetailsFlyout.ShowAt(btn);
             }
         }
     }

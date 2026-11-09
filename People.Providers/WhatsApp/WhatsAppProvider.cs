@@ -452,13 +452,23 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
-                var reactionsList = new List<string>();
+                var reactionsList = new List<MessageReaction>();
                 if (root.TryGetProperty("reactions", out var rProp) && rProp.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var elem in rProp.EnumerateArray())
                     {
-                        var str = elem.GetString();
-                        if (!string.IsNullOrEmpty(str)) reactionsList.Add(str);
+                        if (elem.ValueKind == JsonValueKind.String)
+                        {
+                            var str = elem.GetString();
+                            if (!string.IsNullOrEmpty(str))
+                                reactionsList.Add(new MessageReaction { Emoji = str, SenderId = "peer", SenderName = null, IsFromMe = false });
+                        }
+                        else if (elem.ValueKind == JsonValueKind.Object)
+                        {
+                            var mr = JsonSerializer.Deserialize<MessageReaction>(elem.GetRawText());
+                            if (mr != null && !string.IsNullOrEmpty(mr.Emoji))
+                                reactionsList.Add(mr);
+                        }
                     }
                 }
 
@@ -1108,7 +1118,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             Status = (MessageStatus)dto.Status,
             QuotedText = dto.QuotedText,
             QuotedSender = dto.QuotedSender,
-            Reactions = dto.Reactions ?? new()
+            Reactions = dto.Reactions?.Select(e => new MessageReaction { Emoji = e, SenderId = "peer", SenderName = null, IsFromMe = false }).ToList() ?? new()
         };
     }
 
@@ -1792,17 +1802,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             try
             {
-                if (string.IsNullOrEmpty(emoji))
-                {
-                    msg.Reactions.Clear();
-                }
-                else
-                {
-                    if (!msg.Reactions.Contains(emoji))
-                    {
-                        msg.Reactions.Add(emoji);
-                    }
-                }
+                msg.SetUserReaction("me", "You", isFromMe: true, emoji);
                 await _messageRepository.SaveAsync(msg);
                 MessageReceived?.Invoke(this, new MessageReceivedEventArgs(msg));
             }

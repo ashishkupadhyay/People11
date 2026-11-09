@@ -1,0 +1,77 @@
+<UserControl
+    x:Class="People.Controls.ReactionDetailsControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:People.Core.Models"
+    xmlns:converters="using:People.Converters"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </UserControl.Resources>
+
+    <Grid Width="280" MaxHeight="320" RowSpacing="10" Padding="4">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="Reactions" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="10" Padding="6,1" VerticalAlignment="Center">
+                    <TextBlock x:Name="TotalCountText" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- Filter tabs (All, 👍, ❤️, etc.) -->
+        <ScrollViewer Grid.Row="1"
+                      HorizontalScrollBarVisibility="Hidden"
+                      VerticalScrollBarVisibility="Disabled"
+                      HorizontalScrollMode="Enabled"
+                      VerticalScrollMode="Disabled">
+            <StackPanel x:Name="EmojiTabsPanel" Orientation="Horizontal" Spacing="4" />
+        </ScrollViewer>
+
+        <!-- Reactions List -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="ReactorsItemsControl">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:MessageReaction">
+                        <Button Click="ReactorItem_Click"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="6,6"
+                                Margin="0,1"
+                                CornerRadius="6">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <PersonPicture Grid.Column="0" Width="32" Height="32" DisplayName="{x:Bind SenderName}" />
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind DisplayName}" FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="Click to remove" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Visibility="{x:Bind IsFromMe, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="2" Text="{x:Bind Emoji}" FontSize="18" FontFamily="Segoe UI Emoji" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

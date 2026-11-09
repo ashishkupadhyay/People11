@@ -67,7 +67,46 @@ public class PeopleDbContext : DbContext
             entity.Property(e => e.Reactions)
                   .HasConversion(
                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                      v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+                      v => DeserializeReactions(v));
         });
+    }
+
+    private static List<MessageReaction> DeserializeReactions(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<MessageReaction>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return new List<MessageReaction>();
+
+            var list = new List<MessageReaction>();
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.String)
+                {
+                    var emojiStr = element.GetString();
+                    if (!string.IsNullOrEmpty(emojiStr))
+                    {
+                        list.Add(new MessageReaction { Emoji = emojiStr, SenderId = "unknown", SenderName = "Unknown", IsFromMe = false });
+                    }
+                }
+                else if (element.ValueKind == JsonValueKind.Object)
+                {
+                    var obj = JsonSerializer.Deserialize<MessageReaction>(element.GetRawText());
+                    if (obj != null && !string.IsNullOrEmpty(obj.Emoji))
+                    {
+                        list.Add(obj);
+                    }
+                }
+            }
+            return list;
+        }
+        catch
+        {
+            return new List<MessageReaction>();
+        }
     }
 }
