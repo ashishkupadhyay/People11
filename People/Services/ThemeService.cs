@@ -233,8 +233,10 @@ public class ThemeService : IThemeService
         ApplyAccentToResourceDictionary(Microsoft.UI.Xaml.Application.Current.Resources, _activePlatform);
     }
 
-    public void ApplyAccentToResourceDictionary(Microsoft.UI.Xaml.ResourceDictionary targetDict, string? platformId)
+    public void ApplyAccentToResourceDictionary(object resourceDictionary, string? platformId)
     {
+        if (resourceDictionary is not Microsoft.UI.Xaml.ResourceDictionary targetDict)
+            return;
         var normPlatform = NormalizePlatform(platformId);
         AccentPalette? palette = null;
         if (!string.IsNullOrEmpty(normPlatform))

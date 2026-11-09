@@ -10,4 +10,5 @@ public interface IThemeService
     void ClearActivePlatform();
     void ApplyBrandColorIfActive(string platformId);
     void RestoreSystemAccentColor();
+    void ApplyAccentToResourceDictionary(object resourceDictionary, string? platformId);
 }

@@ -108,7 +108,7 @@ public sealed partial class FlyoutWindow : Window
 
     private void ApplyFlyoutPlatformAccent(string platform)
     {
-        var themeService = App.Current.Services.GetRequiredService<People.Services.ThemeService>();
+        var themeService = App.Current.Services.GetRequiredService<IThemeService>();
         themeService.ApplyAccentToResourceDictionary(RootGrid.Resources, platform == "SMS" ? null : platform);
     }
 

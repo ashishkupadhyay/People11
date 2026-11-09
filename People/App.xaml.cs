@@ -58,6 +58,7 @@ public partial class App : Application
         // Navigation and Theme
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<ThemeService>(sp => (ThemeService)sp.GetRequiredService<IThemeService>());
         // services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<ITrayIconService, TrayIconService>();
         
