@@ -7,6 +7,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Media;
 using People.Core.Interfaces;
 
 namespace People.Views;
@@ -120,15 +121,24 @@ public sealed partial class FlyoutWindow : Window
     private void ApplyFlyoutBackdrop()
     {
         var backdropStr = _settingsService.GetValue<string>("FlyoutBackdrop") ?? "AcrylicBase";
-        var kind = (backdropStr == "AcrylicThin") ? DesktopAcrylicKind.Thin : DesktopAcrylicKind.Base;
 
-        if (this.SystemBackdrop is FlyoutAcrylicBackdrop existingBackdrop)
+        if (backdropStr == "AcrylicThin")
         {
-            existingBackdrop.Kind = kind;
+            if (this.SystemBackdrop is not DesktopAcrylicBackdrop)
+            {
+                this.SystemBackdrop = new DesktopAcrylicBackdrop();
+            }
         }
         else
         {
-            this.SystemBackdrop = new FlyoutAcrylicBackdrop(kind);
+            if (this.SystemBackdrop is FlyoutAcrylicBackdrop existingBackdrop)
+            {
+                existingBackdrop.Kind = DesktopAcrylicKind.Base;
+            }
+            else
+            {
+                this.SystemBackdrop = new FlyoutAcrylicBackdrop(DesktopAcrylicKind.Base);
+            }
         }
     }
 
