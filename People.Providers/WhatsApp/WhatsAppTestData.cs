@@ -36,7 +36,7 @@ public static class WhatsAppTestData
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "❤️", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false },
+                        new MessageReaction { Emoji = "❤️", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false },
                         new MessageReaction { Emoji = "👍", SenderId = "me", SenderName = "You", IsFromMe = true }
                     }
                 }
@@ -75,26 +75,26 @@ public static class WhatsAppTestData
             },
             new Chat
             {
-                Id = "sample_wa_panos",
+                Id = "sample_wa_pavan",
                 PlatformId = "WhatsApp",
-                Title = "Panos Panay",
+                Title = "Pavan Davuluri",
                 IsGroup = false,
                 UnreadCount = 0,
                 LastMessageTime = now.AddMinutes(-25),
                 LastMessage = new Message
                 {
-                    Id = "panos_msg_4",
-                    ChatId = "sample_wa_panos",
+                    Id = "pavan_msg_4",
+                    ChatId = "sample_wa_pavan",
                     PlatformId = "WhatsApp",
-                    SenderId = "panos",
-                    SenderName = "Panos Panay",
-                    Content = new MessageContent { Text = "The team is pumped! The craft, rounded corners, and centered taskbar feel so natural." },
+                    SenderId = "pavan",
+                    SenderName = "Pavan Davuluri",
+                    Content = new MessageContent { Text = "The synergy between silicon, Windows 11, and Surface hardware has never been stronger." },
                     Timestamp = now.AddMinutes(-25),
                     Status = MessageStatus.Read,
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "❤️", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false }
+                        new MessageReaction { Emoji = "❤️", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false }
                     }
                 }
             },
@@ -353,7 +353,7 @@ public static class WhatsAppTestData
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "👍", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false }
+                        new MessageReaction { Emoji = "👍", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false }
                     }
                 },
                 new Message
@@ -370,7 +370,7 @@ public static class WhatsAppTestData
                     Reactions = new List<MessageReaction>
                     {
                         new MessageReaction { Emoji = "😂", SenderId = "kevin", SenderName = "Kevin Gallo", IsFromMe = false },
-                        new MessageReaction { Emoji = "❤️", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false },
+                        new MessageReaction { Emoji = "❤️", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false },
                         new MessageReaction { Emoji = "👍", SenderId = "me", SenderName = "You", IsFromMe = true }
                     }
                 },
@@ -404,7 +404,7 @@ public static class WhatsAppTestData
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "❤️", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false },
+                        new MessageReaction { Emoji = "❤️", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false },
                         new MessageReaction { Emoji = "👍", SenderId = "me", SenderName = "You", IsFromMe = true }
                     }
                 }
@@ -482,62 +482,62 @@ public static class WhatsAppTestData
                 }
             },
 
-            "sample_wa_panos" => new List<Message>
+            "sample_wa_pavan" => new List<Message>
             {
                 new Message
                 {
-                    Id = "panos_msg_1",
+                    Id = "pavan_msg_1",
                     ChatId = chatId,
                     PlatformId = "WhatsApp",
-                    SenderId = "panos",
-                    SenderName = "Panos Panay",
-                    Content = new MessageContent { Text = "Wait until you feel the haptic feedback on this pen..." },
+                    SenderId = "pavan",
+                    SenderName = "Pavan Davuluri",
+                    Content = new MessageContent { Text = "Leading both the Windows and Surface teams together allows us to build deeply integrated hardware and software." },
                     Timestamp = now.AddHours(-1).AddMinutes(-15),
                     Status = MessageStatus.Read,
                     IsOutgoing = false
                 },
                 new Message
                 {
-                    Id = "panos_msg_2",
+                    Id = "pavan_msg_2",
                     ChatId = chatId,
                     PlatformId = "WhatsApp",
                     SenderId = "me",
                     SenderName = "You",
-                    Content = new MessageContent { Text = "Panos, did you see how Mica material subtly samples the desktop wallpaper through the window?" },
+                    Content = new MessageContent { Text = "Pavan, how is the team feeling about the next Windows 11 updates with Copilot+ PCs and NPU architecture?" },
                     Timestamp = now.AddHours(-1),
                     Status = MessageStatus.Read,
                     IsOutgoing = true,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "❤️", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false }
+                        new MessageReaction { Emoji = "👍", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false }
                     }
                 },
                 new Message
                 {
-                    Id = "panos_msg_3",
+                    Id = "pavan_msg_3",
                     ChatId = chatId,
                     PlatformId = "WhatsApp",
-                    SenderId = "panos",
-                    SenderName = "Panos Panay",
-                    Content = new MessageContent { Text = "Yes! The craft of materials is pure poetry. When software and hardware come together, you feel it." },
+                    SenderId = "pavan",
+                    SenderName = "Pavan Davuluri",
+                    Content = new MessageContent { Text = "Incredible momentum. We are optimizing the OS kernel and WinUI compositing to take full advantage of neural processing and ARM64 efficiency." },
                     Timestamp = now.AddMinutes(-40),
                     Status = MessageStatus.Read,
                     IsOutgoing = false
                 },
                 new Message
                 {
-                    Id = "panos_msg_4",
+                    Id = "pavan_msg_4",
                     ChatId = chatId,
                     PlatformId = "WhatsApp",
-                    SenderId = "panos",
-                    SenderName = "Panos Panay",
-                    Content = new MessageContent { Text = "The team is pumped! The craft, rounded corners, and centered taskbar feel so natural." },
+                    SenderId = "pavan",
+                    SenderName = "Pavan Davuluri",
+                    Content = new MessageContent { Text = "The synergy between silicon, Windows 11, and Surface hardware has never been stronger." },
                     Timestamp = now.AddMinutes(-25),
                     Status = MessageStatus.Read,
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "❤️", SenderId = "panos", SenderName = "Panos Panay", IsFromMe = false }
+                        new MessageReaction { Emoji = "❤️", SenderId = "pavan", SenderName = "Pavan Davuluri", IsFromMe = false }
                     }
                 }
             },
@@ -990,7 +990,7 @@ public static class WhatsAppTestData
     {
         return new List<Contact>
         {
-            new Contact { Id = "panos", Name = "Panos Panay", PhoneNumber = "+1 (425) 555-0101" },
+            new Contact { Id = "pavan", Name = "Pavan Davuluri", PhoneNumber = "+1 (425) 555-0101" },
             new Contact { Id = "satya", Name = "Satya Nadella", PhoneNumber = "+1 (425) 555-0102" },
             new Contact { Id = "kevin", Name = "Kevin Gallo", PhoneNumber = "+1 (425) 555-0103" },
             new Contact { Id = "mikhail", Name = "Mikhail Parakhin", PhoneNumber = "+1 (425) 555-0104" },
