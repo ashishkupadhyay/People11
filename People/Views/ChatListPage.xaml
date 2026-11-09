@@ -83,7 +83,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <AutoSuggestBox Grid.Column="0" x:Uid="SearchChatsBox" QueryIcon="Find" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox">
+                    <AutoSuggestBox Grid.Column="0" x:Name="SearchChatsBox" x:Uid="SearchChatsBox" QueryIcon="Find" TextChanged="SearchChatsBox_TextChanged" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox">
                         <AutoSuggestBox.Resources>
                             <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
                         </AutoSuggestBox.Resources>
@@ -256,6 +256,7 @@
 
         <!-- Pane 3: Detail View -->
         <Frame x:Name="DetailFrame" Grid.Column="1" Background="Transparent" CornerRadius="{ThemeResource OverlayCornerRadius}"
+               IsHitTestVisible="False" Visibility="Collapsed"
                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
             <Frame.ContentTransitions>
                 <TransitionCollection>

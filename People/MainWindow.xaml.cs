@@ -218,6 +218,57 @@ public sealed partial class MainWindow : Window
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    public void BringToFront()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+        if (appWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter && presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+        {
+            presenter.Restore();
+        }
+        this.Activate();
+        SetForegroundWindow(hwnd);
+    }
+
+    public void OpenPlatform(string platform)
+    {
+        var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
+        if (platform == "WhatsApp")
+        {
+            navService.NavigateTo("Chats", platform);
+            if (NavView.MenuItems.Count > 0)
+            {
+                NavView.SelectedItem = NavView.MenuItems[0];
+            }
+        }
+        else
+        {
+            navService.NavigateTo("ComingSoon", platform);
+            foreach (var item in NavView.MenuItems)
+            {
+                if (item is NavigationViewItem nvi && (string)nvi.Tag == platform)
+                {
+                    NavView.SelectedItem = nvi;
+                    break;
+                }
+            }
+        }
+    }
+
+    public void OpenChat(People.Core.Models.Chat chat)
+    {
+        OpenPlatform(chat.PlatformId ?? "WhatsApp");
+        if (ContentFrame.Content is Views.ChatListPage chatListPage)
+        {
+            chatListPage.OpenChatInDetail(chat);
+        }
+    }
+
     private void NavView_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var width = e.NewSize.Width;

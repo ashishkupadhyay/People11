@@ -19,6 +19,11 @@ public class TrayIconService : ITrayIconService
             {
                 try
                 {
+                    var isLightTaskbar = IsSystemUsesLightTheme();
+                    var iconColor = isLightTaskbar 
+                        ? Microsoft.UI.ColorHelper.FromArgb(255, 26, 26, 26) 
+                        : Microsoft.UI.Colors.White;
+
                     _taskbarIcon = new TaskbarIcon
                     {
                         ToolTipText = "People Messaging",
@@ -27,8 +32,9 @@ public class TrayIconService : ITrayIconService
                         {
                             Text = "\xE716",
                             FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
-                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
-                            FontSize = 16
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
+                            FontSize = 36,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
                         }
                     };
 
@@ -37,8 +43,7 @@ public class TrayIconService : ITrayIconService
                 }
                 catch
                 {
-                    // Ignore tray icon initialization failures for now
-                    // System.Drawing.Icon conversion from PNG fails without a valid .ico file
+                    // Ignore tray icon initialization failures
                 }
             });
     }
@@ -110,7 +115,20 @@ public class TrayIconService : ITrayIconService
             }
 
             _flyoutWindow.Activate();
+            _flyoutWindow.ForceActivateForeground();
         });
+    }
+
+    private static bool IsSystemUsesLightTheme()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            var val = key?.GetValue("SystemUsesLightTheme");
+            if (val is int intVal) return intVal == 1;
+        }
+        catch { }
+        return false;
     }
 
     public void HideFlyout()

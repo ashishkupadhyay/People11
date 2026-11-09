@@ -700,6 +700,9 @@ public partial class ChatListViewModel : ViewModelBase
 
                     SortChatsInPlace();
                 }
+
+                _allMasterChats.Clear();
+                _allMasterChats.AddRange(Chats);
             });
         }
         catch (Exception)
@@ -981,6 +984,52 @@ public partial class ChatListViewModel : ViewModelBase
         });
     }
 
+    private readonly List<Chat> _allMasterChats = new();
+    private string _currentChatFilter = string.Empty;
+
+    public void FilterChats(string query)
+    {
+        _currentChatFilter = query?.Trim() ?? string.Empty;
+        ApplyChatFilter();
+    }
+
+    private void ApplyChatFilter()
+    {
+        _dispatcherService.Enqueue(() =>
+        {
+            if (string.IsNullOrWhiteSpace(_currentChatFilter))
+            {
+                if (_allMasterChats.Count > 0 && (_allMasterChats.Count != Chats.Count || !Chats.SequenceEqual(_allMasterChats)))
+                {
+                    Chats.Clear();
+                    foreach (var c in _allMasterChats)
+                    {
+                        Chats.Add(c);
+                    }
+                }
+                return;
+            }
+
+            if (_allMasterChats.Count == 0 && Chats.Count > 0)
+            {
+                _allMasterChats.AddRange(Chats);
+            }
+
+            var query = _currentChatFilter;
+            var matches = _allMasterChats.Where(c =>
+                (!string.IsNullOrEmpty(c.Title) && c.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(c.Id) && c.Id.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(c.LastMessagePreview) && c.LastMessagePreview.Contains(query, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            Chats.Clear();
+            foreach (var m in matches)
+            {
+                Chats.Add(m);
+            }
+        });
+    }
+
     public void FilterContacts(string query)
     {
         FilteredContacts.Clear();
@@ -1079,6 +1128,8 @@ public partial class ChatListViewModel : ViewModelBase
         {
             Chats.Add(chat);
         }
+        _allMasterChats.Clear();
+        _allMasterChats.AddRange(Chats);
         _ = RebuildContactsAsync();
     }
 }

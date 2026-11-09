@@ -13,6 +13,9 @@ public sealed partial class ChatListPage : Page
     private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
     private static readonly Microsoft.UI.Xaml.Media.Imaging.SvgImageSource _darkDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_dark.svg"));
 
+    public event EventHandler<People.Core.Models.Chat>? ConversationOpened;
+    public event EventHandler? ConversationClosed;
+
     public ChatListPage()
     {
         ViewModel = App.Current.Services.GetRequiredService<ChatListViewModel>();
@@ -63,17 +66,24 @@ public sealed partial class ChatListPage : Page
 
     private void DetailFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
-        // Only allow hits if we are looking at a conversation.
-        DetailFrame.IsHitTestVisible = DetailFrame.Content is ConversationPage;
+        // Only allow hits and visibility if we are looking at a conversation.
+        bool hasConv = DetailFrame.Content is ConversationPage;
+        DetailFrame.IsHitTestVisible = hasConv;
+        DetailFrame.Visibility = hasConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         
         // If we navigated back to the blank page, clear the backstack so we don't build it up
-        if (DetailFrame.Content is not ConversationPage && DetailFrame.CanGoBack)
+        if (!hasConv && DetailFrame.CanGoBack)
         {
             DetailFrame.BackStack.Clear();
         }
 
         UpdateAdaptiveLayout(this.ActualWidth);
         UpdateAccentColor();
+
+        if (!hasConv)
+        {
+            ConversationClosed?.Invoke(this, EventArgs.Empty);
+        }
     }
     
     private string? _platformId = "WhatsApp";
@@ -157,16 +167,22 @@ public sealed partial class ChatListPage : Page
             if (param == "Flyout")
             {
                 _isFlyout = true;
-                return;
+                _platformId = "WhatsApp";
             }
-            
-            _platformId = param;
+            else
+            {
+                _platformId = param;
+            }
         }
         
         if (DetailFrame.Content == null)
         {
             DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
         }
+
+        bool hasConv = DetailFrame.Content is ConversationPage;
+        DetailFrame.IsHitTestVisible = hasConv;
+        DetailFrame.Visibility = hasConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
         if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
         {
@@ -207,15 +223,40 @@ public sealed partial class ChatListPage : Page
     {
         if (e.ClickedItem is People.Core.Models.Chat chat)
         {
-            if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat?.Id == chat.Id)
-            {
-                return;
-            }
-            DetailFrame.Navigate(
-                typeof(ConversationPage),
-                chat,
-                new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight });
+            OpenChatInDetail(chat);
         }
+    }
+
+    public void OpenChatInDetail(People.Core.Models.Chat chat)
+    {
+        if (chat == null) return;
+        if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat?.Id == chat.Id)
+        {
+            return;
+        }
+
+        DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        DetailFrame.IsHitTestVisible = true;
+        DetailFrame.Navigate(
+            typeof(ConversationPage),
+            chat,
+            new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight });
+
+        ConversationOpened?.Invoke(this, chat);
+    }
+
+    public People.Core.Models.Chat? GetActiveConversation()
+    {
+        if (DetailFrame.Content is ConversationPage convPage)
+        {
+            return convPage.ViewModel.CurrentChat;
+        }
+        return null;
+    }
+
+    private void SearchChatsBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        ViewModel.FilterChats(sender.Text);
     }
 
     private void SearchContactsBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -229,10 +270,7 @@ public sealed partial class ChatListPage : Page
         {
             NewChatFlyout?.Hide();
             var chat = ViewModel.GetOrCreateChatForContact(contact);
-            DetailFrame.Navigate(
-                typeof(ConversationPage),
-                chat,
-                new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight });
+            OpenChatInDetail(chat);
         }
     }
 
