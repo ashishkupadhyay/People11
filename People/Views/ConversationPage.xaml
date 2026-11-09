@@ -156,68 +156,50 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Message Bubble Row with Hover Reaction Trigger -->
+                                <!-- Message Bubble Row Container (Spans full horizontal extent for hover hit-testing) -->
                                 <Grid Grid.Row="1"
-                                      HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                      HorizontalAlignment="Stretch"
+                                      Background="Transparent"
                                       Visibility="{x:Bind IsSystemNotice, Mode=OneTime, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                       PointerEntered="MessageBubbleRow_PointerEntered"
-                                      PointerExited="MessageBubbleRow_PointerExited"
-                                      ColumnSpacing="6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                      PointerExited="MessageBubbleRow_PointerExited">
+                                    <Grid HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
+                                          ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                    <!-- Outgoing Reaction Trigger (Left of outgoing bubble) -->
-                                    <Button Grid.Column="0"
-                                            x:Name="OutgoingReactionButton"
-                                            Width="28" Height="28"
-                                            Padding="0"
-                                            CornerRadius="14"
-                                            VerticalAlignment="Center"
-                                            Opacity="0"
-                                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1"
-                                            ToolTipService.ToolTip="React"
-                                            Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <FontIcon Glyph="&#xE76E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        <Button.Flyout>
-                                            <Flyout Placement="Top">
-                                                <Flyout.FlyoutPresenterStyle>
-                                                    <Style TargetType="FlyoutPresenter">
-                                                        <Setter Property="Padding" Value="4"/>
-                                                        <Setter Property="CornerRadius" Value="22"/>
-                                                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
-                                                        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                                                        <Setter Property="BorderThickness" Value="1"/>
-                                                        <Setter Property="MinHeight" Value="44"/>
-                                                    </Style>
-                                                </Flyout.FlyoutPresenterStyle>
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="👍" ToolTipService.ToolTip="Thumbs up">
-                                                        <TextBlock Text="👍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="❤️" ToolTipService.ToolTip="Heart">
-                                                        <TextBlock Text="❤️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😂" ToolTipService.ToolTip="Laugh">
-                                                        <TextBlock Text="😂" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😮" ToolTipService.ToolTip="Surprised">
-                                                        <TextBlock Text="😮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😢" ToolTipService.ToolTip="Sad">
-                                                        <TextBlock Text="😢" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="🙏" ToolTipService.ToolTip="Pray">
-                                                        <TextBlock Text="🙏" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                </StackPanel>
-                                            </Flyout>
-                                        </Button.Flyout>
-                                    </Button>
+                                        <!-- Outgoing Reaction Trigger (Left of outgoing bubble) -->
+                                        <Button Grid.Column="0"
+                                                x:Name="OutgoingReactionButton"
+                                                Width="28" Height="28"
+                                                Padding="0"
+                                                CornerRadius="14"
+                                                VerticalAlignment="Center"
+                                                Opacity="0"
+                                                Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                ToolTipService.ToolTip="React"
+                                                Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <FontIcon Glyph="&#xE76E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <Button.Flyout>
+                                                <Flyout Placement="Top">
+                                                    <Flyout.FlyoutPresenterStyle>
+                                                        <Style TargetType="FlyoutPresenter">
+                                                            <Setter Property="Padding" Value="0"/>
+                                                            <Setter Property="CornerRadius" Value="14"/>
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                            <Setter Property="BorderThickness" Value="0"/>
+                                                            <Setter Property="Shadow" Value="{x:Null}"/>
+                                                        </Style>
+                                                    </Flyout.FlyoutPresenterStyle>
+                                                    <controls:EmojiReactionPicker EmojiSelected="EmojiPicker_EmojiSelected" />
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
 
                                     <!-- Main Bubble Column -->
                                     <StackPanel Grid.Column="1" MaxWidth="480" Spacing="2">
@@ -619,7 +601,7 @@
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                                                 <controls:WaveformProgressBar Height="24"
                                                                                               Value="{x:Bind Content.PlaybackProgress, Mode=OneWay}"
-                                                                                              ValueChanged="AudioWaveform_ValueChanged"
+                                                                                              SeekRequested="AudioWaveform_SeekRequested"
                                                                                               IsEnabled="{x:Bind Content.IsDownloaded, Mode=OneWay}"
                                                                                               Margin="0,2,0,2" />
                                                                 <Grid>
@@ -798,38 +780,19 @@
                                             <Flyout Placement="Top">
                                                 <Flyout.FlyoutPresenterStyle>
                                                     <Style TargetType="FlyoutPresenter">
-                                                        <Setter Property="Padding" Value="4"/>
-                                                        <Setter Property="CornerRadius" Value="22"/>
-                                                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
-                                                        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                                                        <Setter Property="BorderThickness" Value="1"/>
-                                                        <Setter Property="MinHeight" Value="44"/>
+                                                        <Setter Property="Padding" Value="0"/>
+                                                        <Setter Property="CornerRadius" Value="14"/>
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Setter Property="BorderThickness" Value="0"/>
+                                                        <Setter Property="Shadow" Value="{x:Null}"/>
                                                     </Style>
                                                 </Flyout.FlyoutPresenterStyle>
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="👍" ToolTipService.ToolTip="Thumbs up">
-                                                        <TextBlock Text="👍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="❤️" ToolTipService.ToolTip="Heart">
-                                                        <TextBlock Text="❤️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😂" ToolTipService.ToolTip="Laugh">
-                                                        <TextBlock Text="😂" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😮" ToolTipService.ToolTip="Surprised">
-                                                        <TextBlock Text="😮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😢" ToolTipService.ToolTip="Sad">
-                                                        <TextBlock Text="😢" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="🙏" ToolTipService.ToolTip="Pray">
-                                                        <TextBlock Text="🙏" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Button>
-                                                </StackPanel>
+                                                <controls:EmojiReactionPicker EmojiSelected="EmojiPicker_EmojiSelected" />
                                             </Flyout>
                                         </Button.Flyout>
                                     </Button>
                                 </Grid>
+                            </Grid>
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

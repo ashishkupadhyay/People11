@@ -503,7 +503,7 @@ public sealed partial class ConversationPage : Page
         }
     }
 
-    private void AudioWaveform_ValueChanged(object sender, double newValue)
+    private void AudioWaveform_SeekRequested(object sender, double newValue)
     {
         if (sender is FrameworkElement fe && fe.DataContext is Message msg && msg.Content != null)
         {
@@ -622,42 +622,40 @@ public sealed partial class ConversationPage : Page
 
     private void MessageBubbleRow_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Grid grid)
-        {
-            foreach (var child in grid.Children)
-            {
-                if (child is Button btn && btn.Name is "OutgoingReactionButton" or "IncomingReactionButton")
-                {
-                    btn.Opacity = 1.0;
-                }
-            }
-        }
+        SetReactionButtonOpacity(sender as DependencyObject, 1.0);
     }
 
     private void MessageBubbleRow_PointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Grid grid)
+        SetReactionButtonOpacity(sender as DependencyObject, 0.0);
+    }
+
+    private static void SetReactionButtonOpacity(DependencyObject? root, double opacity)
+    {
+        if (root == null) return;
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
         {
-            foreach (var child in grid.Children)
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is Button btn && btn.Name is "OutgoingReactionButton" or "IncomingReactionButton")
             {
-                if (child is Button btn && btn.Name is "OutgoingReactionButton" or "IncomingReactionButton")
-                {
-                    btn.Opacity = 0.0;
-                }
+                btn.Opacity = opacity;
+                return;
             }
+            SetReactionButtonOpacity(child, opacity);
         }
     }
 
-    private void ReactionEmoji_Click(object sender, RoutedEventArgs e)
+    private void EmojiPicker_EmojiSelected(object sender, string emoji)
     {
-        if (sender is Button btn && btn.Tag is string emoji)
+        if (sender is FrameworkElement fe)
         {
-            DependencyObject? current = btn;
-            Message? targetMsg = btn.DataContext as Message;
+            DependencyObject? current = fe;
+            Message? targetMsg = fe.DataContext as Message;
 
             while (current != null)
             {
-                if (targetMsg == null && current is FrameworkElement fe && fe.DataContext is Message m)
+                if (targetMsg == null && current is FrameworkElement parentFe && parentFe.DataContext is Message m)
                 {
                     targetMsg = m;
                 }
@@ -673,6 +671,14 @@ public sealed partial class ConversationPage : Page
             {
                 _ = ViewModel.ReactToMessageAsync(targetMsg, emoji);
             }
+        }
+    }
+
+    private void ReactionEmoji_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string emoji)
+        {
+            EmojiPicker_EmojiSelected(btn, emoji);
         }
     }
 

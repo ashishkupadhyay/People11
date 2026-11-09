@@ -57,6 +57,7 @@ public sealed partial class WaveformProgressBar : UserControl
     }
 
     public event EventHandler<double>? ValueChanged;
+    public event EventHandler<double>? SeekRequested;
 
     public WaveformProgressBar()
     {
@@ -66,8 +67,15 @@ public sealed partial class WaveformProgressBar : UserControl
         HorizontalAlignment = HorizontalAlignment.Stretch;
         VerticalAlignment = VerticalAlignment.Center;
         IsHitTestVisible = true;
+        Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        ManipulationMode = ManipulationModes.None;
 
-        var rootGrid = new Grid();
+        var rootGrid = new Grid
+        {
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
 
         // 1. Unplayed background bars
         _unplayedCanvas = new Canvas
@@ -222,16 +230,20 @@ public sealed partial class WaveformProgressBar : UserControl
     private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (!IsEnabled) return;
-        _isDragging = CapturePointer(e.Pointer);
-        SeekFromPointer(e);
-        e.Handled = true;
+        var prop = e.GetCurrentPoint(this).Properties;
+        if (prop.IsLeftButtonPressed)
+        {
+            _isDragging = CapturePointer(e.Pointer);
+            SeekFromPointer(e, isFinal: false);
+            e.Handled = true;
+        }
     }
 
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (_isDragging && IsEnabled)
         {
-            SeekFromPointer(e);
+            SeekFromPointer(e, isFinal: false);
             e.Handled = true;
         }
     }
@@ -242,6 +254,7 @@ public sealed partial class WaveformProgressBar : UserControl
         {
             _isDragging = false;
             ReleasePointerCapture(e.Pointer);
+            SeekFromPointer(e, isFinal: true);
             e.Handled = true;
         }
     }
@@ -256,7 +269,7 @@ public sealed partial class WaveformProgressBar : UserControl
         _isDragging = false;
     }
 
-    private void SeekFromPointer(PointerRoutedEventArgs e)
+    private void SeekFromPointer(PointerRoutedEventArgs e, bool isFinal)
     {
         double width = ActualWidth;
         if (width <= 0) return;
@@ -264,6 +277,10 @@ public sealed partial class WaveformProgressBar : UserControl
         var pt = e.GetCurrentPoint(this).Position;
         double fraction = Math.Clamp(pt.X / width, 0.0, 1.0);
         double max = Maximum > 0 ? Maximum : 100.0;
-        Value = fraction * max;
+        double newVal = fraction * max;
+        Value = newVal;
+        UpdatePlaybackClip();
+
+        SeekRequested?.Invoke(this, newVal);
     }
 }

@@ -1405,7 +1405,21 @@ public partial class ConversationViewModel : ViewModelBase
             msg.Content.IsPlaying = true;
             msg.Content.PlaybackProgress = 0;
 
+            var startProgress = msg.Content.PlaybackProgress;
             _audioPlayer.Source = Windows.Media.Core.MediaSource.CreateFromUri(new Uri(msg.Content.LocalFilePath));
+            if (startProgress > 0)
+            {
+                void OnMediaOpened(Windows.Media.Playback.MediaPlayer p, object _)
+                {
+                    p.MediaOpened -= OnMediaOpened;
+                    var dur = p.PlaybackSession.NaturalDuration;
+                    if (dur.TotalSeconds > 0)
+                    {
+                        p.PlaybackSession.Position = TimeSpan.FromSeconds((startProgress / 100.0) * dur.TotalSeconds);
+                    }
+                }
+                _audioPlayer.MediaOpened += OnMediaOpened;
+            }
             _audioPlayer.PlaybackSession.PositionChanged += (session, _) =>
             {
                 _dispatcherService.Enqueue(() =>
@@ -1448,11 +1462,19 @@ public partial class ConversationViewModel : ViewModelBase
 
     public void SeekAudio(MessageContent? content, double percent)
     {
-        if (content == null || _currentlyPlayingContent != content || _audioPlayer == null) return;
-        var dur = _audioPlayer.PlaybackSession.NaturalDuration;
-        if (dur.TotalSeconds > 0)
+        if (content == null) return;
+        percent = Math.Clamp(percent, 0, 100);
+        content.PlaybackProgress = percent;
+
+        if (_currentlyPlayingContent == content && _audioPlayer != null)
         {
-            _audioPlayer.PlaybackSession.Position = TimeSpan.FromSeconds((percent / 100.0) * dur.TotalSeconds);
+            var dur = _audioPlayer.PlaybackSession.NaturalDuration;
+            if (dur.TotalSeconds > 0)
+            {
+                var targetPos = TimeSpan.FromSeconds((percent / 100.0) * dur.TotalSeconds);
+                _audioPlayer.PlaybackSession.Position = targetPos;
+                content.PlaybackTimeText = $"{targetPos:mm\\:ss}";
+            }
         }
     }
 

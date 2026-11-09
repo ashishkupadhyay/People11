@@ -1,0 +1,144 @@
+<UserControl
+    x:Class="People.Controls.EmojiReactionPicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:People.Controls"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootLayout">
+        <!-- 1. Compact Quick Reaction Bar -->
+        <Border x:Name="QuickBarBorder"
+                Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                BorderThickness="1"
+                CornerRadius="22"
+                Padding="6,3"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                <!-- Quick Emojis with transparent backgrounds -->
+                <Button Click="QuickEmoji_Click" Tag="👍" ToolTipService.ToolTip="Thumbs up"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
+                    <TextBlock Text="👍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Click="QuickEmoji_Click" Tag="❤️" ToolTipService.ToolTip="Heart"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
+                    <TextBlock Text="❤️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Click="QuickEmoji_Click" Tag="😂" ToolTipService.ToolTip="Laugh"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
+                    <TextBlock Text="😂" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Click="QuickEmoji_Click" Tag="😮" ToolTipService.ToolTip="Surprised"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
+                    <TextBlock Text="😮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Click="QuickEmoji_Click" Tag="😢" ToolTipService.ToolTip="Sad"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
+                    <TextBlock Text="😢" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+                <Button Click="QuickEmoji_Click" Tag="🙏" ToolTipService.ToolTip="Pray"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
+                    <TextBlock Text="🙏" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+
+                <!-- Thin subtle separator -->
+                <Rectangle Width="1" Height="20" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="2,0" VerticalAlignment="Center" />
+
+                <!-- + Expand glyph button -->
+                <Button x:Name="ExpandButton" Click="ExpandButton_Click" ToolTipService.ToolTip="More emojis"
+                        Background="Transparent" BorderThickness="0" Padding="0" Width="32" Height="32" CornerRadius="16">
+                    <FontIcon Glyph="&#xE710;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. Expanded Categorized Emoji Picker with Search -->
+        <Border x:Name="ExpandedPickerBorder"
+                Visibility="Collapsed"
+                Width="320"
+                Height="360"
+                Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                BorderThickness="1"
+                CornerRadius="14"
+                Padding="10">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header Row: Back button and Search Box -->
+                <Grid Grid.Row="0" ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Click="CollapseButton_Click" ToolTipService.ToolTip="Back to quick reactions"
+                            Background="Transparent" BorderThickness="0" Padding="0" Width="32" Height="32" CornerRadius="16">
+                        <FontIcon Glyph="&#xE72B;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Button>
+                    <TextBox Grid.Column="1" x:Name="SearchBox"
+                             PlaceholderText="Search emoji"
+                             TextChanged="SearchBox_TextChanged"
+                             VerticalAlignment="Center">
+                    </TextBox>
+                </Grid>
+
+                <!-- Category Tabs Bar (Visible when not actively searching) -->
+                <ScrollViewer Grid.Row="1" x:Name="CategoryScrollViewer"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Enabled"
+                              VerticalScrollMode="Disabled">
+                    <StackPanel x:Name="CategoryTabsPanel" Orientation="Horizontal" Spacing="2" />
+                </ScrollViewer>
+
+                <!-- Scrollable Emoji Grid Area -->
+                <Grid Grid.Row="2">
+                    <ScrollViewer x:Name="EmojiScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="EmojiItemsControl">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <controls:SimpleWrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="controls:EmojiItem">
+                                    <Button Click="EmojiButton_Click"
+                                            Tag="{x:Bind Emoji}"
+                                            ToolTipService.ToolTip="{x:Bind Name}"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="0"
+                                            Width="38"
+                                            Height="38"
+                                            CornerRadius="6"
+                                            Margin="1">
+                                        <TextBlock Text="{x:Bind Emoji}"
+                                                   FontSize="20"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Empty state when search matches 0 items -->
+                    <TextBlock x:Name="EmptySearchText"
+                               Text="No emojis found"
+                               Visibility="Collapsed"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontSize="13" />
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -153,6 +153,7 @@
                     <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-Black.svg" />
                     <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_light.svg" />
                     <x:Double x:Key="WhatsAppDoodleOpacity">0.06</x:Double>
+                    <SolidColorBrush x:Key="SyncingWhatsAppLogoBrush" Color="#B5B5B5" />
                 </ResourceDictionary>
                 
                 <ResourceDictionary x:Key="Dark">
@@ -165,6 +166,7 @@
                     <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
                     <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_dark.svg" />
                     <x:Double x:Key="WhatsAppDoodleOpacity">0.05</x:Double>
+                    <SolidColorBrush x:Key="SyncingWhatsAppLogoBrush" Color="#606060" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <!-- Other app resources here -->
