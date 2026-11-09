@@ -11,6 +11,10 @@
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Fluent Design Corner Radius Resources -->
+            <CornerRadius x:Key="ControlCornerRadius">4,4,4,4</CornerRadius>
+            <CornerRadius x:Key="OverlayCornerRadius">8,8,8,8</CornerRadius>
+
             <!-- App-specific accent resources (Updated dynamically by ThemeService) -->
             <Color x:Key="AppAccentColor">#0078D4</Color>
             <SolidColorBrush x:Key="AppAccentBrush" Color="{ThemeResource SystemAccentColor}" />

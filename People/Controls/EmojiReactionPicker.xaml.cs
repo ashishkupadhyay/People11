@@ -79,7 +79,7 @@ public sealed partial class EmojiReactionPicker : UserControl
 
             var indicator = new Rectangle
             {
-                Name = "ActiveIndicator",
+                Tag = "ActiveIndicator",
                 Height = 2.5,
                 Width = 16,
                 RadiusX = 1.25,
@@ -126,7 +126,7 @@ public sealed partial class EmojiReactionPicker : UserControl
                 {
                     foreach (var element in grid.Children)
                     {
-                        if (element is Rectangle rect && rect.Name == "ActiveIndicator")
+                        if (element is Rectangle rect && Equals(rect.Tag, "ActiveIndicator"))
                         {
                             rect.Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
                         }

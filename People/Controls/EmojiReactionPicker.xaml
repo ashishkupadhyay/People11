@@ -16,7 +16,7 @@
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0" />
-            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+            <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -62,7 +62,7 @@
             Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
             BorderThickness="1"
-            CornerRadius="{ThemeResource OverlayCornerRadius}"
+            CornerRadius="8"
             Padding="12,12,12,8">
         <Grid RowSpacing="8">
             <Grid.RowDefinitions>
@@ -89,7 +89,7 @@
                                 x:Name="SearchBox"
                                 PlaceholderText="Search emoji"
                                 QueryIcon="Find"
-                                CornerRadius="{ThemeResource ControlCornerRadius}"
+                                CornerRadius="4"
                                 VerticalAlignment="Center"
                                 TextChanged="SearchBox_TextChanged" />
             </Grid>

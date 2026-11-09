@@ -18,7 +18,7 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="8,6" />
             <Setter Property="Margin" Value="0,1" />
-            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+            <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -55,7 +55,7 @@
             Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
             BorderThickness="1"
-            CornerRadius="{ThemeResource OverlayCornerRadius}"
+            CornerRadius="8"
             Padding="12,10,12,10">
         <Grid RowSpacing="10">
             <Grid.RowDefinitions>
@@ -68,7 +68,7 @@
             <Grid Grid.Row="0">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="Reactions" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="6,1" VerticalAlignment="Center">
+                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
                         <TextBlock x:Name="TotalCountText" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </Border>
                 </StackPanel>

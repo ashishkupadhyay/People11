@@ -22,12 +22,12 @@ public sealed partial class ConversationPage : Page
     private readonly DispatcherTimer _pillHideTimer = new() { Interval = TimeSpan.FromMilliseconds(1500) };
     private bool _isPillVisible;
 
-    private readonly Flyout _quickReactionFlyout = new();
-    private readonly Flyout _fullEmojiPickerFlyout = new();
-    private readonly Flyout _reactionDetailsFlyout = new();
-    private readonly People.Controls.QuickReactionPicker _quickReactionPicker = new();
-    private readonly People.Controls.EmojiReactionPicker _fullEmojiPicker = new();
-    private readonly People.Controls.ReactionDetailsControl _reactionDetailsControl = new();
+    private Flyout? _quickReactionFlyout;
+    private Flyout? _fullEmojiPickerFlyout;
+    private Flyout? _reactionDetailsFlyout;
+    private People.Controls.QuickReactionPicker? _quickReactionPicker;
+    private People.Controls.EmojiReactionPicker? _fullEmojiPicker;
+    private People.Controls.ReactionDetailsControl? _reactionDetailsControl;
     private Message? _activeReactionMessage;
     private FrameworkElement? _activeReactionButton;
 
@@ -38,85 +38,6 @@ public sealed partial class ConversationPage : Page
     {
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
-
-        // 1. Shared Quick Reaction Flyout (264x44 pill)
-        _quickReactionFlyout.Content = _quickReactionPicker;
-        _quickReactionFlyout.Placement = FlyoutPlacementMode.Top;
-        var quickFlyoutStyle = new Style(typeof(FlyoutPresenter));
-        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
-        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(22)));
-        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
-        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
-        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.ShadowProperty, null));
-        _quickReactionFlyout.FlyoutPresenterStyle = quickFlyoutStyle;
-
-        _quickReactionPicker.EmojiSelected += (s, emoji) =>
-        {
-            _quickReactionFlyout.Hide();
-            if (_activeReactionMessage != null)
-            {
-                _ = ViewModel.ReactToMessageAsync(_activeReactionMessage, emoji);
-            }
-        };
-
-        _quickReactionPicker.ExpandRequested += (s, e) =>
-        {
-            _quickReactionFlyout.Hide();
-            _fullEmojiPicker.Reset();
-            if (_activeReactionButton != null)
-            {
-                _fullEmojiPickerFlyout.ShowAt(_activeReactionButton);
-            }
-        };
-
-        // 2. Shared Full Categorized Virtualized Emoji Picker Flyout (Windows 11 Native 340x420, 8px Overlay CornerRadius)
-        _fullEmojiPickerFlyout.Content = _fullEmojiPicker;
-        _fullEmojiPickerFlyout.Placement = FlyoutPlacementMode.Top;
-        var fullFlyoutStyle = new Style(typeof(FlyoutPresenter));
-        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
-        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
-        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
-        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
-        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.ShadowProperty, null));
-        _fullEmojiPickerFlyout.FlyoutPresenterStyle = fullFlyoutStyle;
-
-        _fullEmojiPicker.EmojiSelected += (s, emoji) =>
-        {
-            _fullEmojiPickerFlyout.Hide();
-            if (_activeReactionMessage != null)
-            {
-                _ = ViewModel.ReactToMessageAsync(_activeReactionMessage, emoji);
-            }
-        };
-
-        _fullEmojiPicker.BackRequested += (s, e) =>
-        {
-            _fullEmojiPickerFlyout.Hide();
-            if (_activeReactionButton != null)
-            {
-                _quickReactionFlyout.ShowAt(_activeReactionButton);
-            }
-        };
-
-        // 3. Shared Reaction Details Flyout (Windows 11 Native 300x340, 8px Overlay CornerRadius)
-        _reactionDetailsFlyout.Content = _reactionDetailsControl;
-        _reactionDetailsFlyout.Placement = FlyoutPlacementMode.Top;
-        var detailsFlyoutStyle = new Style(typeof(FlyoutPresenter));
-        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
-        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
-        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
-        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
-        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.ShadowProperty, null));
-        _reactionDetailsFlyout.FlyoutPresenterStyle = detailsFlyoutStyle;
-
-        _reactionDetailsControl.ReactionClicked += (s, reaction) =>
-        {
-            if (reaction.IsFromMe && _reactionDetailsControl.CurrentMessage is Message msg)
-            {
-                _reactionDetailsFlyout.Hide();
-                _ = ViewModel.ReactToMessageAsync(msg, reaction.Emoji);
-            }
-        };
 
         Loaded += (s, e) =>
         {
@@ -794,7 +715,7 @@ public sealed partial class ConversationPage : Page
             {
                 _activeReactionMessage = targetMsg;
                 _activeReactionButton = fe;
-                _quickReactionFlyout.ShowAt(fe);
+                GetOrCreateQuickReactionFlyout().ShowAt(fe);
             }
         }
     }
@@ -826,8 +747,117 @@ public sealed partial class ConversationPage : Page
 
         if (targetMsg != null && targetMsg.HasReactions && sender is FrameworkElement anchor)
         {
-            _reactionDetailsControl.SetMessage(targetMsg);
-            _reactionDetailsFlyout.ShowAt(anchor);
+            var detailsFlyout = GetOrCreateReactionDetailsFlyout();
+            _reactionDetailsControl?.SetMessage(targetMsg);
+            detailsFlyout.ShowAt(anchor);
         }
+    }
+
+    private Flyout GetOrCreateQuickReactionFlyout()
+    {
+        if (_quickReactionFlyout == null)
+        {
+            _quickReactionPicker = new People.Controls.QuickReactionPicker();
+            _quickReactionPicker.EmojiSelected += (s, emoji) =>
+            {
+                _quickReactionFlyout?.Hide();
+                if (_activeReactionMessage != null)
+                {
+                    _ = ViewModel.ReactToMessageAsync(_activeReactionMessage, emoji);
+                }
+            };
+            _quickReactionPicker.ExpandRequested += (s, e) =>
+            {
+                _quickReactionFlyout?.Hide();
+                var fullFlyout = GetOrCreateFullEmojiPickerFlyout();
+                _fullEmojiPicker?.Reset();
+                if (_activeReactionButton != null)
+                {
+                    fullFlyout.ShowAt(_activeReactionButton);
+                }
+            };
+
+            var quickFlyoutStyle = new Style(typeof(FlyoutPresenter));
+            quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
+            quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(22)));
+            quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
+            quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
+
+            _quickReactionFlyout = new Flyout
+            {
+                Content = _quickReactionPicker,
+                Placement = FlyoutPlacementMode.Top,
+                FlyoutPresenterStyle = quickFlyoutStyle
+            };
+        }
+        return _quickReactionFlyout;
+    }
+
+    private Flyout GetOrCreateFullEmojiPickerFlyout()
+    {
+        if (_fullEmojiPickerFlyout == null)
+        {
+            _fullEmojiPicker = new People.Controls.EmojiReactionPicker();
+            _fullEmojiPicker.EmojiSelected += (s, emoji) =>
+            {
+                _fullEmojiPickerFlyout?.Hide();
+                if (_activeReactionMessage != null)
+                {
+                    _ = ViewModel.ReactToMessageAsync(_activeReactionMessage, emoji);
+                }
+            };
+            _fullEmojiPicker.BackRequested += (s, e) =>
+            {
+                _fullEmojiPickerFlyout?.Hide();
+                if (_activeReactionButton != null)
+                {
+                    GetOrCreateQuickReactionFlyout().ShowAt(_activeReactionButton);
+                }
+            };
+
+            var fullFlyoutStyle = new Style(typeof(FlyoutPresenter));
+            fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
+            fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
+            fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
+            fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
+
+            _fullEmojiPickerFlyout = new Flyout
+            {
+                Content = _fullEmojiPicker,
+                Placement = FlyoutPlacementMode.Top,
+                FlyoutPresenterStyle = fullFlyoutStyle
+            };
+        }
+        return _fullEmojiPickerFlyout;
+    }
+
+    private Flyout GetOrCreateReactionDetailsFlyout()
+    {
+        if (_reactionDetailsFlyout == null)
+        {
+            _reactionDetailsControl = new People.Controls.ReactionDetailsControl();
+            _reactionDetailsControl.ReactionClicked += (s, reaction) =>
+            {
+                if (reaction.IsFromMe && _reactionDetailsControl.CurrentMessage is Message msg)
+                {
+                    _reactionDetailsFlyout?.Hide();
+                    _ = ViewModel.ReactToMessageAsync(msg, reaction.Emoji);
+                }
+            };
+
+            var detailsFlyoutStyle = new Style(typeof(FlyoutPresenter));
+            detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
+            detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
+            detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
+            detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
+
+            _reactionDetailsFlyout = new Flyout
+            {
+                Content = _reactionDetailsControl,
+                Placement = FlyoutPlacementMode.Top,
+                FlyoutPresenterStyle = detailsFlyoutStyle
+            };
+        }
+        return _reactionDetailsFlyout;
     }
 }

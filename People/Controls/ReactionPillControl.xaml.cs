@@ -34,6 +34,14 @@ public sealed partial class ReactionPillControl : UserControl
         InitializeComponent();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+
+        PopOutStoryboard.Completed += (s, e) =>
+        {
+            if (_previousReactionCount == 0)
+            {
+                Visibility = Visibility.Collapsed;
+            }
+        };
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -94,7 +102,7 @@ public sealed partial class ReactionPillControl : UserControl
         var msg = Message;
         if (msg == null || !msg.HasReactions)
         {
-            if (!isInitial && _previousReactionCount > 0)
+            if (IsLoaded && !isInitial && _previousReactionCount > 0)
             {
                 // Play bouncy pop-out animation before hiding
                 PopOutStoryboard.Stop();
@@ -115,15 +123,15 @@ public sealed partial class ReactionPillControl : UserControl
         var count = msg.TotalReactionCount;
         var signature = string.Join(",", distinctEmojis) + ":" + count;
 
-        EmojisItemsControl.ItemsSource = distinctEmojis;
+        EmojisTextBlock.Text = string.Join(" ", distinctEmojis);
         TotalCountTextBlock.Text = count > 1 ? count.ToString() : string.Empty;
         TotalCountTextBlock.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed;
 
         Visibility = Visibility.Visible;
 
-        if (isInitial)
+        if (isInitial || !IsLoaded)
         {
-            // Initial render without animation
+            // Initial render or pre-load without animation
             PillScale.ScaleX = 1.0;
             PillScale.ScaleY = 1.0;
             PillBorder.Opacity = 1.0;
