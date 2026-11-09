@@ -18,7 +18,7 @@ A modern, unified messaging application built for Windows 11. It brings together
 
 * Version 1.0 (Current): WhatsApp integration, core UI framework, system tray integration, and settings management.
 * Version 2.0: SMS integration via Android Companion, Telegram and Signal support, and global keyboard shortcuts.
-* Future Versions: Support for Discord and Matrix protocols, advanced message filtering, and offline caching improvements.
+* Future Versions: Support for Discord and Matrix protocols.
 
 ## Building the Project
 
