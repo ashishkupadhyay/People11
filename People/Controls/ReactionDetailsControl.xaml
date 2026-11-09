@@ -10,68 +10,108 @@
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+        <Style x:Key="ReactorItemButtonStyle" TargetType="Button">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Padding="{TemplateBinding Padding}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
-    <Grid Width="280" MaxHeight="320" RowSpacing="10" Padding="4">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <!-- Windows 11 Native Fluent Overlay Container (8px CornerRadius, 300x340) -->
+    <Border Width="300"
+            MaxHeight="340"
+            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+            BorderThickness="1"
+            CornerRadius="{ThemeResource OverlayCornerRadius}"
+            Padding="12,10,12,10">
+        <Grid RowSpacing="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Grid Grid.Row="0">
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <TextBlock Text="Reactions" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="10" Padding="6,1" VerticalAlignment="Center">
-                    <TextBlock x:Name="TotalCountText" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                </Border>
-            </StackPanel>
+            <!-- 1. Header: Title and Count Badge -->
+            <Grid Grid.Row="0">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="Reactions" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="6,1" VerticalAlignment="Center">
+                        <TextBlock x:Name="TotalCountText" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- 2. Filter Tabs (All, and per-emoji) -->
+            <ScrollViewer Grid.Row="1"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled"
+                          HorizontalScrollMode="Enabled"
+                          VerticalScrollMode="Disabled">
+                <StackPanel x:Name="EmojiTabsPanel" Orientation="Horizontal" Spacing="4" />
+            </ScrollViewer>
+
+            <!-- 3. Reactors List -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="ReactorsItemsControl">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:MessageReaction">
+                            <Button Click="ReactorItem_Click"
+                                    Style="{StaticResource ReactorItemButtonStyle}">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <PersonPicture Grid.Column="0" Width="32" Height="32" DisplayName="{x:Bind DisplayName}" />
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind DisplayName}" FontSize="13" FontWeight="Medium" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="Click to remove" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   Visibility="{x:Bind IsFromMe, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="2" Text="{x:Bind Emoji}" FontSize="18" FontFamily="Segoe UI Emoji" VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </Grid>
-
-        <!-- Filter tabs (All, 👍, ❤️, etc.) -->
-        <ScrollViewer Grid.Row="1"
-                      HorizontalScrollBarVisibility="Hidden"
-                      VerticalScrollBarVisibility="Disabled"
-                      HorizontalScrollMode="Enabled"
-                      VerticalScrollMode="Disabled">
-            <StackPanel x:Name="EmojiTabsPanel" Orientation="Horizontal" Spacing="4" />
-        </ScrollViewer>
-
-        <!-- Reactions List -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="ReactorsItemsControl">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:MessageReaction">
-                        <Button Click="ReactorItem_Click"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="6,6"
-                                Margin="0,1"
-                                CornerRadius="6">
-                            <Grid ColumnSpacing="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <PersonPicture Grid.Column="0" Width="32" Height="32" DisplayName="{x:Bind SenderName}" />
-
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind DisplayName}" FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="Click to remove" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                               Visibility="{x:Bind IsFromMe, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                </StackPanel>
-
-                                <TextBlock Grid.Column="2" Text="{x:Bind Emoji}" FontSize="18" FontFamily="Segoe UI Emoji" VerticalAlignment="Center" />
-                            </Grid>
-                        </Button>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-    </Grid>
+    </Border>
 </UserControl>

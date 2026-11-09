@@ -8,15 +8,15 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- High-Performance Lightweight Emoji Button Style -->
-        <Style x:Key="EmojiButtonStyle" TargetType="Button">
+        <!-- Windows 11 Fluent Emoji Cell Button Style -->
+        <Style x:Key="FluentEmojiButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="36" />
             <Setter Property="Height" Value="36" />
             <Setter Property="MinWidth" Value="36" />
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -41,199 +41,111 @@
                                             <Setter Target="RootBorder.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
                                             <Setter Target="RootBorder.RenderTransform">
                                                 <Setter.Value>
-                                                    <ScaleTransform ScaleX="0.94" ScaleY="0.94" CenterX="18" CenterY="18" />
+                                                    <ScaleTransform ScaleX="0.92" ScaleY="0.92" CenterX="18" CenterY="18" />
                                                 </Setter.Value>
                                             </Setter>
                                         </VisualState.Setters>
                                     </VisualState>
-                                    <VisualState x:Name="Disabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="RootBorder.Opacity" Value="0.4" />
-                                        </VisualState.Setters>
-                                    </VisualState>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
-                            <ContentPresenter x:Name="ContentPresenter"
-                                              Content="{TemplateBinding Content}"
-                                              ContentTemplate="{TemplateBinding ContentTemplate}"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <!-- Smooth Fluid Expansion Animation -->
-        <Storyboard x:Name="ExpandStoryboard">
-            <DoubleAnimation Storyboard.TargetName="ExpandedPickerBorder"
-                             Storyboard.TargetProperty="Opacity"
-                             From="0.0" To="1.0"
-                             Duration="0:0:0.18">
-                <DoubleAnimation.EasingFunction>
-                    <CubicEase EasingMode="EaseOut" />
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
-            <DoubleAnimation Storyboard.TargetName="PickerScale"
-                             Storyboard.TargetProperty="ScaleY"
-                             From="0.92" To="1.0"
-                             Duration="0:0:0.20">
-                <DoubleAnimation.EasingFunction>
-                    <CubicEase EasingMode="EaseOut" />
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
-            <DoubleAnimation Storyboard.TargetName="PickerScale"
-                             Storyboard.TargetProperty="ScaleX"
-                             From="0.96" To="1.0"
-                             Duration="0:0:0.20">
-                <DoubleAnimation.EasingFunction>
-                    <CubicEase EasingMode="EaseOut" />
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
-        </Storyboard>
     </UserControl.Resources>
 
-    <Grid x:Name="RootLayout">
-        <!-- 1. Compact Quick Reaction Bar -->
-        <Border x:Name="QuickBarBorder"
-                Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                BorderThickness="1"
-                CornerRadius="22"
-                Padding="6,3"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                <Button Click="QuickEmoji_Click" Tag="👍" ToolTipService.ToolTip="Thumbs up"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
-                    <TextBlock Text="👍" FontSize="18" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button Click="QuickEmoji_Click" Tag="❤️" ToolTipService.ToolTip="Heart"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
-                    <TextBlock Text="❤️" FontSize="18" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button Click="QuickEmoji_Click" Tag="😂" ToolTipService.ToolTip="Laugh"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
-                    <TextBlock Text="😂" FontSize="18" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button Click="QuickEmoji_Click" Tag="😮" ToolTipService.ToolTip="Surprised"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
-                    <TextBlock Text="😮" FontSize="18" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button Click="QuickEmoji_Click" Tag="😢" ToolTipService.ToolTip="Sad"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
-                    <TextBlock Text="😢" FontSize="18" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button Click="QuickEmoji_Click" Tag="🙏" ToolTipService.ToolTip="Pray"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="36" Height="36" CornerRadius="18">
-                    <TextBlock Text="🙏" FontSize="18" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
+    <!-- Windows 11 Native Fluent Overlay Container (8px CornerRadius, 340x420) -->
+    <Border Width="340"
+            Height="420"
+            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+            BorderThickness="1"
+            CornerRadius="{ThemeResource OverlayCornerRadius}"
+            Padding="12,12,12,8">
+        <Grid RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-                <!-- Thin subtle separator -->
-                <Rectangle Width="1" Height="20" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="2,0" VerticalAlignment="Center" />
-
-                <!-- + Expand glyph button -->
-                <Button x:Name="ExpandButton" Click="ExpandButton_Click" ToolTipService.ToolTip="More emojis"
-                        Background="Transparent" BorderThickness="0" Padding="0" Width="32" Height="32" CornerRadius="16">
-                    <FontIcon Glyph="&#xE710;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <!-- 1. Header: Back Button & Fluent AutoSuggestBox -->
+            <Grid Grid.Row="0" ColumnSpacing="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Click="BackButton_Click"
+                        ToolTipService.ToolTip="Back to quick reactions"
+                        Style="{StaticResource FluentEmojiButtonStyle}"
+                        Width="32"
+                        Height="32">
+                    <FontIcon Glyph="&#xE72B;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Button>
-            </StackPanel>
-        </Border>
+                <AutoSuggestBox Grid.Column="1"
+                                x:Name="SearchBox"
+                                PlaceholderText="Search emoji"
+                                QueryIcon="Find"
+                                CornerRadius="{ThemeResource ControlCornerRadius}"
+                                VerticalAlignment="Center"
+                                TextChanged="SearchBox_TextChanged" />
+            </Grid>
 
-        <!-- 2. Expanded Categorized Emoji Picker with Virtualized Grid -->
-        <Border x:Name="ExpandedPickerBorder"
-                Visibility="Collapsed"
-                Width="324"
-                Height="360"
-                Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                BorderThickness="1"
-                CornerRadius="12"
-                Padding="10,8,10,8"
-                RenderTransformOrigin="0.5,0.0">
-            <Border.RenderTransform>
-                <ScaleTransform x:Name="PickerScale" CenterX="162" CenterY="0" ScaleX="1" ScaleY="1" />
-            </Border.RenderTransform>
+            <!-- 2. Fluent Category Tabs Bar -->
+            <ScrollViewer Grid.Row="1"
+                          x:Name="CategoryScrollViewer"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled"
+                          HorizontalScrollMode="Enabled"
+                          VerticalScrollMode="Disabled">
+                <StackPanel x:Name="CategoryTabsPanel" Orientation="Horizontal" Spacing="3" />
+            </ScrollViewer>
 
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <!-- Header Row: Back button and Fluent AutoSuggestBox Search -->
-                <Grid Grid.Row="0" ColumnSpacing="6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Click="CollapseButton_Click" ToolTipService.ToolTip="Back to quick reactions"
-                            Background="Transparent" BorderThickness="0" Padding="0" Width="32" Height="32" CornerRadius="16">
-                        <FontIcon Glyph="&#xE72B;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </Button>
-                    <AutoSuggestBox Grid.Column="1"
-                                    x:Name="SearchBox"
-                                    PlaceholderText="Search emoji"
-                                    QueryIcon="Find"
-                                    CornerRadius="8"
-                                    VerticalAlignment="Center"
-                                    TextChanged="SearchBox_TextChanged" />
-                </Grid>
-
-                <!-- Category Navigation Tabs Bar -->
-                <ScrollViewer Grid.Row="1"
-                              x:Name="CategoryScrollViewer"
-                              HorizontalScrollBarVisibility="Hidden"
-                              VerticalScrollBarVisibility="Disabled"
-                              HorizontalScrollMode="Enabled"
-                              VerticalScrollMode="Disabled">
-                    <StackPanel x:Name="CategoryTabsPanel" Orientation="Horizontal" Spacing="3" />
+            <!-- 3. Virtualized Emoji Grid Area using ItemsRepeater + UniformGridLayout -->
+            <Grid Grid.Row="2">
+                <ScrollViewer x:Name="EmojiScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsRepeater x:Name="EmojiRepeater">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout Orientation="Horizontal"
+                                               MinItemWidth="36"
+                                               MinItemHeight="36"
+                                               MinRowSpacing="2"
+                                               MinColumnSpacing="2"
+                                               ItemsStretch="None"
+                                               ItemsJustification="SpaceEvenly" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="controls:EmojiItem">
+                                <Button Click="EmojiButton_Click"
+                                        Tag="{x:Bind Emoji}"
+                                        ToolTipService.ToolTip="{x:Bind Name}"
+                                        Style="{StaticResource FluentEmojiButtonStyle}">
+                                    <TextBlock Text="{x:Bind Emoji}"
+                                               FontSize="18"
+                                               FontFamily="Segoe UI Emoji"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
                 </ScrollViewer>
 
-                <!-- Virtualized Emoji Grid Area using ItemsRepeater + UniformGridLayout -->
-                <Grid Grid.Row="2">
-                    <ScrollViewer x:Name="EmojiScrollViewer"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsRepeater x:Name="EmojiRepeater">
-                            <ItemsRepeater.Layout>
-                                <UniformGridLayout Orientation="Horizontal"
-                                                   MinItemWidth="36"
-                                                   MinItemHeight="36"
-                                                   MinRowSpacing="4"
-                                                   MinColumnSpacing="4"
-                                                   ItemsStretch="None"
-                                                   ItemsJustification="SpaceEvenly" />
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="controls:EmojiItem">
-                                    <Button Click="EmojiButton_Click"
-                                            Tag="{x:Bind Emoji}"
-                                            ToolTipService.ToolTip="{x:Bind Name}"
-                                            Style="{StaticResource EmojiButtonStyle}">
-                                        <TextBlock Text="{x:Bind Emoji}"
-                                                   FontSize="18"
-                                                   FontFamily="Segoe UI Emoji"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   IsHitTestVisible="False" />
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
-                    </ScrollViewer>
-
-                    <!-- Empty state when search matches 0 items -->
-                    <TextBlock x:Name="EmptySearchText"
-                               Text="No emojis found"
-                               Visibility="Collapsed"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               FontSize="13" />
-                </Grid>
+                <!-- Empty state when search matches 0 items -->
+                <TextBlock x:Name="EmptySearchText"
+                           Text="No emojis found"
+                           Visibility="Collapsed"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           FontSize="13" />
             </Grid>
-        </Border>
-    </Grid>
+        </Grid>
+    </Border>
 </UserControl>

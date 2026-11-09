@@ -453,7 +453,16 @@ public class WhatsAppProvider : IWhatsAppProvider
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
                 var reactionsList = new List<MessageReaction>();
-                if (root.TryGetProperty("reactions", out var rProp) && rProp.ValueKind == JsonValueKind.Array)
+                if (root.TryGetProperty("reactionDetails", out var rdProp) && rdProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var elem in rdProp.EnumerateArray())
+                    {
+                        var mr = JsonSerializer.Deserialize<MessageReaction>(elem.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (mr != null && !string.IsNullOrEmpty(mr.Emoji))
+                            reactionsList.Add(mr);
+                    }
+                }
+                else if (root.TryGetProperty("reactions", out var rProp) && rProp.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var elem in rProp.EnumerateArray())
                     {
@@ -465,7 +474,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         }
                         else if (elem.ValueKind == JsonValueKind.Object)
                         {
-                            var mr = JsonSerializer.Deserialize<MessageReaction>(elem.GetRawText());
+                            var mr = JsonSerializer.Deserialize<MessageReaction>(elem.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                             if (mr != null && !string.IsNullOrEmpty(mr.Emoji))
                                 reactionsList.Add(mr);
                         }
@@ -1118,7 +1127,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             Status = (MessageStatus)dto.Status,
             QuotedText = dto.QuotedText,
             QuotedSender = dto.QuotedSender,
-            Reactions = dto.Reactions?.Select(e => new MessageReaction { Emoji = e, SenderId = "peer", SenderName = null, IsFromMe = false }).ToList() ?? new()
+            Reactions = dto.ReactionDetails?.ToList() ?? dto.Reactions?.Select(e => new MessageReaction { Emoji = e, SenderId = "peer", SenderName = null, IsFromMe = false }).ToList() ?? new()
         };
     }
 
@@ -2079,6 +2088,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         public string? QuotedText { get; set; }
         public string? QuotedSender { get; set; }
         public List<string>? Reactions { get; set; }
+        public List<MessageReaction>? ReactionDetails { get; set; }
         public long Timestamp { get; set; }
         public int Status { get; set; }
         public string? MediaUrl { get; set; }

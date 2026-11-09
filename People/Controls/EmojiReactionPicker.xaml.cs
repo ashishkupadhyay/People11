@@ -11,9 +11,9 @@ namespace People.Controls;
 public sealed partial class EmojiReactionPicker : UserControl
 {
     public event EventHandler<string>? EmojiSelected;
+    public event EventHandler? BackRequested;
 
     private string _activeCategory = "Smileys";
-    private bool _isCatalogInitialized;
     private DispatcherTimer? _searchDebounceTimer;
 
     // Static cached lookup by category - zero allocation, O(1) instantaneous category switching
@@ -28,10 +28,9 @@ public sealed partial class EmojiReactionPicker : UserControl
         InitializeComponent();
         BuildCategoryTabs();
 
-        // Setup 120ms debouncing for responsive, frame-rate safe search
         _searchDebounceTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(120)
+            Interval = TimeSpan.FromMilliseconds(100)
         };
         _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
 
@@ -41,12 +40,16 @@ public sealed partial class EmojiReactionPicker : UserControl
     public void Reset()
     {
         _searchDebounceTimer?.Stop();
-        QuickBarBorder.Visibility = Visibility.Visible;
-        ExpandedPickerBorder.Visibility = Visibility.Collapsed;
         SearchBox.Text = string.Empty;
         CategoryScrollViewer.Visibility = Visibility.Visible;
         _activeCategory = "Smileys";
         HighlightCategoryTab(_activeCategory);
+        LoadCategoryEmojis(_activeCategory);
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            SearchBox.Focus(FocusState.Programmatic);
+        });
     }
 
     private void BuildCategoryTabs()
@@ -97,7 +100,7 @@ public sealed partial class EmojiReactionPicker : UserControl
                 Padding = new Thickness(0),
                 Width = 32,
                 Height = 32,
-                CornerRadius = new CornerRadius(6),
+                CornerRadius = new CornerRadius(4),
                 Background = cat == _activeCategory ? GetSubtleSecondaryBrush() : GetTransparentBrush(),
                 BorderThickness = new Thickness(0),
                 HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -153,44 +156,9 @@ public sealed partial class EmojiReactionPicker : UserControl
         }
     }
 
-    private void QuickEmoji_Click(object sender, RoutedEventArgs e)
+    private void BackButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string emoji)
-        {
-            EmojiSelected?.Invoke(this, emoji);
-        }
-    }
-
-    private void ExpandButton_Click(object sender, RoutedEventArgs e)
-    {
-        QuickBarBorder.Visibility = Visibility.Collapsed;
-        ExpandedPickerBorder.Visibility = Visibility.Visible;
-        SearchBox.Text = string.Empty;
-        HighlightCategoryTab(_activeCategory);
-
-        // Lazy initialize repeater data on first expand
-        if (!_isCatalogInitialized)
-        {
-            _isCatalogInitialized = true;
-            LoadCategoryEmojis(_activeCategory);
-        }
-        else
-        {
-            LoadCategoryEmojis(_activeCategory);
-        }
-
-        // Run fluid entrance animation
-        ExpandStoryboard.Begin();
-
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-        {
-            SearchBox.Focus(FocusState.Programmatic);
-        });
-    }
-
-    private void CollapseButton_Click(object sender, RoutedEventArgs e)
-    {
-        Reset();
+        BackRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -205,7 +173,6 @@ public sealed partial class EmojiReactionPicker : UserControl
             return;
         }
 
-        // Debounce multi-character typing to keep frame rate locked at 60fps
         _searchDebounceTimer?.Stop();
         _searchDebounceTimer?.Start();
     }
@@ -243,7 +210,6 @@ public sealed partial class EmojiReactionPicker : UserControl
             if (!string.IsNullOrEmpty(emoji))
             {
                 EmojiSelected?.Invoke(this, emoji);
-                Reset();
             }
         }
     }

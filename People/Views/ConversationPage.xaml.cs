@@ -22,8 +22,14 @@ public sealed partial class ConversationPage : Page
     private readonly DispatcherTimer _pillHideTimer = new() { Interval = TimeSpan.FromMilliseconds(1500) };
     private bool _isPillVisible;
 
+    private readonly Flyout _quickReactionFlyout = new();
+    private readonly Flyout _fullEmojiPickerFlyout = new();
     private readonly Flyout _reactionDetailsFlyout = new();
+    private readonly People.Controls.QuickReactionPicker _quickReactionPicker = new();
+    private readonly People.Controls.EmojiReactionPicker _fullEmojiPicker = new();
     private readonly People.Controls.ReactionDetailsControl _reactionDetailsControl = new();
+    private Message? _activeReactionMessage;
+    private FrameworkElement? _activeReactionButton;
 
     private static readonly SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
     private static readonly SvgImageSource _darkDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_dark.svg"));
@@ -33,16 +39,75 @@ public sealed partial class ConversationPage : Page
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
 
+        // 1. Shared Quick Reaction Flyout (264x44 pill)
+        _quickReactionFlyout.Content = _quickReactionPicker;
+        _quickReactionFlyout.Placement = FlyoutPlacementMode.Top;
+        var quickFlyoutStyle = new Style(typeof(FlyoutPresenter));
+        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
+        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(22)));
+        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
+        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
+        quickFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.ShadowProperty, null));
+        _quickReactionFlyout.FlyoutPresenterStyle = quickFlyoutStyle;
+
+        _quickReactionPicker.EmojiSelected += (s, emoji) =>
+        {
+            _quickReactionFlyout.Hide();
+            if (_activeReactionMessage != null)
+            {
+                _ = ViewModel.ReactToMessageAsync(_activeReactionMessage, emoji);
+            }
+        };
+
+        _quickReactionPicker.ExpandRequested += (s, e) =>
+        {
+            _quickReactionFlyout.Hide();
+            _fullEmojiPicker.Reset();
+            if (_activeReactionButton != null)
+            {
+                _fullEmojiPickerFlyout.ShowAt(_activeReactionButton);
+            }
+        };
+
+        // 2. Shared Full Categorized Virtualized Emoji Picker Flyout (Windows 11 Native 340x420, 8px Overlay CornerRadius)
+        _fullEmojiPickerFlyout.Content = _fullEmojiPicker;
+        _fullEmojiPickerFlyout.Placement = FlyoutPlacementMode.Top;
+        var fullFlyoutStyle = new Style(typeof(FlyoutPresenter));
+        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
+        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
+        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
+        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
+        fullFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.ShadowProperty, null));
+        _fullEmojiPickerFlyout.FlyoutPresenterStyle = fullFlyoutStyle;
+
+        _fullEmojiPicker.EmojiSelected += (s, emoji) =>
+        {
+            _fullEmojiPickerFlyout.Hide();
+            if (_activeReactionMessage != null)
+            {
+                _ = ViewModel.ReactToMessageAsync(_activeReactionMessage, emoji);
+            }
+        };
+
+        _fullEmojiPicker.BackRequested += (s, e) =>
+        {
+            _fullEmojiPickerFlyout.Hide();
+            if (_activeReactionButton != null)
+            {
+                _quickReactionFlyout.ShowAt(_activeReactionButton);
+            }
+        };
+
+        // 3. Shared Reaction Details Flyout (Windows 11 Native 300x340, 8px Overlay CornerRadius)
         _reactionDetailsFlyout.Content = _reactionDetailsControl;
         _reactionDetailsFlyout.Placement = FlyoutPlacementMode.Top;
-        var flyoutPresenterStyle = new Style(typeof(FlyoutPresenter));
-        flyoutPresenterStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(8)));
-        flyoutPresenterStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(12)));
-        if (Application.Current.Resources.TryGetValue("SolidBackgroundFillColorSecondaryBrush", out var bgBrush) && bgBrush is Brush br)
-        {
-            flyoutPresenterStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, br));
-        }
-        _reactionDetailsFlyout.FlyoutPresenterStyle = flyoutPresenterStyle;
+        var detailsFlyoutStyle = new Style(typeof(FlyoutPresenter));
+        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.PaddingProperty, new Thickness(0)));
+        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
+        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BackgroundProperty, new SolidColorBrush(Microsoft.UI.Colors.Transparent)));
+        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.BorderThicknessProperty, new Thickness(0)));
+        detailsFlyoutStyle.Setters.Add(new Setter(FlyoutPresenter.ShadowProperty, null));
+        _reactionDetailsFlyout.FlyoutPresenterStyle = detailsFlyoutStyle;
 
         _reactionDetailsControl.ReactionClicked += (s, reaction) =>
         {
@@ -706,17 +771,17 @@ public sealed partial class ConversationPage : Page
         }
     }
 
-    private void ReactionPill_Click(object sender, RoutedEventArgs e)
+    private void ReactionButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn)
+        if (sender is FrameworkElement fe)
         {
-            Message? targetMsg = btn.DataContext as Message;
+            Message? targetMsg = fe.DataContext as Message;
             if (targetMsg == null)
             {
-                DependencyObject? current = btn;
+                DependencyObject? current = fe;
                 while (current != null)
                 {
-                    if (current is FrameworkElement fe && fe.DataContext is Message msg)
+                    if (current is FrameworkElement elem && elem.DataContext is Message msg)
                     {
                         targetMsg = msg;
                         break;
@@ -725,11 +790,44 @@ public sealed partial class ConversationPage : Page
                 }
             }
 
-            if (targetMsg != null && targetMsg.HasReactions)
+            if (targetMsg != null)
             {
-                _reactionDetailsControl.SetMessage(targetMsg);
-                _reactionDetailsFlyout.ShowAt(btn);
+                _activeReactionMessage = targetMsg;
+                _activeReactionButton = fe;
+                _quickReactionFlyout.ShowAt(fe);
             }
+        }
+    }
+
+    private void ReactionPill_Click(object sender, RoutedEventArgs e)
+    {
+        Message? targetMsg = null;
+        if (sender is People.Controls.ReactionPillControl pill)
+        {
+            targetMsg = pill.Message;
+        }
+        else if (sender is FrameworkElement fe)
+        {
+            targetMsg = fe.DataContext as Message;
+            if (targetMsg == null)
+            {
+                DependencyObject? current = fe;
+                while (current != null)
+                {
+                    if (current is FrameworkElement elem && elem.DataContext is Message msg)
+                    {
+                        targetMsg = msg;
+                        break;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+            }
+        }
+
+        if (targetMsg != null && targetMsg.HasReactions && sender is FrameworkElement anchor)
+        {
+            _reactionDetailsControl.SetMessage(targetMsg);
+            _reactionDetailsFlyout.ShowAt(anchor);
         }
     }
 }

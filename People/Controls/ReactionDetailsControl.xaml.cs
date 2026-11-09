@@ -60,8 +60,8 @@ public sealed partial class ReactionDetailsControl : UserControl
                 FontFamily = new FontFamily("Segoe UI Emoji, Segoe UI")
             },
             Tag = tag,
-            Padding = new Thickness(8, 3, 8, 3),
-            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(8, 4, 8, 4),
+            CornerRadius = new CornerRadius(4),
             Background = isSelected ? GetSubtleSecondaryBrush() : GetTransparentBrush(),
             BorderThickness = new Thickness(0)
         };
