@@ -88,7 +88,7 @@ public partial class ChatListViewModel : ViewModelBase
     }
 
     [ObservableProperty]
-    public partial string InitialSyncText { get; set; } = "Downloading your recent messages...";
+    public partial string InitialSyncText { get; set; } = "Downloading your recent messages";
 
     private readonly IMessagingProvider _provider;
     private readonly IDispatcherService _dispatcherService;
@@ -329,7 +329,7 @@ public partial class ChatListViewModel : ViewModelBase
                 else
                 {
                     InitialSyncProgress = Math.Max(0, progress);
-                    InitialSyncText = "Downloading your recent messages...";
+                    InitialSyncText = "Downloading your recent messages";
                 }
             }
             else
@@ -344,7 +344,7 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     IsInitialSyncing = true;
                     InitialSyncProgress = Math.Max(0, progress);
-                    InitialSyncText = "Downloading your recent messages...";
+                    InitialSyncText = "Downloading your recent messages";
                 }
                 else
                 {
@@ -453,7 +453,7 @@ public partial class ChatListViewModel : ViewModelBase
                     ShowQrCode = false;
                     IsInitialSyncing = true;
                     InitialSyncProgress = 0;
-                    InitialSyncText = "Downloading your recent messages...";
+                    InitialSyncText = "Downloading your recent messages";
                     RequestDrillInToSync?.Invoke(this, EventArgs.Empty);
                 }
                 HasError = false;

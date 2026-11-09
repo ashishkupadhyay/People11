@@ -115,6 +115,15 @@ public static unsafe partial class WhatsAppNative
         string? caption,
         string? fileName);
 
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_send_reaction(
+        IntPtr clientPtr,
+        string chatId,
+        string messageId,
+        string? senderId,
+        int fromMe,
+        string emoji);
+
     [LibraryImport(DllName)]
     public static partial void wa_destroy_client(IntPtr clientPtr);
 

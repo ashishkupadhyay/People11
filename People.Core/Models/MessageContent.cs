@@ -44,6 +44,7 @@ public class MessageContent : INotifyPropertyChanged
                 OnPropertyChanged(nameof(DisplayCaptionOrText));
                 OnPropertyChanged(nameof(HasTextOrCaption));
                 OnPropertyChanged(nameof(EffectiveImagePath));
+                OnPropertyChanged(nameof(CaptionMaxWidth));
             }
         }
     }
@@ -113,6 +114,7 @@ public class MessageContent : INotifyPropertyChanged
                 _thumbnailUrl = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(EffectiveImagePath));
+                OnPropertyChanged(nameof(CaptionMaxWidth));
             }
         }
     }
@@ -269,6 +271,9 @@ public class MessageContent : INotifyPropertyChanged
     }
 
     public bool HasTextOrCaption => !string.IsNullOrWhiteSpace(DisplayCaptionOrText);
+
+    [JsonIgnore]
+    public double CaptionMaxWidth => (IsImage || IsVideo) ? 304 : double.PositiveInfinity;
 
     public string? EffectiveImagePath
     {

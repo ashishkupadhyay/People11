@@ -7,6 +7,7 @@
     xmlns:converters="using:People.Converters"
     xmlns:models="using:People.Core.Models"
     xmlns:helpers="using:People.Helpers"
+    xmlns:controls="using:People.Controls"
     mc:Ignorable="d"
     Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
 
@@ -155,11 +156,71 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Message Bubble -->
+                                <!-- Message Bubble Row with Hover Reaction Trigger -->
                                 <Grid Grid.Row="1"
                                       HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
-                                      Visibility="{x:Bind IsSystemNotice, Mode=OneTime, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                    <StackPanel MaxWidth="480" Spacing="2">
+                                      Visibility="{x:Bind IsSystemNotice, Mode=OneTime, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                      PointerEntered="MessageBubbleRow_PointerEntered"
+                                      PointerExited="MessageBubbleRow_PointerExited"
+                                      ColumnSpacing="6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Outgoing Reaction Trigger (Left of outgoing bubble) -->
+                                    <Button Grid.Column="0"
+                                            x:Name="OutgoingReactionButton"
+                                            Width="28" Height="28"
+                                            Padding="0"
+                                            CornerRadius="14"
+                                            VerticalAlignment="Center"
+                                            Opacity="0"
+                                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            ToolTipService.ToolTip="React"
+                                            Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <FontIcon Glyph="&#xE76E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <Button.Flyout>
+                                            <Flyout Placement="Top">
+                                                <Flyout.FlyoutPresenterStyle>
+                                                    <Style TargetType="FlyoutPresenter">
+                                                        <Setter Property="Padding" Value="4"/>
+                                                        <Setter Property="CornerRadius" Value="22"/>
+                                                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Setter Property="MinHeight" Value="44"/>
+                                                    </Style>
+                                                </Flyout.FlyoutPresenterStyle>
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="👍" ToolTipService.ToolTip="Thumbs up">
+                                                        <TextBlock Text="👍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="❤️" ToolTipService.ToolTip="Heart">
+                                                        <TextBlock Text="❤️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😂" ToolTipService.ToolTip="Laugh">
+                                                        <TextBlock Text="😂" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😮" ToolTipService.ToolTip="Surprised">
+                                                        <TextBlock Text="😮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😢" ToolTipService.ToolTip="Sad">
+                                                        <TextBlock Text="😢" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="🙏" ToolTipService.ToolTip="Pray">
+                                                        <TextBlock Text="🙏" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+
+                                    <!-- Main Bubble Column -->
+                                    <StackPanel Grid.Column="1" MaxWidth="480" Spacing="2">
                                         <Grid>
                                             <!-- Incoming protruding tail (top-left) -->
                                             <Path Data="M 2.812,0 H 8 V 11.193 L 1.533,3.568 C 0.5,2.25 1.062,0 2.812,0 Z"
@@ -194,7 +255,7 @@
                                                             BorderThickness="3,0,0,0"
                                                             CornerRadius="4"
                                                             Padding="8,4"
-                                                            Margin="0,0,0,4">
+                                                            Margin="-8,-4,-8,4">
                                                         <StackPanel Spacing="2">
                                                             <TextBlock Text="{x:Bind QuotedSender, Mode=OneTime}"
                                                                        FontWeight="SemiBold"
@@ -408,7 +469,7 @@
                                                             BorderThickness="1"
                                                             CornerRadius="8"
                                                             Padding="12,10"
-                                                            Margin="0,2,0,4"
+                                                            Margin="-8,-4,-8,4"
                                                             MinWidth="240"
                                                             MaxWidth="320"
                                                             Tapped="DocumentCard_Tapped">
@@ -537,9 +598,9 @@
                                                             BorderThickness="1"
                                                             CornerRadius="8"
                                                             Padding="10,8"
-                                                            Margin="0,2,0,4"
-                                                            MinWidth="240"
-                                                            MaxWidth="320">
+                                                            Margin="-8,-4,-8,4"
+                                                            MinWidth="290"
+                                                            MaxWidth="340">
                                                         <Grid ColumnSpacing="10">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto" />
@@ -556,27 +617,35 @@
 
                                                             <!-- Center: Waveform / Slider + Duration & File Info -->
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-                                                                <Slider Minimum="0" Maximum="100"
-                                                                        Value="{x:Bind Content.PlaybackProgress, Mode=OneWay}"
-                                                                        ValueChanged="AudioSlider_ValueChanged"
-                                                                        IsThumbToolTipEnabled="False"
-                                                                        Margin="0,-4,0,-4"
-                                                                        IsEnabled="{x:Bind Content.IsDownloaded, Mode=OneWay}" />
+                                                                <controls:WaveformProgressBar Height="24"
+                                                                                              Value="{x:Bind Content.PlaybackProgress, Mode=OneWay}"
+                                                                                              ValueChanged="AudioWaveform_ValueChanged"
+                                                                                              IsEnabled="{x:Bind Content.IsDownloaded, Mode=OneWay}"
+                                                                                              Margin="0,2,0,2" />
                                                                 <Grid>
-                                                                    <TextBlock Text="{x:Bind Content.PlaybackTimeText, Mode=OneWay}"
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                        <ColumnDefinition Width="*" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Grid Grid.Column="0">
+                                                                        <TextBlock Text="{x:Bind Content.PlaybackTimeText, Mode=OneWay}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                                   HorizontalAlignment="Left"
+                                                                                   Visibility="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                        <TextBlock Text="{x:Bind Content.FormattedDuration, Mode=OneWay}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                                   HorizontalAlignment="Left"
+                                                                                   Visibility="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                                                                    </Grid>
+                                                                    <TextBlock Grid.Column="1"
+                                                                               Text="{x:Bind Content.FormattedSizeAndType, Mode=OneWay}"
                                                                                FontSize="11"
                                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                               HorizontalAlignment="Left"
-                                                                               Visibility="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                                    <TextBlock Text="{x:Bind Content.FormattedDuration, Mode=OneWay}"
-                                                                               FontSize="11"
-                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                               HorizontalAlignment="Left"
-                                                                               Visibility="{x:Bind Content.IsPlaying, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
-                                                                    <TextBlock Text="{x:Bind Content.FormattedSizeAndType, Mode=OneWay}"
-                                                                               FontSize="11"
-                                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                               HorizontalAlignment="Right" />
+                                                                               HorizontalAlignment="Right"
+                                                                               TextTrimming="CharacterEllipsis"
+                                                                               Margin="8,0,0,0" />
                                                                 </Grid>
                                                             </StackPanel>
 
@@ -647,6 +716,7 @@
                                                     <!-- Message Text / Caption with Clickable Links -->
                                                     <RichTextBlock helpers:LinkifyHelper.Text="{x:Bind Content.DisplayCaptionOrText, Mode=OneWay}"
                                                                    Visibility="{x:Bind Content.HasTextOrCaption, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                   MaxWidth="{x:Bind Content.CaptionMaxWidth, Mode=OneWay}"
                                                                    TextWrapping="Wrap"
                                                                    IsTextSelectionEnabled="True"
                                                                    Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}"
@@ -684,8 +754,8 @@
                                         </Grid>
 
                                         <!-- Reaction pills -->
-                                        <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneTime}"
-                                                      Visibility="{x:Bind Reactions, Mode=OneTime, Converter={StaticResource CollectionToVisibilityConverter}}"
+                                        <ItemsControl ItemsSource="{x:Bind Reactions, Mode=OneWay}"
+                                                      Visibility="{x:Bind Reactions, Mode=OneWay, Converter={StaticResource CollectionToVisibilityConverter}}"
                                                       HorizontalAlignment="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingAlignmentConverter}}"
                                                       Margin="4,-4,4,0">
                                             <ItemsControl.ItemsPanel>
@@ -695,17 +765,70 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="x:String">
-                                                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                            BorderThickness="1"
+                                                    <Button Click="ReactionPill_Click"
+                                                            Tag="{x:Bind}"
+                                                            Padding="6,2"
                                                             CornerRadius="10"
-                                                            Padding="6,2">
+                                                            BorderThickness="1"
+                                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                            MinHeight="22" MinWidth="24">
                                                         <TextBlock Text="{x:Bind}" FontSize="12"/>
-                                                    </Border>
+                                                    </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </StackPanel>
+
+                                    <!-- Incoming Reaction Trigger (Right of incoming bubble) -->
+                                    <Button Grid.Column="2"
+                                            x:Name="IncomingReactionButton"
+                                            Width="28" Height="28"
+                                            Padding="0"
+                                            CornerRadius="14"
+                                            VerticalAlignment="Center"
+                                            Opacity="0"
+                                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            ToolTipService.ToolTip="React"
+                                            Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                        <FontIcon Glyph="&#xE76E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <Button.Flyout>
+                                            <Flyout Placement="Top">
+                                                <Flyout.FlyoutPresenterStyle>
+                                                    <Style TargetType="FlyoutPresenter">
+                                                        <Setter Property="Padding" Value="4"/>
+                                                        <Setter Property="CornerRadius" Value="22"/>
+                                                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Setter Property="MinHeight" Value="44"/>
+                                                    </Style>
+                                                </Flyout.FlyoutPresenterStyle>
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="👍" ToolTipService.ToolTip="Thumbs up">
+                                                        <TextBlock Text="👍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="❤️" ToolTipService.ToolTip="Heart">
+                                                        <TextBlock Text="❤️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😂" ToolTipService.ToolTip="Laugh">
+                                                        <TextBlock Text="😂" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😮" ToolTipService.ToolTip="Surprised">
+                                                        <TextBlock Text="😮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="😢" ToolTipService.ToolTip="Sad">
+                                                        <TextBlock Text="😢" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Style="{ThemeResource DefaultButtonStyle}" Padding="0" Width="36" Height="36" CornerRadius="18" Click="ReactionEmoji_Click" Tag="🙏" ToolTipService.ToolTip="Pray">
+                                                        <TextBlock Text="🙏" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
                                 </Grid>
                             </Grid>
                         </DataTemplate>

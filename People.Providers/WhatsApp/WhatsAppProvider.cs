@@ -1759,6 +1759,62 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
     }
 
+    public async Task<bool> SendReactionAsync(string chatId, string messageId, string emoji, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(chatId) || string.IsNullOrWhiteSpace(messageId))
+            return false;
+
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+
+        Message? msg = null;
+        if (_messageRepository != null)
+        {
+            try
+            {
+                msg = await _messageRepository.GetByIdAsync(messageId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load message {MessageId} for reaction", messageId);
+            }
+        }
+
+        int fromMe = msg?.IsOutgoing == true ? 1 : 0;
+        string? senderId = msg?.SenderId;
+
+        int res = 0;
+        if (_clientPtr != IntPtr.Zero)
+        {
+            res = await Task.Run(() => WhatsAppNative.wa_send_reaction(_clientPtr, cleanId, messageId, senderId, fromMe, emoji), ct);
+        }
+
+        if (_messageRepository != null && msg != null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(emoji))
+                {
+                    msg.Reactions.Clear();
+                }
+                else
+                {
+                    if (!msg.Reactions.Contains(emoji))
+                    {
+                        msg.Reactions.Add(emoji);
+                    }
+                }
+                await _messageRepository.SaveAsync(msg);
+                MessageReceived?.Invoke(this, new MessageReceivedEventArgs(msg));
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to persist reaction update to SQLite for {MessageId}", messageId);
+            }
+        }
+
+        return res == 1;
+    }
+
     internal static void LogDiagnostic(string message)
     {
         try

@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -502,14 +503,11 @@ public sealed partial class ConversationPage : Page
         }
     }
 
-    private void AudioSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private void AudioWaveform_ValueChanged(object sender, double newValue)
     {
-        if (sender is Slider slider && slider.DataContext is Message msg && msg.Content != null)
+        if (sender is FrameworkElement fe && fe.DataContext is Message msg && msg.Content != null)
         {
-            if (slider.FocusState != FocusState.Unfocused)
-            {
-                ViewModel.SeekAudio(msg.Content, e.NewValue);
-            }
+            ViewModel.SeekAudio(msg.Content, newValue);
         }
     }
 
@@ -619,6 +617,79 @@ public sealed partial class ConversationPage : Page
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"AttachAudio_Click failed: {ex.Message}");
+        }
+    }
+
+    private void MessageBubbleRow_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid grid)
+        {
+            foreach (var child in grid.Children)
+            {
+                if (child is Button btn && btn.Name is "OutgoingReactionButton" or "IncomingReactionButton")
+                {
+                    btn.Opacity = 1.0;
+                }
+            }
+        }
+    }
+
+    private void MessageBubbleRow_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid grid)
+        {
+            foreach (var child in grid.Children)
+            {
+                if (child is Button btn && btn.Name is "OutgoingReactionButton" or "IncomingReactionButton")
+                {
+                    btn.Opacity = 0.0;
+                }
+            }
+        }
+    }
+
+    private void ReactionEmoji_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string emoji)
+        {
+            DependencyObject? current = btn;
+            Message? targetMsg = btn.DataContext as Message;
+
+            while (current != null)
+            {
+                if (targetMsg == null && current is FrameworkElement fe && fe.DataContext is Message m)
+                {
+                    targetMsg = m;
+                }
+                if (current is Microsoft.UI.Xaml.Controls.FlyoutPresenter fp && fp.Parent is Microsoft.UI.Xaml.Controls.Primitives.Popup popup)
+                {
+                    popup.IsOpen = false;
+                    break;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            if (targetMsg != null)
+            {
+                _ = ViewModel.ReactToMessageAsync(targetMsg, emoji);
+            }
+        }
+    }
+
+    private void ReactionPill_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string emoji)
+        {
+            DependencyObject? current = btn;
+            while (current != null)
+            {
+                if (current is FrameworkElement fe && fe.DataContext is Message msg)
+                {
+                    _ = ViewModel.ReactToMessageAsync(msg, emoji);
+                    break;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
         }
     }
 }

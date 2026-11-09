@@ -349,19 +349,22 @@
                             <!-- Instructions with interconnected circles -->
                             <Grid Grid.Row="1">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="32" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="32" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="32" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <!-- Circle 1 -->
-                                <Border Grid.Row="0" Grid.Column="0" Width="26" Height="26" CornerRadius="13"
+                                <!-- Step 1: Connector from center of Circle 1 to bottom of row, and Circle 1 -->
+                                <Rectangle Grid.Row="0" Grid.Column="0" Width="1.5"
+                                           Fill="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Stretch"
+                                           Margin="0,14,0,0" />
+                                <Border Grid.Row="0" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
                                         BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
                                         Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
                                         HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -369,18 +372,16 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,3,0,0" VerticalAlignment="Top"
+                                <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,4,0,28" VerticalAlignment="Top"
                                            Text="Open WhatsApp on your phone"
                                            Style="{ThemeResource BodyTextBlockStyle}" />
 
-                                <!-- Connector 1-2 -->
+                                <!-- Step 2: Connector spanning entire row, and Circle 2 covering top -->
                                 <Rectangle Grid.Row="1" Grid.Column="0" Width="1.5"
                                            Fill="{ThemeResource TextFillColorSecondaryBrush}"
                                            HorizontalAlignment="Center"
-                                           Margin="0,-1,0,-1" />
-
-                                <!-- Circle 2 -->
-                                <Border Grid.Row="2" Grid.Column="0" Width="26" Height="26" CornerRadius="13"
+                                           VerticalAlignment="Stretch" />
+                                <Border Grid.Row="1" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
                                         BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
                                         Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
                                         HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -388,18 +389,17 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="14,3,0,0" VerticalAlignment="Top"
+                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="14,4,0,28" VerticalAlignment="Top"
                                            Text="Tap Menu on Android, or Settings on iPhone"
                                            Style="{ThemeResource BodyTextBlockStyle}" />
 
-                                <!-- Connector 2-3 -->
-                                <Rectangle Grid.Row="3" Grid.Column="0" Width="1.5"
+                                <!-- Step 3: Connector entering top of Circle 3, and Circle 3 (no line below) -->
+                                <Rectangle Grid.Row="2" Grid.Column="0" Width="1.5"
                                            Fill="{ThemeResource TextFillColorSecondaryBrush}"
                                            HorizontalAlignment="Center"
-                                           Margin="0,-1,0,-1" />
-
-                                <!-- Circle 3 -->
-                                <Border Grid.Row="4" Grid.Column="0" Width="26" Height="26" CornerRadius="13"
+                                           VerticalAlignment="Top"
+                                           Height="14" />
+                                <Border Grid.Row="2" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
                                         BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
                                         Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
                                         HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -407,7 +407,7 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
-                                <StackPanel Grid.Row="4" Grid.Column="1" Margin="14,3,0,0" Spacing="4" VerticalAlignment="Top">
+                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="14,4,0,0" Spacing="4" VerticalAlignment="Top">
                                     <TextBlock Text="Tap Linked devices and then Link a device"
                                                Style="{ThemeResource BodyTextBlockStyle}" />
                                     <TextBlock Text="Point your phone at this screen to capture the QR code."
@@ -454,7 +454,7 @@
             </Grid.RenderTransform>
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20" MaxWidth="360">
                 <!-- Theme-aware grey WhatsApp logo -->
-                <Viewbox Width="72" Height="72" HorizontalAlignment="Center">
+                <Viewbox Width="72" Height="72" HorizontalAlignment="Center" Margin="0,0,0,24">
                     <Canvas Width="720" Height="720">
                         <Path Fill="{ThemeResource TextFillColorSecondaryBrush}"
                               Data="M360,0C161.18,0,0,161.18,0,360c0,65.41,17.45,126.75,47.94,179.61L0,720l187.02-44.21c51.34,28.18,110.28,44.21,172.98,44.21,198.82,0,360-161.18,360-360S558.82,0,360,0ZM360,655.52c-60.17,0-116.13-17.98-162.82-48.87l-110.49,28.14,30.99-105.61c-33.53-47.93-53.2-106.26-53.2-169.19,0-163.21,132.31-295.52,295.52-295.52s295.52,132.31,295.52,295.52-132.31,295.52-295.52,295.52Z M444.35,407.52l87.1,41.06c4,1.88,6.56,5.94,6.2,10.34-.94,11.46-5.54,34.43-26.13,55.02-58.12,58.12-162.49-7.64-166.74-10.18-25.67-13.79-50.06-32.24-73.19-55.36-23.12-23.12-41.58-47.52-55.37-73.19-2.55-4.24-68.31-108.61-10.18-166.74,20.59-20.59,43.56-25.19,55.02-26.13,4.41-.36,8.46,2.2,10.34,6.2l41.07,87.1c1.94,4.12,1.09,9.02-2.13,12.24l-30.61,30.61c-6.62,6.62-8.56,16.93-4,25.11,11.17,20.03,26.19,39.32,43.59,57.07,17.75,17.4,37.04,32.43,57.07,43.59,8.18,4.56,18.48,2.62,25.11-4l30.61-30.61c3.22-3.22,8.12-4.08,12.24-2.13Z" />

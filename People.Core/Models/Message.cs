@@ -57,7 +57,19 @@ public class Message : INotifyPropertyChanged
     public string? QuotedSender { get; set; }
 
     // Reactions
-    public List<string> Reactions { get; set; } = new();
+    private List<string> _reactions = new();
+    public List<string> Reactions
+    {
+        get => _reactions;
+        set
+        {
+            if (_reactions != value)
+            {
+                _reactions = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public string FormattedTime => Timestamp != default ? Timestamp.ToLocalTime().ToString("t") : string.Empty;
     

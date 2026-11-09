@@ -659,6 +659,7 @@ public partial class ConversationViewModel : ViewModelBase
                         if (!string.IsNullOrEmpty(e.Message.Content.ThumbnailUrl))
                             existing.Content.ThumbnailUrl = e.Message.Content.ThumbnailUrl;
                     }
+                    existing.Reactions = new List<string>(e.Message.Reactions);
                 }
                 else
                 {
@@ -1610,6 +1611,40 @@ public partial class ConversationViewModel : ViewModelBase
         };
 
         await SendCustomMessageAsync(content);
+    }
+
+    public async Task ReactToMessageAsync(Message? message, string emoji)
+    {
+        if (CurrentChat == null || message == null || string.IsNullOrWhiteSpace(message.Id)) return;
+
+        string targetEmoji = emoji;
+        if (message.Reactions.Contains(emoji))
+        {
+            targetEmoji = string.Empty;
+        }
+
+        var updatedList = new List<string>(message.Reactions);
+        if (string.IsNullOrEmpty(targetEmoji))
+        {
+            updatedList.Remove(emoji);
+        }
+        else
+        {
+            if (!updatedList.Contains(targetEmoji))
+            {
+                updatedList.Add(targetEmoji);
+            }
+        }
+        message.Reactions = updatedList;
+
+        try
+        {
+            await _provider.SendReactionAsync(CurrentChat.Id, message.Id, targetEmoji);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to send reaction {targetEmoji} for message {message.Id}: {ex}");
+        }
     }
 
     private async Task SendCustomMessageAsync(MessageContent content)
