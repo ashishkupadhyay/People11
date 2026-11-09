@@ -787,39 +787,21 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     public IReadOnlyList<Message> GetCachedMessages(string chatId, int limit = 30)
     {
-        if (IsTestingMode)
+        if (IsTestingMode || chatId.StartsWith("sample_wa_"))
         {
             var testMsgs = _testingMessages.FindAll(m => m.ChatId == chatId);
-            if (testMsgs.Count > 0) return testMsgs;
-            if (chatId == "sample_wa_1")
+            if (testMsgs.Count > 0)
             {
-                return new List<Message>
+                var initialMsgs = WhatsAppTestData.GetTestingMessages(chatId);
+                var combined = new List<Message>(initialMsgs);
+                foreach (var extra in testMsgs)
                 {
-                    new Message
-                    {
-                        Id = "msg_1",
-                        ChatId = chatId,
-                        PlatformId = PlatformId,
-                        SenderId = "sarah",
-                        Content = new MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
-                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
-                        Status = MessageStatus.Read,
-                        IsOutgoing = false
-                    },
-                    new Message
-                    {
-                        Id = "msg_2",
-                        ChatId = chatId,
-                        PlatformId = PlatformId,
-                        SenderId = "me",
-                        Content = new MessageContent { Text = "Yes, we just implemented the full WhatsApp provider and testing mode!" },
-                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5),
-                        Status = MessageStatus.Delivered,
-                        IsOutgoing = true
-                    }
-                };
+                    if (!combined.Any(m => m.Id == extra.Id))
+                        combined.Add(extra);
+                }
+                return combined.OrderBy(m => m.Timestamp).ToList();
             }
-            return Array.Empty<Message>();
+            return WhatsAppTestData.GetTestingMessages(chatId);
         }
 
         if (_clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
@@ -912,87 +894,27 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     private IReadOnlyList<Chat> GetTestingChats()
     {
-        return new List<Chat>
-        {
-            new Chat
-            {
-                Id = "sample_wa_1",
-                PlatformId = PlatformId,
-                Title = "Sarah Connor",
-                UnreadCount = 1,
-                LastMessageTime = DateTimeOffset.UtcNow.AddMinutes(-5),
-                LastMessage = new Message
-                {
-                    Id = "msg_1",
-                    ChatId = "sample_wa_1",
-                    PlatformId = PlatformId,
-                    SenderId = "sarah",
-                    Content = new MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
-                    Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
-                    Status = MessageStatus.Read,
-                    IsOutgoing = false
-                }
-            },
-            new Chat
-            {
-                Id = "sample_wa_2",
-                PlatformId = PlatformId,
-                Title = "Windows Dev Team",
-                IsGroup = true,
-                UnreadCount = 3,
-                LastMessageTime = DateTimeOffset.UtcNow.AddHours(-1),
-                LastMessage = new Message
-                {
-                    Id = "msg_3",
-                    ChatId = "sample_wa_2",
-                    PlatformId = PlatformId,
-                    SenderId = "dev_alex",
-                    Content = new MessageContent { Text = "The Fluent Design Mica backdrop looks amazing!" },
-                    Timestamp = DateTimeOffset.UtcNow.AddMinutes(-20),
-                    Status = MessageStatus.Read,
-                    IsOutgoing = false
-                }
-            }
-        };
+        return WhatsAppTestData.GetTestingChats();
     }
 
     public async Task<IReadOnlyList<Message>> GetMessagesAsync(string chatId, int offset = 0, int limit = 100, CancellationToken ct = default)
     {
-        if (IsTestingMode)
+        if (IsTestingMode || chatId.StartsWith("sample_wa_"))
         {
             var msgs = _testingMessages.FindAll(m => m.ChatId == chatId);
-            if (msgs.Count > 0) return msgs;
-
-            if (chatId == "sample_wa_1")
+            if (msgs.Count > 0)
             {
-                return new List<Message>
+                var initialMsgs = WhatsAppTestData.GetTestingMessages(chatId);
+                var combined = new List<Message>(initialMsgs);
+                foreach (var extra in msgs)
                 {
-                    new Message
-                    {
-                        Id = "msg_1",
-                        ChatId = chatId,
-                        PlatformId = PlatformId,
-                        SenderId = "sarah",
-                        Content = new MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
-                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
-                        Status = MessageStatus.Read,
-                        IsOutgoing = false
-                    },
-                    new Message
-                    {
-                        Id = "msg_2",
-                        ChatId = chatId,
-                        PlatformId = PlatformId,
-                        SenderId = "me",
-                        Content = new MessageContent { Text = "Yes, we just implemented the full WhatsApp provider and testing mode!" },
-                        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5),
-                        Status = MessageStatus.Delivered,
-                        IsOutgoing = true
-                    }
-                };
+                    if (!combined.Any(m => m.Id == extra.Id))
+                        combined.Add(extra);
+                }
+                return combined.OrderBy(m => m.Timestamp).ToList();
             }
 
-            return Array.Empty<Message>();
+            return WhatsAppTestData.GetTestingMessages(chatId);
         }
 
         var resultList = new List<Message>();
@@ -1519,10 +1441,11 @@ public class WhatsAppProvider : IWhatsAppProvider
             IsOutgoing = true
         };
 
-        if (IsTestingMode)
+        if (IsTestingMode || chatId.StartsWith("sample_wa_"))
         {
             msg.Status = MessageStatus.Sent;
             _testingMessages.Add(msg);
+            MessageReceived?.Invoke(this, new MessageReceivedEventArgs(msg));
             return msg;
         }
 
@@ -1639,9 +1562,9 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     public async Task<IReadOnlyList<Contact>> GetContactsAsync(CancellationToken ct = default)
     {
-        if (_clientPtr == IntPtr.Zero)
+        if (IsTestingMode || _clientPtr == IntPtr.Zero)
         {
-            return Array.Empty<Contact>();
+            return WhatsAppTestData.GetTestingContacts();
         }
 
         return await Task.Run(async () =>
@@ -1800,6 +1723,22 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         int fromMe = msg?.IsOutgoing == true ? 1 : 0;
         string? senderId = msg?.SenderId;
+
+        if (IsTestingMode || _clientPtr == IntPtr.Zero || chatId.StartsWith("sample_wa_"))
+        {
+            var testMsg = _testingMessages.FirstOrDefault(m => m.Id == messageId) 
+                          ?? WhatsAppTestData.FindTestingMessage(messageId);
+            if (testMsg != null)
+            {
+                testMsg.SetUserReaction("me", "You", isFromMe: true, emoji);
+                if (!_testingMessages.Any(m => m.Id == testMsg.Id))
+                {
+                    _testingMessages.Add(testMsg);
+                }
+                MessageReceived?.Invoke(this, new MessageReceivedEventArgs(testMsg));
+                return true;
+            }
+        }
 
         int res = 0;
         if (_clientPtr != IntPtr.Zero)

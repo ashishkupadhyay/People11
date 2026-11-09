@@ -53,6 +53,7 @@ public sealed partial class ConversationPage : Page
             {
                 UpdateDoodleTiles(DoodleCanvas.ActualWidth, DoodleCanvas.ActualHeight);
             }
+            Bindings.Update();
         };
 
         _pillHideTimer.Tick += (s, e) =>
@@ -640,20 +641,27 @@ public sealed partial class ConversationPage : Page
         SetReactionButtonOpacity(sender as DependencyObject, 0.0);
     }
 
-    private static void SetReactionButtonOpacity(DependencyObject? root, double opacity)
+    private static bool SetReactionButtonOpacity(DependencyObject? root, double opacity)
     {
-        if (root == null) return;
+        if (root == null) return false;
         int count = VisualTreeHelper.GetChildrenCount(root);
         for (int i = 0; i < count; i++)
         {
             var child = VisualTreeHelper.GetChild(root, i);
             if (child is Button btn && btn.Name is "OutgoingReactionButton" or "IncomingReactionButton")
             {
-                btn.Opacity = opacity;
-                return;
+                if (btn.Visibility == Visibility.Visible)
+                {
+                    btn.Opacity = opacity;
+                    return true;
+                }
             }
-            SetReactionButtonOpacity(child, opacity);
+            else if (SetReactionButtonOpacity(child, opacity))
+            {
+                return true;
+            }
         }
+        return false;
     }
 
     private void EmojiPicker_EmojiSelected(object sender, string emoji)

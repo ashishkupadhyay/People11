@@ -177,6 +177,54 @@ public class StringToImageSourceConverter : IValueConverter
                     }
                 }
 
+                if (url.Contains("winui_gallery_ink_canvas", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool isDark = false;
+                    try
+                    {
+                        if (App.Current is App app && app.MainWindow?.Content is FrameworkElement rootFe)
+                        {
+                            isDark = rootFe.ActualTheme == ElementTheme.Dark;
+                        }
+                        else if (Application.Current.RequestedTheme == ApplicationTheme.Dark)
+                        {
+                            isDark = true;
+                        }
+                    }
+                    catch { }
+
+                    string targetFileName = isDark ? "winui_gallery_ink_canvas_dark.png" : "winui_gallery_ink_canvas_light.png";
+
+                    // 1. Try local disk path in AppContext.BaseDirectory
+                    string diskPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Conversation_Test_Images", targetFileName);
+                    if (!System.IO.File.Exists(diskPath))
+                    {
+                        var srcDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "Conversation_Test_Images", targetFileName));
+                        if (System.IO.File.Exists(srcDir))
+                            diskPath = srcDir;
+                    }
+
+                    if (System.IO.File.Exists(diskPath))
+                    {
+                        return new BitmapImage(new Uri(diskPath));
+                    }
+
+                    // 2. Try ms-appx
+                    try
+                    {
+                        return new BitmapImage(new Uri($"ms-appx:///Assets/Conversation_Test_Images/{targetFileName}"));
+                    }
+                    catch { }
+
+                    // 3. Fallback to light theme image if dark is unavailable
+                    string lightDiskPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Conversation_Test_Images", "winui_gallery_ink_canvas_light.png");
+                    if (System.IO.File.Exists(lightDiskPath))
+                    {
+                        return new BitmapImage(new Uri(lightDiskPath));
+                    }
+                    return new BitmapImage(new Uri("ms-appx:///Assets/Conversation_Test_Images/winui_gallery_ink_canvas_light.png"));
+                }
+
                 if (System.IO.File.Exists(url))
                 {
                     return new BitmapImage(new Uri(url));

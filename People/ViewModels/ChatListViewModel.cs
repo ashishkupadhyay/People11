@@ -1075,21 +1075,10 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void LoadMockData()
     {
-        Chats.Add(new Chat
+        foreach (var chat in People.Providers.WhatsApp.WhatsAppTestData.GetTestingChats())
         {
-            Id = "1",
-            Title = "John Doe",
-            LastMessage = new Message { Content = new MessageContent { Text = "Hey, how are you?" }, Timestamp = DateTimeOffset.Now.AddMinutes(-5) },
-            UnreadCount = 2
-        });
-        Chats.Add(new Chat
-        {
-            Id = "2",
-            Title = "Family Group",
-            IsGroup = true,
-            LastMessage = new Message { Content = new MessageContent { Text = "Dinner at 7!" }, Timestamp = DateTimeOffset.Now.AddHours(-1) },
-            UnreadCount = 0
-        });
+            Chats.Add(chat);
+        }
         _ = RebuildContactsAsync();
     }
 }

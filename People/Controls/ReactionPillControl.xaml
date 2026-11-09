@@ -35,32 +35,87 @@
             </DoubleAnimation>
         </Storyboard>
 
-        <!-- Bouncy Pop-Out Storyboard -->
+        <!-- Bouncy Pop-Out Storyboard with playful anticipation -->
         <Storyboard x:Name="PopOutStoryboard">
-            <DoubleAnimation Storyboard.TargetName="PillScale"
-                             Storyboard.TargetProperty="ScaleX"
-                             From="1.0" To="0.2"
-                             Duration="0:0:0.18">
-                <DoubleAnimation.EasingFunction>
-                    <BackEase EasingMode="EaseIn" Amplitude="0.4" />
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
-            <DoubleAnimation Storyboard.TargetName="PillScale"
-                             Storyboard.TargetProperty="ScaleY"
-                             From="1.0" To="0.2"
-                             Duration="0:0:0.18">
-                <DoubleAnimation.EasingFunction>
-                    <BackEase EasingMode="EaseIn" Amplitude="0.4" />
-                </DoubleAnimation.EasingFunction>
-            </DoubleAnimation>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PillScale"
+                                           Storyboard.TargetProperty="ScaleX">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.00" Value="1.00" />
+                <EasingDoubleKeyFrame KeyTime="0:0:0.06" Value="1.14">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <BackEase EasingMode="EaseOut" Amplitude="0.3" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.20" Value="0.10">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <BackEase EasingMode="EaseIn" Amplitude="0.4" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PillScale"
+                                           Storyboard.TargetProperty="ScaleY">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.00" Value="1.00" />
+                <EasingDoubleKeyFrame KeyTime="0:0:0.06" Value="1.14">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <BackEase EasingMode="EaseOut" Amplitude="0.3" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.20" Value="0.10">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <BackEase EasingMode="EaseIn" Amplitude="0.4" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
             <DoubleAnimation Storyboard.TargetName="PillBorder"
                              Storyboard.TargetProperty="Opacity"
                              From="1.0" To="0.0"
-                             Duration="0:0:0.16">
+                             BeginTime="0:0:0.06"
+                             Duration="0:0:0.14">
                 <DoubleAnimation.EasingFunction>
                     <CubicEase EasingMode="EaseIn" />
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Snappy Bouncy Popout-In Storyboard for Partial Reaction Removals -->
+        <Storyboard x:Name="PopOutInStoryboard">
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PillScale"
+                                           Storyboard.TargetProperty="ScaleX">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.00" Value="1.00" />
+                <EasingDoubleKeyFrame KeyTime="0:0:0.08" Value="0.65">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <CubicEase EasingMode="EaseIn" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.20" Value="1.15">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <BackEase EasingMode="EaseOut" Amplitude="0.5" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.28" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <CubicEase EasingMode="EaseOut" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PillScale"
+                                           Storyboard.TargetProperty="ScaleY">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.00" Value="1.00" />
+                <EasingDoubleKeyFrame KeyTime="0:0:0.08" Value="0.65">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <CubicEase EasingMode="EaseIn" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.20" Value="1.15">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <BackEase EasingMode="EaseOut" Amplitude="0.5" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.28" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                        <CubicEase EasingMode="EaseOut" />
+                    </EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
         </Storyboard>
 
         <!-- Playful Pulse Bounce Storyboard for Reaction Updates -->

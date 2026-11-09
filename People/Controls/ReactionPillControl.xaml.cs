@@ -138,11 +138,20 @@ public sealed partial class ReactionPillControl : UserControl
         }
         else
         {
+            PopOutStoryboard.Stop();
+            PillBorder.Opacity = 1.0;
+
             if (_previousReactionCount == 0 && count > 0)
             {
                 // New reaction added: Play bouncy pop-in animation
                 PopInStoryboard.Stop();
                 PopInStoryboard.Begin();
+            }
+            else if (count < _previousReactionCount)
+            {
+                // Reaction removed (while other reactions remain): Play popout-in bouncy animation
+                PopOutInStoryboard.Stop();
+                PopOutInStoryboard.Begin();
             }
             else if (signature != _previousDistinctReactionSignature)
             {
