@@ -195,21 +195,22 @@ public static class WhatsAppTestData
                 Title = "Zac Bowden",
                 IsGroup = false,
                 UnreadCount = 0,
-                LastMessageTime = now.AddHours(-6),
+                LastMessageTime = now.AddMinutes(-10),
                 LastMessage = new Message
                 {
-                    Id = "zac_msg_3",
+                    Id = "zac_msg_7",
                     ChatId = "sample_wa_zac",
                     PlatformId = "WhatsApp",
                     SenderId = "zac",
                     SenderName = "Zac Bowden",
-                    Content = new MessageContent { Text = "Leaked screenshots of the Mica backdrops look incredible on Windows Central!" },
-                    Timestamp = now.AddHours(-6),
+                    Content = new MessageContent { Text = "The K2 leaks confirming top and vertical taskbar positioning options along with the fluid WinUI shell are getting huge traction on Windows Central!" },
+                    Timestamp = now.AddMinutes(-10),
                     Status = MessageStatus.Read,
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "😂", SenderId = "zac", SenderName = "Zac Bowden", IsFromMe = false }
+                        new MessageReaction { Emoji = "🚀", SenderId = "zac", SenderName = "Zac Bowden", IsFromMe = false },
+                        new MessageReaction { Emoji = "❤️", SenderId = "me", SenderName = "You", IsFromMe = true }
                     }
                 }
             },
@@ -700,6 +701,7 @@ public static class WhatsAppTestData
 
             "sample_wa_zac" => new List<Message>
             {
+                // Early 2022 Sun Valley 2 (Nickel) conversation
                 new Message
                 {
                     Id = "zac_msg_1",
@@ -708,7 +710,7 @@ public static class WhatsAppTestData
                     SenderId = "zac",
                     SenderName = "Zac Bowden",
                     Content = new MessageContent { Text = "Hey! Heard whispers about Project Sun Valley 2 codename 'Nickel'. Are you guys shipping the redesigned volume flyout in the next insider build?" },
-                    Timestamp = now.AddHours(-8),
+                    Timestamp = new DateTimeOffset(2022, 3, 16, 14, 20, 0, TimeSpan.FromHours(-7)),
                     Status = MessageStatus.Read,
                     IsOutgoing = false
                 },
@@ -720,7 +722,7 @@ public static class WhatsAppTestData
                     SenderId = "me",
                     SenderName = "You",
                     Content = new MessageContent { Text = "Can neither confirm nor deny, Zac! Check the Windows Insider Dev Channel flight notes on Wednesday at 10 AM PST 😉" },
-                    Timestamp = now.AddHours(-7),
+                    Timestamp = new DateTimeOffset(2022, 3, 16, 14, 32, 0, TimeSpan.FromHours(-7)),
                     Status = MessageStatus.Read,
                     IsOutgoing = true,
                     Reactions = new List<MessageReaction>
@@ -735,13 +737,77 @@ public static class WhatsAppTestData
                     PlatformId = "WhatsApp",
                     SenderId = "zac",
                     SenderName = "Zac Bowden",
-                    Content = new MessageContent { Text = "Leaked screenshots of the Mica backdrops look incredible on Windows Central!" },
-                    Timestamp = now.AddHours(-6),
+                    Content = new MessageContent { Text = "Haha, always an NDA! Leaked screenshots of the Mica backdrops and tabbed File Explorer look incredible on Windows Central!" },
+                    Timestamp = new DateTimeOffset(2022, 3, 16, 14, 45, 0, TimeSpan.FromHours(-7)),
                     Status = MessageStatus.Read,
                     IsOutgoing = false,
                     Reactions = new List<MessageReaction>
                     {
-                        new MessageReaction { Emoji = "😂", SenderId = "zac", SenderName = "Zac Bowden", IsFromMe = false }
+                        new MessageReaction { Emoji = "👍", SenderId = "me", SenderName = "You", IsFromMe = true }
+                    }
+                },
+
+                // Recent conversation about Windows 'K2' improvements & leaks
+                new Message
+                {
+                    Id = "zac_msg_4",
+                    ChatId = chatId,
+                    PlatformId = "WhatsApp",
+                    SenderId = "zac",
+                    SenderName = "Zac Bowden",
+                    Content = new MessageContent { Text = "Hey! Breaking report dropping on Windows Central tomorrow about the upcoming 'K2' release." },
+                    Timestamp = now.AddHours(-2).AddMinutes(-30),
+                    Status = MessageStatus.Read,
+                    IsOutgoing = false,
+                    Reactions = new List<MessageReaction>
+                    {
+                        new MessageReaction { Emoji = "😮", SenderId = "me", SenderName = "You", IsFromMe = true }
+                    }
+                },
+                new Message
+                {
+                    Id = "zac_msg_5",
+                    ChatId = chatId,
+                    PlatformId = "WhatsApp",
+                    SenderId = "zac",
+                    SenderName = "Zac Bowden",
+                    Content = new MessageContent { Text = "Sources say K2 finally allows changing taskbar position (top, left, and right options returning!), next-gen fluid shell animations, and deeper NPU-accelerated semantic indexing across the entire OS. Can you give me any color on the WinUI 3 decoupling progress for K2?" },
+                    Timestamp = now.AddHours(-2).AddMinutes(-15),
+                    Status = MessageStatus.Read,
+                    IsOutgoing = false
+                },
+                new Message
+                {
+                    Id = "zac_msg_6",
+                    ChatId = chatId,
+                    PlatformId = "WhatsApp",
+                    SenderId = "me",
+                    SenderName = "You",
+                    Content = new MessageContent { Text = "Off the record: K2's focus is all about responsiveness and continuity. The modular shell architecture lets us modernize legacy surfaces with native WinUI 3 without breaking Win32 compatibility." },
+                    Timestamp = now.AddHours(-1).AddMinutes(-40),
+                    Status = MessageStatus.Read,
+                    IsOutgoing = true,
+                    Reactions = new List<MessageReaction>
+                    {
+                        new MessageReaction { Emoji = "🔥", SenderId = "zac", SenderName = "Zac Bowden", IsFromMe = false },
+                        new MessageReaction { Emoji = "👏", SenderId = "me", SenderName = "You", IsFromMe = true }
+                    }
+                },
+                new Message
+                {
+                    Id = "zac_msg_7",
+                    ChatId = chatId,
+                    PlatformId = "WhatsApp",
+                    SenderId = "zac",
+                    SenderName = "Zac Bowden",
+                    Content = new MessageContent { Text = "The K2 leaks confirming top and vertical taskbar positioning options along with the fluid WinUI shell are getting huge traction on Windows Central!" },
+                    Timestamp = now.AddMinutes(-10),
+                    Status = MessageStatus.Read,
+                    IsOutgoing = false,
+                    Reactions = new List<MessageReaction>
+                    {
+                        new MessageReaction { Emoji = "🚀", SenderId = "zac", SenderName = "Zac Bowden", IsFromMe = false },
+                        new MessageReaction { Emoji = "❤️", SenderId = "me", SenderName = "You", IsFromMe = true }
                     }
                 }
             },
