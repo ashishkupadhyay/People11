@@ -7,11 +7,24 @@ namespace People.Providers.WhatsApp;
 
 public static class WhatsAppTestData
 {
-    public const string TestImagePlaceholder = "Assets/Conversation_Test_Images/winui_gallery_ink_canvas_light.png";
+    public static string GetTestImagePath()
+    {
+        string fileName = "winui_gallery_ink_canvas_light.png";
+        string diskPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Conversation_Test_Images", fileName);
+        if (System.IO.File.Exists(diskPath))
+            return diskPath;
+
+        var srcDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "Conversation_Test_Images", fileName));
+        if (System.IO.File.Exists(srcDir))
+            return srcDir;
+
+        return diskPath;
+    }
 
     public static IReadOnlyList<Chat> GetTestingChats()
     {
         var now = DateTimeOffset.UtcNow;
+        var imagePath = GetTestImagePath();
 
         return new List<Chat>
         {
@@ -60,8 +73,8 @@ public static class WhatsAppTestData
                     {
                         Type = MessageContentType.Image,
                         Caption = "Testing the WinUI 3 Canvas and InkToolbar rendering in dark/light mode.",
-                        ThumbnailUrl = TestImagePlaceholder,
-                        LocalFilePath = TestImagePlaceholder
+                        ThumbnailUrl = imagePath,
+                        LocalFilePath = imagePath
                     },
                     Timestamp = now.AddMinutes(-12),
                     Status = MessageStatus.Read,
@@ -335,6 +348,7 @@ public static class WhatsAppTestData
     public static IReadOnlyList<Message> GetTestingMessages(string chatId)
     {
         var now = DateTimeOffset.UtcNow;
+        var imagePath = GetTestImagePath();
 
         return chatId switch
         {
@@ -468,8 +482,8 @@ public static class WhatsAppTestData
                     {
                         Type = MessageContentType.Image,
                         Caption = "Testing the WinUI 3 Canvas and InkToolbar rendering in dark/light mode.",
-                        ThumbnailUrl = TestImagePlaceholder,
-                        LocalFilePath = TestImagePlaceholder
+                        ThumbnailUrl = imagePath,
+                        LocalFilePath = imagePath
                     },
                     Timestamp = now.AddMinutes(-12),
                     Status = MessageStatus.Read,

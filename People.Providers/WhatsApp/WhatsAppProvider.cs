@@ -1877,6 +1877,18 @@ public class WhatsAppProvider : IWhatsAppProvider
     {
         if (string.IsNullOrWhiteSpace(messageId)) return null;
 
+        if (IsTestingMode || chatId.StartsWith("sample_wa_"))
+        {
+            var testMsg = WhatsAppTestData.FindTestingMessage(messageId);
+            var path = WhatsAppTestData.GetTestImagePath();
+            if (testMsg?.Content != null)
+            {
+                testMsg.Content.LocalFilePath = path;
+                testMsg.Content.IsDownloading = false;
+            }
+            return path;
+        }
+
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var mediaDir = Path.Combine(localAppData, "People", "Media");
         Directory.CreateDirectory(mediaDir);

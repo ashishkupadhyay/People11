@@ -252,7 +252,33 @@ public class MessageContent : INotifyPropertyChanged
     public bool IsDocument => Type == MessageContentType.Document;
     public bool IsMedia => IsImage || IsVideo || IsAudio || IsDocument;
 
-    public bool IsDownloaded => !string.IsNullOrEmpty(LocalFilePath) && System.IO.File.Exists(LocalFilePath);
+    public bool IsDownloaded
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(LocalFilePath))
+                return false;
+
+            if (System.IO.File.Exists(LocalFilePath))
+                return true;
+
+            try
+            {
+                var combined = System.IO.Path.Combine(AppContext.BaseDirectory, LocalFilePath);
+                if (System.IO.File.Exists(combined))
+                    return true;
+
+                if (LocalFilePath.StartsWith("ms-appx:", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (LocalFilePath.Contains("winui_gallery_ink_canvas", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            catch { }
+
+            return false;
+        }
+    }
 
     public string DisplayName => !string.IsNullOrWhiteSpace(FileName)
         ? FileName
@@ -292,8 +318,22 @@ public class MessageContent : INotifyPropertyChanged
                     return ThumbnailUrl;
                 return null;
             }
-            if (!string.IsNullOrEmpty(LocalFilePath) && System.IO.File.Exists(LocalFilePath))
-                return LocalFilePath;
+            if (!string.IsNullOrEmpty(LocalFilePath))
+            {
+                if (System.IO.File.Exists(LocalFilePath))
+                    return LocalFilePath;
+
+                try
+                {
+                    var combined = System.IO.Path.Combine(AppContext.BaseDirectory, LocalFilePath);
+                    if (System.IO.File.Exists(combined))
+                        return combined;
+                }
+                catch { }
+
+                if (LocalFilePath.Contains("winui_gallery_ink_canvas", StringComparison.OrdinalIgnoreCase))
+                    return LocalFilePath;
+            }
             if (!string.IsNullOrEmpty(ThumbnailUrl))
                 return ThumbnailUrl;
             if (!string.IsNullOrEmpty(MediaUrl) && System.IO.File.Exists(MediaUrl))
