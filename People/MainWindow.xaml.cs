@@ -124,7 +124,7 @@ public sealed partial class MainWindow : Window
 
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            presenter.PreferredMinimumWidth = (int)(360 * scalingFactor);
+            presenter.PreferredMinimumWidth = (int)(340 * scalingFactor);
             presenter.PreferredMinimumHeight = (int)(480 * scalingFactor);
         }
 

@@ -113,19 +113,23 @@ public sealed partial class FlyoutWindow : Window
     private void ApplyFlyoutPlatformAccent(string platform)
     {
         var themeService = App.Current.Services.GetRequiredService<IThemeService>();
-        themeService.ApplyAccentToResourceDictionary(RootGrid.Resources, platform == "SMS" ? null : platform);
+        themeService.ApplyAccentToResourceDictionary(RootGrid.Resources, platform);
         CurrentFlyoutResources = RootGrid.Resources;
 
         if (ContentFrame.Content is ChatListPage chatList)
         {
             chatList.ApplyFlyoutTheming(RootGrid.Resources);
         }
+        else if (ContentFrame.Content is ConversationPage convPage)
+        {
+            convPage.ApplyFlyoutTheming(RootGrid.Resources);
+        }
     }
 
     private void PositionAndResizeWindow(POINT? anchorPos = null)
     {
         POINT cursor;
-        if (anchorPos.HasValue)
+        if (anchorPos.HasValue && (anchorPos.Value.X != 0 || anchorPos.Value.Y != 0))
         {
             cursor = anchorPos.Value;
         }
@@ -143,8 +147,8 @@ public sealed partial class FlyoutWindow : Window
 
         int margin = (int)Math.Round(12 * scale);
         double maxLogicalHeight = Math.Max(400, (workArea.Height / scale) - 32);
-        double logicalHeight = Math.Min(680, maxLogicalHeight);
-        double logicalWidth = 360;
+        double logicalHeight = Math.Min(720, maxLogicalHeight);
+        double logicalWidth = 340;
 
         int physicalWidth = (int)Math.Round(logicalWidth * scale);
         int physicalHeight = (int)Math.Round(logicalHeight * scale);

@@ -84,9 +84,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <AutoSuggestBox Grid.Column="0" x:Name="SearchChatsBox" x:Uid="SearchChatsBox" QueryIcon="Find" TextChanged="SearchChatsBox_TextChanged" AutomationProperties.Name="Search chats" AutomationProperties.AutomationId="SearchChatsBox">
-                        <AutoSuggestBox.Resources>
-                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
-                        </AutoSuggestBox.Resources>
+
                     </AutoSuggestBox>
                     
                     <!-- New Chat Button -->
@@ -99,9 +97,7 @@
                                                     PlaceholderText="Search name or type phone number..."
                                                     TextChanged="SearchContactsBox_TextChanged"
                                                     AutomationProperties.AutomationId="SearchContactsBox">
-                                        <AutoSuggestBox.Resources>
-                                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AppAccentElevationBorderFocusedBrush" />
-                                        </AutoSuggestBox.Resources>
+
                                     </AutoSuggestBox>
                                     <!-- Contacts list -->
                                     <ListView x:Name="NewChatList"

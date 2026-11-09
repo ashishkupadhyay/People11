@@ -12,8 +12,29 @@ namespace People.Services;
 
 public class TrayIconService : ITrayIconService
 {
-    [DllImport("user32.dll")]
+        [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NOTIFYICONIDENTIFIER
+    {
+        public uint cbSize;
+        public IntPtr hWnd;
+        public uint uID;
+        public Guid guidItem;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("shell32.dll", SetLastError = true)]
+    private static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
 
     // Using FlyoutWindow.POINT
 
@@ -158,10 +179,38 @@ public class TrayIconService : ITrayIconService
         }
     }
 
+    private POINT GetTrayAnchorPoint()
+    {
+        if (_taskbarIcon?.TrayIcon != null)
+        {
+            try
+            {
+                var nid = new NOTIFYICONIDENTIFIER
+                {
+                    cbSize = (uint)Marshal.SizeOf<NOTIFYICONIDENTIFIER>(),
+                    hWnd = _taskbarIcon.TrayIcon.WindowHandle,
+                    guidItem = _taskbarIcon.TrayIcon.Id
+                };
+                int hr = Shell_NotifyIconGetRect(ref nid, out RECT rect);
+                if (hr == 0 && rect.Right > rect.Left && rect.Bottom > rect.Top)
+                {
+                    return new POINT
+                    {
+                        X = (rect.Left + rect.Right) / 2,
+                        Y = (rect.Top + rect.Bottom) / 2
+                    };
+                }
+            }
+            catch { }
+        }
+
+        GetCursorPos(out POINT clickPos);
+        return clickPos;
+    }
+
     public void ShowFlyout()
     {
-        GetCursorPos(out POINT clickPos);
-        ShowFlyout(clickPos);
+        ShowFlyout(GetTrayAnchorPoint());
     }
 
     public void ShowFlyout(POINT? anchorPos)
@@ -200,10 +249,10 @@ public class TrayIconService : ITrayIconService
 
     private void ToggleFlyout()
     {
-        GetCursorPos(out POINT clickPos);
+        var anchor = GetTrayAnchorPoint();
         if (_flyoutWindow == null || !_flyoutWindow.IsFlyoutVisible)
         {
-            ShowFlyout(clickPos);
+            ShowFlyout(anchor);
         }
         else
         {

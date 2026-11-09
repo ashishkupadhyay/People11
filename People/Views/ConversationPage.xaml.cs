@@ -896,11 +896,26 @@ public sealed partial class ConversationPage : Page
     {
         var targetDict = dict ?? FlyoutWindow.CurrentFlyoutResources;
         if (targetDict == null) return;
+
         foreach (var key in Resources.Keys)
         {
             if (Resources[key] is Converters.IScopedResourceConverter conv)
             {
                 conv.ScopedResources = targetDict;
+            }
+        }
+
+        if (!Resources.MergedDictionaries.Contains(targetDict))
+        {
+            Resources.MergedDictionaries.Add(targetDict);
+        }
+
+        if (targetDict.TryGetValue("TextControlBorderBrushFocused", out var focusBrush) && focusBrush is Microsoft.UI.Xaml.Media.Brush b)
+        {
+            Resources["TextControlBorderBrushFocused"] = b;
+            if (MessageInputBox != null)
+            {
+                MessageInputBox.Resources["TextControlBorderBrushFocused"] = b;
             }
         }
     }

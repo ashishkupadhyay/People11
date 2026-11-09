@@ -49,6 +49,9 @@ public class Message : INotifyPropertyChanged
 
     public double MaxBubbleWidth => _sharedMaxBubbleWidth;
     public double MaxMediaWidth => Math.Min(_sharedMaxMediaWidth, _sharedMaxBubbleWidth);
+    public double CaptionMaxWidth => (Content?.IsImage == true || Content?.IsVideo == true)
+        ? Math.Max(120, MaxMediaWidth - 8)
+        : MaxBubbleWidth;
 
     public Message()
     {
@@ -56,6 +59,7 @@ public class Message : INotifyPropertyChanged
         {
             OnPropertyChanged(nameof(MaxBubbleWidth));
             OnPropertyChanged(nameof(MaxMediaWidth));
+            OnPropertyChanged(nameof(CaptionMaxWidth));
         };
     }
     public string Id { get; set; } = string.Empty;

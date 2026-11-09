@@ -31,12 +31,18 @@ public sealed partial class ComingSoonPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        
-        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+
+        bool isFlyout = (this.XamlRoot != null && FlyoutWindow.CurrentFlyoutWindow != null && this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot)
+                        || (FlyoutWindow.CurrentFlyoutWindow != null && FlyoutWindow.CurrentFlyoutWindow.IsFlyoutVisible)
+                        || (Frame?.Tag as string == "Flyout");
 
         if (e.Parameter is string appName)
         {
-            themeService.SetActivePlatform(appName);
+            if (!isFlyout)
+            {
+                var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+                themeService.SetActivePlatform(appName);
+            }
 
             if (AppStyles.TryGetValue(appName, out var style))
             {
@@ -51,7 +57,11 @@ public sealed partial class ComingSoonPage : Page
         }
         else
         {
-            themeService.ClearActivePlatform();
+            if (!isFlyout)
+            {
+                var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
+                themeService.ClearActivePlatform();
+            }
             TitleTextBlock.Text = "Coming Soon";
             
             // Clear background gradient
