@@ -176,6 +176,15 @@ public sealed partial class MainWindow : Window
         };
 
         NavView.SizeChanged += NavView_SizeChanged;
+
+        Activated += (s, args) =>
+        {
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                var trayService = App.Current.Services.GetService<People.Core.Interfaces.ITrayIconService>();
+                trayService?.HideFlyout();
+            }
+        };
     }
 
 

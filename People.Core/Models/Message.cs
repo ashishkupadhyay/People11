@@ -17,6 +17,47 @@ public enum MessageStatus
 
 public class Message : INotifyPropertyChanged
 {
+    private static double _sharedMaxBubbleWidth = 480;
+    public static double SharedMaxBubbleWidth
+    {
+        get => _sharedMaxBubbleWidth;
+        set
+        {
+            if (Math.Abs(_sharedMaxBubbleWidth - value) > 1)
+            {
+                _sharedMaxBubbleWidth = value;
+                SharedMaxWidthChanged?.Invoke(null, EventArgs.Empty);
+            }
+        }
+    }
+
+    private static double _sharedMaxMediaWidth = 320;
+    public static double SharedMaxMediaWidth
+    {
+        get => _sharedMaxMediaWidth;
+        set
+        {
+            if (Math.Abs(_sharedMaxMediaWidth - value) > 1)
+            {
+                _sharedMaxMediaWidth = value;
+                SharedMaxWidthChanged?.Invoke(null, EventArgs.Empty);
+            }
+        }
+    }
+
+    public static event EventHandler? SharedMaxWidthChanged;
+
+    public double MaxBubbleWidth => _sharedMaxBubbleWidth;
+    public double MaxMediaWidth => Math.Min(_sharedMaxMediaWidth, _sharedMaxBubbleWidth);
+
+    public Message()
+    {
+        SharedMaxWidthChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(MaxBubbleWidth));
+            OnPropertyChanged(nameof(MaxMediaWidth));
+        };
+    }
     public string Id { get; set; } = string.Empty;
     public string ChatId { get; set; } = string.Empty;
     public string PlatformId { get; set; } = string.Empty;

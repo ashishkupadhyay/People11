@@ -11,7 +11,10 @@
         <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
     
-    <Grid Background="Transparent">
+    <Grid x:Name="RootGrid" Background="Transparent">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="SlideTransform" X="0" Y="0" />
+        </Grid.RenderTransform>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Escape" Invoked="OnEscapeInvoked" />
         </Grid.KeyboardAccelerators>

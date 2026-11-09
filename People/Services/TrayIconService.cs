@@ -1,3 +1,4 @@
+using System;
 using H.NotifyIcon;
 using Microsoft.UI.Xaml.Media.Imaging;
 using People.Core.Interfaces;
@@ -33,19 +34,53 @@ public class TrayIconService : ITrayIconService
                             Text = "\xE716",
                             FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
                             Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
-                            FontSize = 36,
-                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                            FontSize = 100,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                            Size = 128
                         }
                     };
 
                     _taskbarIcon.LeftClickCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ToggleFlyout);
                     _taskbarIcon.ForceCreate();
+
+                    // Pre-warm the flyout window in the background so opening is instant without black flash
+                    _flyoutWindow = new FlyoutWindow();
+                    _flyoutWindow.Closed += (s, e) => _flyoutWindow = null;
+
+                    Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
                 }
                 catch
                 {
                     // Ignore tray icon initialization failures
                 }
             });
+    }
+
+    private void OnUserPreferenceChanged(object? sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
+    {
+        App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+        {
+            UpdateTrayIconTheme();
+        });
+    }
+
+    private void UpdateTrayIconTheme()
+    {
+        if (_taskbarIcon == null) return;
+        var isLightTaskbar = IsSystemUsesLightTheme();
+        var iconColor = isLightTaskbar 
+            ? Microsoft.UI.ColorHelper.FromArgb(255, 26, 26, 26) 
+            : Microsoft.UI.Colors.White;
+
+        _taskbarIcon.IconSource = new H.NotifyIcon.GeneratedIconSource
+        {
+            Text = "\xE716",
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
+            FontSize = 100,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Size = 128
+        };
     }
 
     private Microsoft.UI.Xaml.Controls.MenuFlyout CreateContextMenu()
@@ -67,6 +102,9 @@ public class TrayIconService : ITrayIconService
         var quitItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Quit" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(quitItem, "TrayQuitMenuBtn");
         quitItem.Click += (s, e) => {
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+            _flyoutWindow?.DestroyWindow();
+            _flyoutWindow = null;
             _taskbarIcon?.Dispose();
             Microsoft.UI.Xaml.Application.Current.Exit();
         };
@@ -81,8 +119,6 @@ public class TrayIconService : ITrayIconService
 
     public void SetBadgeCount(int count)
     {
-        // Badge support requires H.NotifyIcon extensions or custom icon drawing
-        // For v1.0 we can ignore or set tooltip
         if (_taskbarIcon != null)
         {
             _taskbarIcon.ToolTipText = count > 0 ? $"People ({count} unread)" : "People Messaging";
@@ -107,15 +143,7 @@ public class TrayIconService : ITrayIconService
                 _flyoutWindow.Closed += (s, e) => _flyoutWindow = null;
             }
 
-            // Position near the tray icon
-            if (_taskbarIcon != null)
-            {
-                // In a real app we'd get the tray position. For WinUI 3, we can center or position bottom right.
-                // H.NotifyIcon.WinUI has WindowExtensions.ShowNearSysTray if configured correctly.
-            }
-
-            _flyoutWindow.Activate();
-            _flyoutWindow.ForceActivateForeground();
+            _flyoutWindow.ShowFlyoutAnimated();
         });
     }
 
@@ -135,14 +163,13 @@ public class TrayIconService : ITrayIconService
     {
         App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
         {
-            _flyoutWindow?.Close();
-            _flyoutWindow = null;
+            _flyoutWindow?.HideFlyoutAnimated();
         });
     }
 
     private void ToggleFlyout()
     {
-        if (_flyoutWindow == null)
+        if (_flyoutWindow == null || !_flyoutWindow.IsFlyoutVisible)
         {
             ShowFlyout();
         }

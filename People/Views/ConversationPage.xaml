@@ -189,7 +189,7 @@
                                         </Button>
 
                                     <!-- Main Bubble Column -->
-                                    <StackPanel Grid.Column="1" MaxWidth="480" Spacing="2">
+                                    <StackPanel Grid.Column="1" MaxWidth="{x:Bind MaxBubbleWidth, Mode=OneWay}" Spacing="2">
                                         <Grid>
                                             <!-- Incoming protruding tail (top-left) -->
                                             <Path Data="M 2.812,0 H 8 V 11.193 L 1.533,3.568 C 0.5,2.25 1.062,0 2.812,0 Z"
@@ -244,7 +244,7 @@
                                                     <Border Visibility="{x:Bind Content.IsImage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                             CornerRadius="6"
                                                             Margin="-8,-4,-8,2"
-                                                            MaxWidth="320">
+                                                            MaxWidth="{x:Bind MaxMediaWidth, Mode=OneWay}">
                                                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                                             <!-- Image element (when EffectiveImagePath has value) -->
                                                             <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
@@ -328,7 +328,7 @@
                                                     <Grid Visibility="{x:Bind Content.IsVideo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                           CornerRadius="6"
                                                           Margin="-8,-4,-8,2"
-                                                          MaxWidth="320"
+                                                          MaxWidth="{x:Bind MaxMediaWidth, Mode=OneWay}"
                                                           Background="Transparent"
                                                           Tapped="MediaBubble_Tapped">
                                                         <!-- Image element (thumbnail/poster) -->
@@ -439,8 +439,8 @@
                                                             CornerRadius="8"
                                                             Padding="12,10"
                                                             Margin="-8,-4,-8,4"
-                                                            MinWidth="240"
-                                                            MaxWidth="320"
+                                                            MinWidth="200"
+                                                            MaxWidth="{x:Bind MaxMediaWidth, Mode=OneWay}"
                                                             Tapped="DocumentCard_Tapped">
                                                         <StackPanel Spacing="6">
                                                             <Grid ColumnSpacing="12">
@@ -568,8 +568,8 @@
                                                             CornerRadius="8"
                                                             Padding="10,8"
                                                             Margin="-8,-4,-8,4"
-                                                            MinWidth="290"
-                                                            MaxWidth="340">
+                                                            MinWidth="200"
+                                                            MaxWidth="{x:Bind MaxBubbleWidth, Mode=OneWay}">
                                                         <Grid ColumnSpacing="10">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto" />
@@ -685,7 +685,6 @@
                                                     <!-- Message Text / Caption with Clickable Links -->
                                                     <RichTextBlock helpers:LinkifyHelper.Text="{x:Bind Content.DisplayCaptionOrText, Mode=OneWay}"
                                                                    Visibility="{x:Bind Content.HasTextOrCaption, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                                   MaxWidth="{x:Bind Content.CaptionMaxWidth, Mode=OneWay}"
                                                                    TextWrapping="Wrap"
                                                                    IsTextSelectionEnabled="True"
                                                                    Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingTextColorConverter}}"

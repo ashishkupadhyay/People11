@@ -59,6 +59,12 @@ public partial class ConversationViewModel : ViewModelBase
     public partial string HeaderTitle { get; set; } = string.Empty;
 
     [ObservableProperty]
+    public partial double MaxBubbleWidth { get; set; } = 480;
+
+    [ObservableProperty]
+    public partial double MaxMediaWidth { get; set; } = 320;
+
+    [ObservableProperty]
     public partial string? HeaderSubtitle { get; set; }
 
     [ObservableProperty]

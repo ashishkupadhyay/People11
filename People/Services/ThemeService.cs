@@ -230,8 +230,19 @@ public class ThemeService : IThemeService
 
     private void SetAppAccentResources(AccentPalette palette)
     {
-        var appResources = Microsoft.UI.Xaml.Application.Current.Resources;
-        
+        ApplyAccentToResourceDictionary(Microsoft.UI.Xaml.Application.Current.Resources, _activePlatform);
+    }
+
+    public void ApplyAccentToResourceDictionary(Microsoft.UI.Xaml.ResourceDictionary targetDict, string? platformId)
+    {
+        var normPlatform = NormalizePlatform(platformId);
+        AccentPalette? palette = null;
+        if (!string.IsNullOrEmpty(normPlatform))
+        {
+            palette = GetBrandPaletteIfEnabled(normPlatform);
+        }
+        palette ??= _systemAccentPalette ?? ReadSystemAccentPalette();
+
         bool isDark = _currentTheme switch
         {
             "Dark" => true,
@@ -241,7 +252,7 @@ public class ThemeService : IThemeService
                 : App.Current.RequestedTheme == ApplicationTheme.Dark
         };
 
-        bool isWhatsAppBrand = _activePlatform == "WhatsApp" && _settingsService.GetValue<bool>("BrandColor_WhatsApp", true);
+        bool isWhatsAppBrand = normPlatform == "WhatsApp" && _settingsService.GetValue<bool>("BrandColor_WhatsApp", true);
 
         Windows.UI.Color effectiveAccent;
         Windows.UI.Color effectiveHover;
@@ -373,51 +384,53 @@ public class ThemeService : IThemeService
             quotedInText = isDark ? ColorHelper.FromArgb(255, 204, 204, 204) : ColorHelper.FromArgb(255, 102, 102, 102);
         }
 
-        appResources["AppAccentColor"] = effectiveAccent;
+        targetDict["AppAccentColor"] = effectiveAccent;
         
-        // Mutate existing brush instances in-place for instant UI re-evaluation without replacing dictionary objects
-        void MutateBrush(string key, Windows.UI.Color color)
+        // Mutate existing brush instances in-place or assign new brushes
+        void SetOrMutateBrush(string key, Windows.UI.Color color)
         {
-            if (appResources.TryGetValue(key, out var res) && res is Microsoft.UI.Xaml.Media.SolidColorBrush sb)
+            if (targetDict.TryGetValue(key, out var res) && res is Microsoft.UI.Xaml.Media.SolidColorBrush sb)
             {
                 sb.Color = color;
             }
+            else
+            {
+                targetDict[key] = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+            }
         }
 
-        MutateBrush("AppAccentBrush", effectiveAccent);
-        MutateBrush("AppAccentHoverBrush", effectiveHover);
-        MutateBrush("AppAccentPressedBrush", effectivePressed);
-        MutateBrush("AppAccentForegroundBrush", effectiveForeground);
+        SetOrMutateBrush("AppAccentBrush", effectiveAccent);
+        SetOrMutateBrush("AppAccentHoverBrush", effectiveHover);
+        SetOrMutateBrush("AppAccentPressedBrush", effectivePressed);
+        SetOrMutateBrush("AppAccentForegroundBrush", effectiveForeground);
 
-        MutateBrush("AppAccentButtonBrush", btnBg);
-        MutateBrush("AppAccentButtonHoverBrush", btnHover);
-        MutateBrush("AppAccentButtonPressedBrush", btnPressed);
-        MutateBrush("AppAccentButtonForegroundBrush", btnFg);
+        SetOrMutateBrush("AppAccentButtonBrush", btnBg);
+        SetOrMutateBrush("AppAccentButtonHoverBrush", btnHover);
+        SetOrMutateBrush("AppAccentButtonPressedBrush", btnPressed);
+        SetOrMutateBrush("AppAccentButtonForegroundBrush", btnFg);
 
         var chatListTsColor = isDark ? ColorHelper.FromArgb(255, 134, 150, 160) : ColorHelper.FromArgb(255, 102, 119, 129);
-        MutateBrush("ChatListTimestampBrush", chatListTsColor);
+        SetOrMutateBrush("ChatListTimestampBrush", chatListTsColor);
 
-        MutateBrush("IncomingBubbleBrush", incomingBg);
-        MutateBrush("IncomingBubbleTextBrush", incomingText);
-        MutateBrush("IncomingBubbleSubtextBrush", incomingSubtext);
+        SetOrMutateBrush("IncomingBubbleBrush", incomingBg);
+        SetOrMutateBrush("IncomingBubbleTextBrush", incomingText);
+        SetOrMutateBrush("IncomingBubbleSubtextBrush", incomingSubtext);
 
-        MutateBrush("OutgoingBubbleBrush", outgoingBubbleBg);
-        MutateBrush("OutgoingBubbleTextBrush", outgoingBubbleText);
-        MutateBrush("OutgoingBubbleSubtextBrush", outgoingBubbleSubtext);
+        SetOrMutateBrush("OutgoingBubbleBrush", outgoingBubbleBg);
+        SetOrMutateBrush("OutgoingBubbleTextBrush", outgoingBubbleText);
+        SetOrMutateBrush("OutgoingBubbleSubtextBrush", outgoingBubbleSubtext);
 
-        MutateBrush("QuotedIncomingBackgroundBrush", quotedInBg);
-        MutateBrush("QuotedIncomingBorderBrush", quotedInBorder);
-        MutateBrush("QuotedIncomingSenderBrush", quotedInSender);
-        MutateBrush("QuotedIncomingTextBrush", quotedInText);
+        SetOrMutateBrush("QuotedIncomingBackgroundBrush", quotedInBg);
+        SetOrMutateBrush("QuotedIncomingBorderBrush", quotedInBorder);
+        SetOrMutateBrush("QuotedIncomingSenderBrush", quotedInSender);
+        SetOrMutateBrush("QuotedIncomingTextBrush", quotedInText);
 
-        MutateBrush("QuotedOutgoingBackgroundBrush", quotedOutBg);
-        MutateBrush("QuotedOutgoingBorderBrush", quotedOutBorder);
-        MutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
-        MutateBrush("QuotedOutgoingTextBrush", quotedOutText);
-        MutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
-        MutateBrush("QuotedOutgoingTextBrush", quotedOutText);
+        SetOrMutateBrush("QuotedOutgoingBackgroundBrush", quotedOutBg);
+        SetOrMutateBrush("QuotedOutgoingBorderBrush", quotedOutBorder);
+        SetOrMutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
+        SetOrMutateBrush("QuotedOutgoingTextBrush", quotedOutText);
 
-        if (appResources["AppAccentElevationBorderFocusedBrush"] is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
+        if (targetDict.TryGetValue("AppAccentElevationBorderFocusedBrush", out var borderRes) && borderRes is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
         {
             lgb.GradientStops[0].Color = effectiveAccent;
         }
@@ -440,15 +453,15 @@ public class ThemeService : IThemeService
         {
             if (key.Contains("Secondary") || key.Contains("PointerOver"))
             {
-                MutateBrush(key, effectiveHover);
+                SetOrMutateBrush(key, effectiveHover);
             }
             else if (key.Contains("Tertiary") || key.Contains("Pressed"))
             {
-                MutateBrush(key, effectivePressed);
+                SetOrMutateBrush(key, effectivePressed);
             }
             else
             {
-                MutateBrush(key, effectiveAccent);
+                SetOrMutateBrush(key, effectiveAccent);
             }
         }
     }

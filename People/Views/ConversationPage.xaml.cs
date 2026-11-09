@@ -41,10 +41,16 @@ public sealed partial class ConversationPage : Page
 
         Loaded += (s, e) =>
         {
+            UpdateBubbleMaxWidth(ActualWidth);
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 MessageInputBox?.Focus(FocusState.Programmatic);
             });
+        };
+
+        SizeChanged += (s, e) =>
+        {
+            UpdateBubbleMaxWidth(e.NewSize.Width);
         };
 
         ActualThemeChanged += (s, e) =>
@@ -186,7 +192,20 @@ public sealed partial class ConversationPage : Page
             _messagesScrollViewer.ViewChanged += MessagesScrollViewer_ViewChanged;
         }
         MessagesListView.PointerWheelChanged += MessagesListView_PointerWheelChanged;
+        UpdateBubbleMaxWidth(MessagesListView.ActualWidth > 0 ? MessagesListView.ActualWidth : ActualWidth);
         ScrollToTarget();
+    }
+
+    private void UpdateBubbleMaxWidth(double availableWidth)
+    {
+        if (availableWidth <= 0) return;
+        // ListView padding (16*2=32) + Reaction trigger button (28) + column spacing (6) + bubble tail margins (14) = 80
+        double computedBubbleWidth = availableWidth - 80;
+        double bubbleMax = Math.Clamp(computedBubbleWidth, 180, 480);
+        double mediaMax = Math.Clamp(computedBubbleWidth, 160, 320);
+
+        People.Core.Models.Message.SharedMaxBubbleWidth = bubbleMax;
+        People.Core.Models.Message.SharedMaxMediaWidth = mediaMax;
     }
 
     private void MessagesListView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
