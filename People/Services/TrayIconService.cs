@@ -1,14 +1,22 @@
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using H.NotifyIcon;
 using Microsoft.UI.Xaml.Media.Imaging;
 using People.Core.Interfaces;
 using People.Views;
+using POINT = People.Views.FlyoutWindow.POINT;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace People.Services;
 
 public class TrayIconService : ITrayIconService
 {
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    // Using FlyoutWindow.POINT
+
     private TaskbarIcon? _taskbarIcon;
     private FlyoutWindow? _flyoutWindow;
 
@@ -20,25 +28,13 @@ public class TrayIconService : ITrayIconService
             {
                 try
                 {
-                    var isLightTaskbar = IsSystemUsesLightTheme();
-                    var iconColor = isLightTaskbar 
-                        ? Microsoft.UI.ColorHelper.FromArgb(255, 26, 26, 26) 
-                        : Microsoft.UI.Colors.White;
-
                     _taskbarIcon = new TaskbarIcon
                     {
                         ToolTipText = "People Messaging",
-                        ContextFlyout = CreateContextMenu(),
-                        IconSource = new H.NotifyIcon.GeneratedIconSource
-                        {
-                            Text = "\xE716",
-                            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
-                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
-                            FontSize = 100,
-                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                            Size = 128
-                        }
+                        ContextFlyout = CreateContextMenu()
                     };
+
+                    ApplyTaskbarIconAsset();
 
                     _taskbarIcon.LeftClickCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ToggleFlyout);
                     _taskbarIcon.ForceCreate();
@@ -56,6 +52,49 @@ public class TrayIconService : ITrayIconService
             });
     }
 
+    private static string GetIconFilePath(string fileName)
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var path = Path.Combine(baseDir, "Assets", "Icons", fileName);
+        if (File.Exists(path)) return path;
+
+        try
+        {
+            var packagePath = Windows.ApplicationModel.Package.Current.InstalledLocation.Path;
+            path = Path.Combine(packagePath, "Assets", "Icons", fileName);
+            if (File.Exists(path)) return path;
+        }
+        catch { }
+
+        return path;
+    }
+
+    private void ApplyTaskbarIconAsset()
+    {
+        if (_taskbarIcon == null) return;
+        var isLightTaskbar = IsSystemUsesLightTheme();
+        var iconFileName = isLightTaskbar ? "TrayIcon_Dark.ico" : "TrayIcon_White.ico";
+        var iconPath = GetIconFilePath(iconFileName);
+
+        if (File.Exists(iconPath))
+        {
+            try
+            {
+                _taskbarIcon.Icon = new System.Drawing.Icon(iconPath);
+                return;
+            }
+            catch { }
+        }
+
+        // Fallback to BitmapImage / PNG
+        var pngFileName = isLightTaskbar ? "TrayIcon_Dark.png" : "TrayIcon_White.png";
+        try
+        {
+            _taskbarIcon.IconSource = new BitmapImage(new Uri($"ms-appx:///Assets/Icons/{pngFileName}"));
+        }
+        catch { }
+    }
+
     private void OnUserPreferenceChanged(object? sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
     {
         App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
@@ -66,21 +105,7 @@ public class TrayIconService : ITrayIconService
 
     private void UpdateTrayIconTheme()
     {
-        if (_taskbarIcon == null) return;
-        var isLightTaskbar = IsSystemUsesLightTheme();
-        var iconColor = isLightTaskbar 
-            ? Microsoft.UI.ColorHelper.FromArgb(255, 26, 26, 26) 
-            : Microsoft.UI.Colors.White;
-
-        _taskbarIcon.IconSource = new H.NotifyIcon.GeneratedIconSource
-        {
-            Text = "\xE716",
-            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"),
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(iconColor),
-            FontSize = 100,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Size = 128
-        };
+        ApplyTaskbarIconAsset();
     }
 
     private Microsoft.UI.Xaml.Controls.MenuFlyout CreateContextMenu()
@@ -135,6 +160,12 @@ public class TrayIconService : ITrayIconService
 
     public void ShowFlyout()
     {
+        GetCursorPos(out POINT clickPos);
+        ShowFlyout(clickPos);
+    }
+
+    public void ShowFlyout(POINT? anchorPos)
+    {
         App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
         {
             if (_flyoutWindow == null)
@@ -143,7 +174,7 @@ public class TrayIconService : ITrayIconService
                 _flyoutWindow.Closed += (s, e) => _flyoutWindow = null;
             }
 
-            _flyoutWindow.ShowFlyoutAnimated();
+            _flyoutWindow.ShowFlyoutAnimated(anchorPos);
         });
     }
 
@@ -169,9 +200,10 @@ public class TrayIconService : ITrayIconService
 
     private void ToggleFlyout()
     {
+        GetCursorPos(out POINT clickPos);
         if (_flyoutWindow == null || !_flyoutWindow.IsFlyoutVisible)
         {
-            ShowFlyout();
+            ShowFlyout(clickPos);
         }
         else
         {

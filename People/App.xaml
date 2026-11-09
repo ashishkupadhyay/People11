@@ -139,10 +139,10 @@
                     <ResourceDictionary.MergedDictionaries>
                         <ColorPaletteResources />
                     </ResourceDictionary.MergedDictionaries>
-                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg" />
-                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" />
-                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" />
-                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
+                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-White.svg" />
+                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Telegram-Logo-White.svg" />
+                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Signal-Logo-White.svg" />
+                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Discord-Logo-White.svg" />
                     <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_dark.svg" />
                     <x:Double x:Key="WhatsAppDoodleOpacity">0.05</x:Double>
                 </ResourceDictionary>
@@ -151,10 +151,10 @@
                     <ResourceDictionary.MergedDictionaries>
                         <ColorPaletteResources />
                     </ResourceDictionary.MergedDictionaries>
-                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg" />
-                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-Black.svg" />
-                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-Black.svg" />
-                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-Black.svg" />
+                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-Black.svg" />
+                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Telegram-Logo-Black.svg" />
+                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Signal-Logo-Black.svg" />
+                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Discord-Logo-Black.svg" />
                     <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_light.svg" />
                     <x:Double x:Key="WhatsAppDoodleOpacity">0.06</x:Double>
                     <SolidColorBrush x:Key="SyncingWhatsAppLogoBrush" Color="#B5B5B5" />
@@ -164,10 +164,10 @@
                     <ResourceDictionary.MergedDictionaries>
                         <ColorPaletteResources />
                     </ResourceDictionary.MergedDictionaries>
-                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg" />
-                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Icons/Telegram-Logo-White.svg" />
-                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Icons/Signal-Logo-White.svg" />
-                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Icons/Discord-Logo-White.svg" />
+                    <SvgImageSource x:Key="WhatsAppIconSource" UriSource="ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-White.svg" />
+                    <SvgImageSource x:Key="TelegramIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Telegram-Logo-White.svg" />
+                    <SvgImageSource x:Key="SignalIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Signal-Logo-White.svg" />
+                    <SvgImageSource x:Key="DiscordIconSource" UriSource="ms-appx:///Assets/Platform_Icons/Discord-Logo-White.svg" />
                     <SvgImageSource x:Key="WhatsAppDoodleSource" UriSource="ms-appx:///Assets/Background/whatsapp_doodle_dark.svg" />
                     <x:Double x:Key="WhatsAppDoodleOpacity">0.05</x:Double>
                     <SolidColorBrush x:Key="SyncingWhatsAppLogoBrush" Color="#606060" />

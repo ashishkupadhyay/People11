@@ -28,30 +28,30 @@ public sealed partial class MainWindow : Window
 
         if (isDark)
         {
-            _whatsAppDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-White.svg"));
+            _whatsAppDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-White.svg"));
             if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = _whatsAppDarkSource;
 
-            _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-White.svg"));
+            _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Telegram-Logo-White.svg"));
             if (NavTelegramIcon != null) NavTelegramIcon.Source = _telegramDarkSource;
 
-            _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-White.svg"));
+            _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Signal-Logo-White.svg"));
             if (NavSignalIcon != null) NavSignalIcon.Source = _signalDarkSource;
 
-            _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-White.svg"));
+            _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Discord-Logo-White.svg"));
             if (NavDiscordIcon != null) NavDiscordIcon.Source = _discordDarkSource;
         }
         else
         {
-            _whatsAppLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/WhatsApp-Logo-Black.svg"));
+            _whatsAppLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-Black.svg"));
             if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = _whatsAppLightSource;
 
-            _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Telegram-Logo-Black.svg"));
+            _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Telegram-Logo-Black.svg"));
             if (NavTelegramIcon != null) NavTelegramIcon.Source = _telegramLightSource;
 
-            _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Signal-Logo-Black.svg"));
+            _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Signal-Logo-Black.svg"));
             if (NavSignalIcon != null) NavSignalIcon.Source = _signalLightSource;
 
-            _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Icons/Discord-Logo-Black.svg"));
+            _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Discord-Logo-Black.svg"));
             if (NavDiscordIcon != null) NavDiscordIcon.Source = _discordLightSource;
         }
     }
@@ -176,6 +176,12 @@ public sealed partial class MainWindow : Window
         };
 
         NavView.SizeChanged += NavView_SizeChanged;
+
+        RootGrid.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((s, e) =>
+        {
+            var trayService = App.Current.Services.GetService<People.Core.Interfaces.ITrayIconService>();
+            trayService?.HideFlyout();
+        }), true);
 
         Activated += (s, args) =>
         {

@@ -42,6 +42,10 @@ public sealed partial class ConversationPage : Page
         Loaded += (s, e) =>
         {
             UpdateBubbleMaxWidth(ActualWidth);
+            if (this.XamlRoot != null && FlyoutWindow.CurrentFlyoutWindow != null && this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot)
+            {
+                ApplyFlyoutTheming(FlyoutWindow.CurrentFlyoutResources);
+            }
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 MessageInputBox?.Focus(FocusState.Programmatic);
@@ -886,5 +890,18 @@ public sealed partial class ConversationPage : Page
             };
         }
         return _reactionDetailsFlyout;
+    }
+
+    public void ApplyFlyoutTheming(Microsoft.UI.Xaml.ResourceDictionary? dict = null)
+    {
+        var targetDict = dict ?? FlyoutWindow.CurrentFlyoutResources;
+        if (targetDict == null) return;
+        foreach (var key in Resources.Keys)
+        {
+            if (Resources[key] is Converters.IScopedResourceConverter conv)
+            {
+                conv.ScopedResources = targetDict;
+            }
+        }
     }
 }

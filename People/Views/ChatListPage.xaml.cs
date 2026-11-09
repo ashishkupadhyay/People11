@@ -24,7 +24,15 @@ public sealed partial class ChatListPage : Page
         
         DetailFrame.Navigated += DetailFrame_Navigated;
         this.SizeChanged += ChatListPage_SizeChanged;
-        this.Loaded += (s, e) => UpdateEmptyStateAnimation(_platformId);
+        this.Loaded += (s, e) =>
+        {
+            UpdateEmptyStateAnimation(_platformId);
+            if (this.XamlRoot != null && FlyoutWindow.CurrentFlyoutWindow != null && this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot)
+            {
+                _isFlyout = true;
+                ApplyFlyoutTheming(FlyoutWindow.CurrentFlyoutResources);
+            }
+        };
         this.ActualThemeChanged += (s, e) =>
         {
             UpdateEmptyStateAnimation(_platformId);
@@ -70,6 +78,11 @@ public sealed partial class ChatListPage : Page
         bool hasConv = DetailFrame.Content is ConversationPage;
         DetailFrame.IsHitTestVisible = hasConv;
         DetailFrame.Visibility = hasConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+        if (hasConv && _isFlyout && DetailFrame.Content is ConversationPage convPage)
+        {
+            convPage.ApplyFlyoutTheming(FlyoutWindow.CurrentFlyoutResources);
+        }
         
         // If we navigated back to the blank page, clear the backstack so we don't build it up
         if (!hasConv && DetailFrame.CanGoBack)
@@ -168,6 +181,7 @@ public sealed partial class ChatListPage : Page
             {
                 _isFlyout = true;
                 _platformId = "WhatsApp";
+                ApplyFlyoutTheming(FlyoutWindow.CurrentFlyoutResources);
             }
             else
             {
@@ -495,6 +509,23 @@ public sealed partial class ChatListPage : Page
             SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
         };
         sb.Begin();
+    }
+
+    public void ApplyFlyoutTheming(Microsoft.UI.Xaml.ResourceDictionary? dict = null)
+    {
+        var targetDict = dict ?? FlyoutWindow.CurrentFlyoutResources;
+        if (targetDict == null) return;
+        foreach (var key in Resources.Keys)
+        {
+            if (Resources[key] is Converters.IScopedResourceConverter conv)
+            {
+                conv.ScopedResources = targetDict;
+            }
+        }
+        if (DetailFrame.Content is ConversationPage convPage)
+        {
+            convPage.ApplyFlyoutTheming(targetDict);
+        }
     }
 }
 

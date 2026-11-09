@@ -388,15 +388,27 @@ public class ThemeService : IThemeService
 
         targetDict["AppAccentColor"] = effectiveAccent;
         
-        // Mutate existing brush instances in-place or assign new brushes
+        bool isAppResources = ReferenceEquals(targetDict, Microsoft.UI.Xaml.Application.Current.Resources);
+
+        // Mutate existing brush instances in-place for app-level resources, or assign freshly scoped brushes for local dictionaries
         void SetOrMutateBrush(string key, Windows.UI.Color color)
         {
-            if (targetDict.TryGetValue(key, out var res) && res is Microsoft.UI.Xaml.Media.SolidColorBrush sb)
+            if (isAppResources)
             {
-                sb.Color = color;
+                if (targetDict.TryGetValue(key, out var res) && res is Microsoft.UI.Xaml.Media.SolidColorBrush sb)
+                {
+                    sb.Color = color;
+                }
+                else
+                {
+                    targetDict[key] = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+                }
             }
             else
             {
+                // Scoped dictionary (e.g. FlyoutWindow RootGrid.Resources):
+                // NEVER mutate fallback brushes in Application.Current.Resources!
+                // Always create and assign a local brush instance directly to targetDict.
                 targetDict[key] = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
             }
         }
@@ -432,9 +444,24 @@ public class ThemeService : IThemeService
         SetOrMutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
         SetOrMutateBrush("QuotedOutgoingTextBrush", quotedOutText);
 
-        if (targetDict.TryGetValue("AppAccentElevationBorderFocusedBrush", out var borderRes) && borderRes is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
+        SetOrMutateBrush("TextControlBorderBrushFocused", effectiveAccent);
+        SetOrMutateBrush("TextControlFocusBorderBrush", effectiveAccent);
+        SetOrMutateBrush("TextControlSelectionHighlightColor", effectiveAccent);
+
+        if (isAppResources && targetDict.TryGetValue("AppAccentElevationBorderFocusedBrush", out var borderRes) && borderRes is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
         {
             lgb.GradientStops[0].Color = effectiveAccent;
+        }
+        else
+        {
+            var newLgb = new Microsoft.UI.Xaml.Media.LinearGradientBrush
+            {
+                StartPoint = new Windows.Foundation.Point(0, 0),
+                EndPoint = new Windows.Foundation.Point(0, 1)
+            };
+            newLgb.GradientStops.Add(new Microsoft.UI.Xaml.Media.GradientStop { Color = effectiveAccent, Offset = 0.0 });
+            newLgb.GradientStops.Add(new Microsoft.UI.Xaml.Media.GradientStop { Color = isDark ? ColorHelper.FromArgb(255, 30, 30, 30) : ColorHelper.FromArgb(255, 230, 230, 230), Offset = 1.0 });
+            targetDict["AppAccentElevationBorderFocusedBrush"] = newLgb;
         }
 
         string[] brushKeysToUpdate = {
@@ -445,11 +472,16 @@ public class ThemeService : IThemeService
             "AccentTextFillColorSecondaryBrush",
             "AccentTextFillColorTertiaryBrush",
             "SystemControlHighlightAccentBrush",
-            "NavigationViewSelectionIndicatorForeground",
             "ListViewItemSelectionIndicatorBrush",
             "ListViewItemSelectionIndicatorPointerOverBrush",
             "ListViewItemSelectionIndicatorPressedBrush"
         };
+
+        if (isAppResources)
+        {
+            // Only update navigation view selection indicator for global application scope
+            SetOrMutateBrush("NavigationViewSelectionIndicatorForeground", effectiveAccent);
+        }
 
         foreach (var key in brushKeysToUpdate)
         {

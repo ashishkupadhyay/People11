@@ -9,6 +9,27 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace People.Converters;
 
+public interface IScopedResourceConverter
+{
+    ResourceDictionary? ScopedResources { get; set; }
+}
+
+public static class ScopedResourceHelper
+{
+    public static object? ResolveBrush(ResourceDictionary? scopedResources, string key)
+    {
+        if (scopedResources != null && scopedResources.TryGetValue(key, out var res))
+        {
+            return res;
+        }
+        if (Application.Current.Resources.TryGetValue(key, out var appRes))
+        {
+            return appRes;
+        }
+        return null;
+    }
+}
+
 public class OutgoingAlignmentConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
@@ -22,8 +43,10 @@ public class OutgoingAlignmentConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class OutgoingBackgroundConverter : IValueConverter
+public class OutgoingBackgroundConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     private static readonly SolidColorBrush s_whatsAppBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 37, 211, 102));
     private static readonly SolidColorBrush s_telegramBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 36, 161, 222));
     private static readonly SolidColorBrush s_discordBrush = new(Microsoft.UI.ColorHelper.FromArgb(255, 88, 101, 242));
@@ -48,12 +71,12 @@ public class OutgoingBackgroundConverter : IValueConverter
 
         if (isOutgoing)
         {
-            return App.Current.Resources["OutgoingBubbleBrush"] as SolidColorBrush ?? s_defaultBlueBrush;
+            return ScopedResourceHelper.ResolveBrush(ScopedResources, "OutgoingBubbleBrush") as SolidColorBrush ?? s_defaultBlueBrush;
         }
         else
         {
             // Incoming message background
-            return App.Current.Resources["IncomingBubbleBrush"] as SolidColorBrush ?? s_defaultGrayBrush;
+            return ScopedResourceHelper.ResolveBrush(ScopedResources, "IncomingBubbleBrush") as SolidColorBrush ?? s_defaultGrayBrush;
         }
     }
 
@@ -368,8 +391,10 @@ public class BoolToPlayPauseGlyphConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class OutgoingTextColorConverter : IValueConverter
+public class OutgoingTextColorConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     private static readonly SolidColorBrush s_white = new(Microsoft.UI.Colors.White);
     private static readonly SolidColorBrush s_black = new(Microsoft.UI.Colors.Black);
 
@@ -387,16 +412,18 @@ public class OutgoingTextColorConverter : IValueConverter
 
         if (isOutgoing)
         {
-            return App.Current.Resources["OutgoingBubbleTextBrush"] as SolidColorBrush ?? s_white;
+            return ScopedResourceHelper.ResolveBrush(ScopedResources, "OutgoingBubbleTextBrush") as SolidColorBrush ?? s_white;
         }
-        return App.Current.Resources["IncomingBubbleTextBrush"] as SolidColorBrush ?? s_black;
+        return ScopedResourceHelper.ResolveBrush(ScopedResources, "IncomingBubbleTextBrush") as SolidColorBrush ?? s_black;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class OutgoingSubtextColorConverter : IValueConverter
+public class OutgoingSubtextColorConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     private static readonly SolidColorBrush s_translucentWhite = new(Microsoft.UI.ColorHelper.FromArgb(200, 255, 255, 255));
     private static readonly SolidColorBrush s_gray = new(Microsoft.UI.Colors.Gray);
 
@@ -414,58 +441,66 @@ public class OutgoingSubtextColorConverter : IValueConverter
 
         if (isOutgoing)
         {
-            return App.Current.Resources["OutgoingBubbleSubtextBrush"] as SolidColorBrush ?? s_translucentWhite;
+            return ScopedResourceHelper.ResolveBrush(ScopedResources, "OutgoingBubbleSubtextBrush") as SolidColorBrush ?? s_translucentWhite;
         }
-        return App.Current.Resources["IncomingBubbleSubtextBrush"] as SolidColorBrush ?? s_gray;
+        return ScopedResourceHelper.ResolveBrush(ScopedResources, "IncomingBubbleSubtextBrush") as SolidColorBrush ?? s_gray;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class QuotedBackgroundConverter : IValueConverter
+public class QuotedBackgroundConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
         return isOutgoing
-            ? App.Current.Resources["QuotedOutgoingBackgroundBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent)
-            : App.Current.Resources["QuotedIncomingBackgroundBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            ? ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedOutgoingBackgroundBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent)
+            : ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedIncomingBackgroundBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Transparent);
     }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class QuotedBorderBrushConverter : IValueConverter
+public class QuotedBorderBrushConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
         return isOutgoing
-            ? App.Current.Resources["QuotedOutgoingBorderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray)
-            : App.Current.Resources["QuotedIncomingBorderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+            ? ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedOutgoingBorderBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray)
+            : ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedIncomingBorderBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
     }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class QuotedSenderBrushConverter : IValueConverter
+public class QuotedSenderBrushConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
         return isOutgoing
-            ? App.Current.Resources["QuotedOutgoingSenderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White)
-            : App.Current.Resources["QuotedIncomingSenderBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
+            ? ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedOutgoingSenderBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White)
+            : ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedIncomingSenderBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Black);
     }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class QuotedTextBrushConverter : IValueConverter
+public class QuotedTextBrushConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isOutgoing = value is People.Core.Models.Message msg ? msg.IsOutgoing : (value is bool b && b);
         return isOutgoing
-            ? App.Current.Resources["QuotedOutgoingTextBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White)
-            : App.Current.Resources["QuotedIncomingTextBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+            ? ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedOutgoingTextBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.White)
+            : ScopedResourceHelper.ResolveBrush(ScopedResources, "QuotedIncomingTextBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
     }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
@@ -526,8 +561,10 @@ public class MessageStatusDoubleCheckVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class MessageStatusBrushConverter : IValueConverter
+public class MessageStatusBrushConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     private static readonly SolidColorBrush s_readCyan = new(Microsoft.UI.ColorHelper.FromArgb(255, 83, 189, 235)); // #53BDEB
 
     public object Convert(object value, Type targetType, object parameter, string language)
@@ -536,7 +573,7 @@ public class MessageStatusBrushConverter : IValueConverter
         {
             return s_readCyan;
         }
-        return App.Current.Resources["OutgoingBubbleSubtextBrush"] as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
+        return ScopedResourceHelper.ResolveBrush(ScopedResources, "OutgoingBubbleSubtextBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
     }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
@@ -700,24 +737,26 @@ public class IntToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
 
-public class UnreadToTimestampBrushConverter : IValueConverter
+public class UnreadToTimestampBrushConverter : IValueConverter, IScopedResourceConverter
 {
+    public ResourceDictionary? ScopedResources { get; set; }
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is int count && count > 0)
         {
-            if (Application.Current.Resources.TryGetValue("AppAccentBrush", out var accentBrush) && accentBrush is Microsoft.UI.Xaml.Media.Brush b)
+            if (ScopedResourceHelper.ResolveBrush(ScopedResources, "AppAccentBrush") is Microsoft.UI.Xaml.Media.Brush b)
             {
                 return b;
             }
         }
 
-        if (Application.Current.Resources.TryGetValue("ChatListTimestampBrush", out var tsBrush) && tsBrush is Microsoft.UI.Xaml.Media.Brush tb)
+        if (ScopedResourceHelper.ResolveBrush(ScopedResources, "ChatListTimestampBrush") is Microsoft.UI.Xaml.Media.Brush tb)
         {
             return tb;
         }
 
-        if (Application.Current.Resources.TryGetValue("TextFillColorSecondaryBrush", out var secBrush) && secBrush is Microsoft.UI.Xaml.Media.Brush sb)
+        if (ScopedResourceHelper.ResolveBrush(ScopedResources, "TextFillColorSecondaryBrush") is Microsoft.UI.Xaml.Media.Brush sb)
         {
             return sb;
         }

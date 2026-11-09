@@ -13,7 +13,7 @@ namespace People.Views;
 public sealed partial class FlyoutWindow : Window
 {
     [StructLayout(LayoutKind.Sequential)]
-    private struct POINT
+    public struct POINT
     {
         public int X;
         public int Y;
@@ -67,10 +67,14 @@ public sealed partial class FlyoutWindow : Window
     private bool _isLeftTaskbar;
     private bool _isRightTaskbar;
 
+    public static FlyoutWindow? CurrentFlyoutWindow { get; private set; }
+    public static ResourceDictionary? CurrentFlyoutResources { get; private set; }
+
     public bool IsFlyoutVisible { get; private set; }
 
     public FlyoutWindow()
     {
+        CurrentFlyoutWindow = this;
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -110,11 +114,26 @@ public sealed partial class FlyoutWindow : Window
     {
         var themeService = App.Current.Services.GetRequiredService<IThemeService>();
         themeService.ApplyAccentToResourceDictionary(RootGrid.Resources, platform == "SMS" ? null : platform);
+        CurrentFlyoutResources = RootGrid.Resources;
+
+        if (ContentFrame.Content is ChatListPage chatList)
+        {
+            chatList.ApplyFlyoutTheming(RootGrid.Resources);
+        }
     }
 
-    private void PositionAndResizeWindow()
+    private void PositionAndResizeWindow(POINT? anchorPos = null)
     {
-        GetCursorPos(out POINT cursor);
+        POINT cursor;
+        if (anchorPos.HasValue)
+        {
+            cursor = anchorPos.Value;
+        }
+        else
+        {
+            GetCursorPos(out cursor);
+        }
+
         var displayArea = DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(cursor.X, cursor.Y), DisplayAreaFallback.Primary);
         var workArea = displayArea.WorkArea;
         var outer = displayArea.OuterBounds;
@@ -124,7 +143,7 @@ public sealed partial class FlyoutWindow : Window
 
         int margin = (int)Math.Round(12 * scale);
         double maxLogicalHeight = Math.Max(400, (workArea.Height / scale) - 32);
-        double logicalHeight = Math.Min(660, maxLogicalHeight);
+        double logicalHeight = Math.Min(680, maxLogicalHeight);
         double logicalWidth = 360;
 
         int physicalWidth = (int)Math.Round(logicalWidth * scale);
@@ -176,10 +195,10 @@ public sealed partial class FlyoutWindow : Window
         _appWindow.Move(new Windows.Graphics.PointInt32(x, y));
     }
 
-    public void ShowFlyoutAnimated()
+    public void ShowFlyoutAnimated(POINT? anchorPos = null)
     {
         IsFlyoutVisible = true;
-        PositionAndResizeWindow();
+        PositionAndResizeWindow(anchorPos);
         ApplyFlyoutPlatformAccent(_selectedPlatform);
 
         double startX = 0;
