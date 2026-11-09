@@ -69,6 +69,20 @@
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
                 </ui:SettingsExpander>
+
+                <ui:SettingsExpander Header="Tray Flyout Backdrop" Margin="0,2,0,0">
+                    <ui:SettingsExpander.Content>
+                        <TextBlock Text="{x:Bind ViewModel.SelectedFlyoutBackdropDisplay, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </ui:SettingsExpander.Content>
+                    <ui:SettingsExpander.Items>
+                        <ui:SettingsCard ContentAlignment="Left">
+                            <RadioButtons SelectedIndex="{x:Bind ViewModel.SelectedFlyoutBackdropIndex, Mode=TwoWay}" Margin="0,0,0,0">
+                                <RadioButton Content="Acrylic Base" />
+                                <RadioButton Content="Acrylic Thin" />
+                            </RadioButtons>
+                        </ui:SettingsCard>
+                    </ui:SettingsExpander.Items>
+                </ui:SettingsExpander>
             </StackPanel>
 
             <!-- Platforms Section -->

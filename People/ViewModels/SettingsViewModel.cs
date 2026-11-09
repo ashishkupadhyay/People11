@@ -73,6 +73,16 @@ public partial class SettingsViewModel : ViewModelBase
     }
     public string SelectedBackdropDisplay => SelectedBackdrop switch { "Desktop Acrylic" => "Acrylic", "Mica Alt" => "Mica Alt", "None" => "None", _ => "Mica" };
 
+    [ObservableProperty]
+    public partial string SelectedFlyoutBackdrop { get; set; } = "AcrylicBase";
+
+    public int SelectedFlyoutBackdropIndex
+    {
+        get => SelectedFlyoutBackdrop == "AcrylicThin" ? 1 : 0;
+        set => SelectedFlyoutBackdrop = value == 1 ? "AcrylicThin" : "AcrylicBase";
+    }
+    public string SelectedFlyoutBackdropDisplay => SelectedFlyoutBackdrop == "AcrylicThin" ? "Acrylic Thin" : "Acrylic Base";
+
     public int WhatsAppBubbleColorIndex
     {
         get => WhatsAppBubbleColorOption == "Brand" ? 0 : 1;
@@ -238,6 +248,7 @@ public partial class SettingsViewModel : ViewModelBase
     {
         SelectedTheme = _settingsService.GetValue<string>("AppTheme") ?? "Default";
         SelectedBackdrop = _settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
+        SelectedFlyoutBackdrop = _settingsService.GetValue<string>("FlyoutBackdrop") ?? "AcrylicBase";
         IsWhatsAppEnabled = _settingsService.GetValue<bool>("WhatsAppEnabled", true);
         IsWhatsAppTestingMode = _settingsService.GetValue<bool>("WhatsAppTestingMode", false);
         WhatsAppAutoDownloadPhotos = _settingsService.GetValue<bool>("WhatsAppAutoDownloadPhotos", true);
@@ -259,6 +270,8 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnSelectedThemeChanged(string value) { if (!_isInitializing) { _themeService.SetTheme(value); _settingsService.SetValue("AppTheme", value); } OnPropertyChanged(nameof(SelectedThemeIndex)); OnPropertyChanged(nameof(SelectedThemeDisplay)); }
 
     partial void OnSelectedBackdropChanged(string value) { if (!_isInitializing) { _themeService.SetBackdrop(value); _settingsService.SetValue("AppBackdrop", value); } OnPropertyChanged(nameof(SelectedBackdropIndex)); OnPropertyChanged(nameof(SelectedBackdropDisplay)); }
+
+    partial void OnSelectedFlyoutBackdropChanged(string value) { if (!_isInitializing) _settingsService.SetValue("FlyoutBackdrop", value); OnPropertyChanged(nameof(SelectedFlyoutBackdropIndex)); OnPropertyChanged(nameof(SelectedFlyoutBackdropDisplay)); }
 
     partial void OnIsWhatsAppEnabledChanged(bool value) { if (!_isInitializing) _settingsService.SetValue("WhatsAppEnabled", value); }
 

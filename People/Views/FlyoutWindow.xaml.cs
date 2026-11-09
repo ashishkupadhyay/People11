@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -96,6 +97,8 @@ public sealed partial class FlyoutWindow : Window
             presenter.SetBorderAndTitleBar(true, false);
         }
 
+        ApplyFlyoutBackdrop();
+
         ContentFrame.Navigated += ContentFrame_Navigated;
         NavigateToPlatform("WhatsApp");
 
@@ -104,9 +107,28 @@ public sealed partial class FlyoutWindow : Window
 
     private void OnSettingChanged(object? sender, string key)
     {
-        if (key.StartsWith("BrandColor_") || key == "AppTheme" || key == $"{_selectedPlatform}Enabled")
+        if (key == "FlyoutBackdrop")
+        {
+            DispatcherQueue.TryEnqueue(ApplyFlyoutBackdrop);
+        }
+        else if (key.StartsWith("BrandColor_") || key == "AppTheme" || key == $"{_selectedPlatform}Enabled")
         {
             DispatcherQueue.TryEnqueue(() => ApplyFlyoutPlatformAccent(_selectedPlatform));
+        }
+    }
+
+    private void ApplyFlyoutBackdrop()
+    {
+        var backdropStr = _settingsService.GetValue<string>("FlyoutBackdrop") ?? "AcrylicBase";
+        var kind = (backdropStr == "AcrylicThin") ? DesktopAcrylicKind.Thin : DesktopAcrylicKind.Base;
+
+        if (this.SystemBackdrop is FlyoutAcrylicBackdrop existingBackdrop)
+        {
+            existingBackdrop.Kind = kind;
+        }
+        else
+        {
+            this.SystemBackdrop = new FlyoutAcrylicBackdrop(kind);
         }
     }
 
@@ -145,7 +167,8 @@ public sealed partial class FlyoutWindow : Window
         uint dpi = GetDpiForWindow(_hWnd);
         double scale = dpi > 0 ? (dpi / 96.0) : 1.0;
 
-        int margin = (int)Math.Round(12 * scale);
+        int screenMargin = (int)Math.Round(12 * scale);
+        int taskbarGap = (int)Math.Round(6 * scale);
         double maxLogicalHeight = Math.Max(400, (workArea.Height / scale) - 32);
         double logicalHeight = Math.Min(720, maxLogicalHeight);
         double logicalWidth = 340;
@@ -165,35 +188,35 @@ public sealed partial class FlyoutWindow : Window
         if (_isTopTaskbar)
         {
             // Taskbar is at the TOP of the monitor
-            y = workArea.Y + margin;
+            y = workArea.Y + taskbarGap;
             x = cursor.X - (physicalWidth / 2);
         }
         else if (_isLeftTaskbar)
         {
             // Taskbar is at the LEFT of the monitor
-            x = workArea.X + margin;
+            x = workArea.X + taskbarGap;
             y = cursor.Y - (physicalHeight / 2);
         }
         else if (_isRightTaskbar)
         {
             // Taskbar is at the RIGHT of the monitor
-            x = workArea.X + workArea.Width - physicalWidth - margin;
+            x = workArea.X + workArea.Width - physicalWidth - taskbarGap;
             y = cursor.Y - (physicalHeight / 2);
         }
         else
         {
             // Default: Taskbar is at the BOTTOM of the monitor
-            y = workArea.Y + workArea.Height - physicalHeight - margin;
+            y = workArea.Y + workArea.Height - physicalHeight - taskbarGap;
             x = cursor.X - (physicalWidth / 2);
         }
 
         // Clamp within workArea bounds
-        int minX = workArea.X + margin;
-        int maxX = Math.Max(minX, workArea.X + workArea.Width - physicalWidth - margin);
+        int minX = workArea.X + (_isLeftTaskbar ? taskbarGap : screenMargin);
+        int maxX = Math.Max(minX, workArea.X + workArea.Width - physicalWidth - (_isRightTaskbar ? taskbarGap : screenMargin));
         x = Math.Clamp(x, minX, maxX);
 
-        int minY = workArea.Y + margin;
-        int maxY = Math.Max(minY, workArea.Y + workArea.Height - physicalHeight - margin);
+        int minY = workArea.Y + (_isTopTaskbar ? taskbarGap : screenMargin);
+        int maxY = Math.Max(minY, workArea.Y + workArea.Height - physicalHeight - (!_isTopTaskbar && !_isLeftTaskbar && !_isRightTaskbar ? taskbarGap : screenMargin));
         y = Math.Clamp(y, minY, maxY);
 
         _appWindow.Move(new Windows.Graphics.PointInt32(x, y));

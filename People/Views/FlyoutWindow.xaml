@@ -6,10 +6,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Title="People Flyout">
-
-    <Window.SystemBackdrop>
-        <DesktopAcrylicBackdrop />
-    </Window.SystemBackdrop>
     
     <Grid x:Name="RootGrid" Background="Transparent">
         <Grid.RenderTransform>
