@@ -11,12 +11,12 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- Dark Mode Theme Palette (Focused Atmospheric Slate Glow behind Text, Fading to Solid Obsidian Black) -->
+                <!-- Dark Mode Theme Palette (Bottom-anchored atmospheric glow spanning bottom left-to-right) -->
                 <ResourceDictionary x:Key="Dark">
                     <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
-                                         Center="0.5, 0.65"
-                                         GradientOrigin="0.5, 0.65"
-                                         RadiusX="0.45" RadiusY="0.22">
+                                         Center="0.5, 1.0"
+                                         GradientOrigin="0.5, 1.0"
+                                         RadiusX="1.0" RadiusY="0.58">
                         <GradientStop Color="#484E60" Offset="0.0" />
                         <GradientStop Color="#252833" Offset="0.35" />
                         <GradientStop Color="#121319" Offset="0.70" />
@@ -36,15 +36,16 @@
                     <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="#000000" />
                 </ResourceDictionary>
 
-                <!-- Light Mode Theme Palette (Focused Greyish Ambient Glow behind Text, Fading to Clean Fluent Light Background) -->
+                <!-- Light Mode Theme Palette (Bottom-anchored distinct greyish glow spanning bottom left-to-right) -->
                 <ResourceDictionary x:Key="Light">
                     <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
-                                         Center="0.5, 0.65"
-                                         GradientOrigin="0.5, 0.65"
-                                         RadiusX="0.45" RadiusY="0.22">
-                        <GradientStop Color="#C6CBD6" Offset="0.0" />
-                        <GradientStop Color="#D8DCE5" Offset="0.35" />
-                        <GradientStop Color="#EAECEF" Offset="0.70" />
+                                         Center="0.5, 1.0"
+                                         GradientOrigin="0.5, 1.0"
+                                         RadiusX="1.0" RadiusY="0.58">
+                        <GradientStop Color="#B4BCD0" Offset="0.0" />
+                        <GradientStop Color="#CAD1DE" Offset="0.30" />
+                        <GradientStop Color="#DFE3EC" Offset="0.60" />
+                        <GradientStop Color="#EDF0F5" Offset="0.85" />
                         <GradientStop Color="#F5F6F8" Offset="1.0" />
                     </RadialGradientBrush>
 
@@ -155,47 +156,81 @@
               Background="Transparent"
               Canvas.ZIndex="20" />
 
-        <!-- Main Onboarding Content Layout centered as a cohesive group and shifted slightly upwards -->
-        <Grid HorizontalAlignment="Stretch"
-              VerticalAlignment="Center"
-              Margin="0,-32,0,32">
+        <!-- Main Onboarding Content Layout -->
+        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Grid.RowDefinitions>
+                <!-- Row 0: Collage Canopy placed higher up -->
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <!-- Row 1: Text & Action Button with breathing room below -->
+                <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Row 0: Circular Plain Geometries Constellation Canopy -->
-            <Viewbox Grid.Row="0"
-                     Stretch="Uniform"
-                     MaxWidth="960"
-                     MaxHeight="340"
-                     HorizontalAlignment="Center"
-                     VerticalAlignment="Center"
-                     Margin="32,0,32,8">
-                <Canvas Width="1024" Height="420">
-                    <Ellipse Width="91" Height="91" Fill="#E8505B" Canvas.Left="539.5" Canvas.Top="43.0" />
-                    <Ellipse Width="99" Height="99" Fill="#2979FF" Canvas.Left="757.5" Canvas.Top="60.5" />
-                    <Ellipse Width="88" Height="88" Fill="#FF9100" Canvas.Left="161.5" Canvas.Top="66.5" />
-                    <Ellipse Width="106" Height="106" Fill="#00BFA5" Canvas.Left="337.5" Canvas.Top="70.0" />
-                    <Ellipse Width="101" Height="101" Fill="#7C4DFF" Canvas.Left="620.5" Canvas.Top="128.5" />
-                    <Ellipse Width="94" Height="94" Fill="#FF5252" Canvas.Left="44.5" Canvas.Top="147.5" />
-                    <Ellipse Width="100" Height="100" Fill="#0091EA" Canvas.Left="888.5" Canvas.Top="151.5" />
-                    <Ellipse Width="99" Height="99" Fill="#00E5FF" Canvas.Left="441.5" Canvas.Top="178.5" />
-                    <Ellipse Width="104" Height="104" Fill="#FF6D00" Canvas.Left="221.5" Canvas.Top="191.5" />
-                    <Ellipse Width="99" Height="99" Fill="#651FFF" Canvas.Left="749.5" Canvas.Top="201.0" />
-                    <Ellipse Width="96" Height="96" Fill="#FFAB00" Canvas.Left="76.5" Canvas.Top="271.5" />
-                    <Ellipse Width="101" Height="101" Fill="#B388FF" Canvas.Left="598.5" Canvas.Top="270.5" />
-                    <Ellipse Width="98" Height="98" Fill="#00C853" Canvas.Left="342.5" Canvas.Top="277.0" />
-                    <Ellipse Width="92" Height="92" Fill="#AA00FF" Canvas.Left="907.5" Canvas.Top="300.5" />
-                    <Ellipse Width="94" Height="94" Fill="#00B0FF" Canvas.Left="771.5" Canvas.Top="322.5" />
-                </Canvas>
-            </Viewbox>
+            <!-- Row 0: Circular Plain Geometries Constellation Canopy (Fixed size, clips on window edge, tiles continuously) -->
+            <Grid Grid.Row="0"
+                  HorizontalAlignment="Stretch"
+                  Height="360"
+                  Margin="0,32,0,0">
+                <Canvas Width="2400" Height="360" HorizontalAlignment="Center">
+                    <!-- Left Continuous Tiling (X = 40 to 860) -->
+                    <Ellipse Width="116" Height="116" Fill="#E8505B" Canvas.Left="120" Canvas.Top="26" />
+                    <Ellipse Width="114" Height="114" Fill="#7C4DFF" Canvas.Left="42" Canvas.Top="138" />
+                    <Ellipse Width="116" Height="116" Fill="#00BFA5" Canvas.Left="104" Canvas.Top="236" />
 
-            <!-- Row 1: Text & Call-To-Action Button -->
+                    <Ellipse Width="116" Height="116" Fill="#00E676" Canvas.Left="316" Canvas.Top="32" />
+                    <Ellipse Width="116" Height="116" Fill="#2979FF" Canvas.Left="238" Canvas.Top="140" />
+                    <Ellipse Width="118" Height="118" Fill="#FF6D00" Canvas.Left="300" Canvas.Top="240" />
+
+                    <Ellipse Width="116" Height="116" Fill="#AA00FF" Canvas.Left="512" Canvas.Top="24" />
+                    <Ellipse Width="118" Height="118" Fill="#FF4081" Canvas.Left="434" Canvas.Top="136" />
+                    <Ellipse Width="114" Height="114" Fill="#FFD600" Canvas.Left="496" Canvas.Top="234" />
+
+                    <Ellipse Width="118" Height="118" Fill="#FF9100" Canvas.Left="710" Canvas.Top="30" />
+                    <Ellipse Width="114" Height="114" Fill="#3D5AFE" Canvas.Left="630" Canvas.Top="144" />
+                    <Ellipse Width="116" Height="116" Fill="#1DE9B6" Canvas.Left="692" Canvas.Top="238" />
+
+                    <!-- Center Arch Cluster (X = 820 to 1580, centered around X = 1200) -->
+                    <Ellipse Width="116" Height="116" Fill="#00BFA5" Canvas.Left="902" Canvas.Top="34" />
+                    <Ellipse Width="116" Height="116" Fill="#FF5252" Canvas.Left="828" Canvas.Top="148" />
+                    <Ellipse Width="114" Height="114" Fill="#FFAB00" Canvas.Left="848" Canvas.Top="246" />
+
+                    <Ellipse Width="118" Height="118" Fill="#FF6D00" Canvas.Left="1030" Canvas.Top="116" />
+                    <Ellipse Width="116" Height="116" Fill="#00C853" Canvas.Left="982" Canvas.Top="228" />
+
+                    <Ellipse Width="116" Height="116" Fill="#E8505B" Canvas.Left="1142" Canvas.Top="12" />
+                    <Ellipse Width="112" Height="112" Fill="#00E5FF" Canvas.Left="1144" Canvas.Top="176" />
+
+                    <Ellipse Width="116" Height="116" Fill="#7C4DFF" Canvas.Left="1252" Canvas.Top="112" />
+                    <Ellipse Width="118" Height="118" Fill="#651FFF" Canvas.Left="1304" Canvas.Top="222" />
+
+                    <Ellipse Width="118" Height="118" Fill="#2979FF" Canvas.Left="1380" Canvas.Top="28" />
+                    <Ellipse Width="118" Height="118" Fill="#0091EA" Canvas.Left="1458" Canvas.Top="142" />
+                    <Ellipse Width="116" Height="116" Fill="#AA00FF" Canvas.Left="1436" Canvas.Top="248" />
+
+                    <!-- Right Continuous Tiling (X = 1570 to 2350) -->
+                    <Ellipse Width="116" Height="116" Fill="#FFAB00" Canvas.Left="1572" Canvas.Top="26" />
+                    <Ellipse Width="118" Height="118" Fill="#FF4081" Canvas.Left="1650" Canvas.Top="138" />
+                    <Ellipse Width="114" Height="114" Fill="#00E676" Canvas.Left="1588" Canvas.Top="236" />
+
+                    <Ellipse Width="118" Height="118" Fill="#7C4DFF" Canvas.Left="1768" Canvas.Top="30" />
+                    <Ellipse Width="114" Height="114" Fill="#00E5FF" Canvas.Left="1846" Canvas.Top="142" />
+                    <Ellipse Width="116" Height="116" Fill="#FF9100" Canvas.Left="1784" Canvas.Top="238" />
+
+                    <Ellipse Width="116" Height="116" Fill="#3D5AFE" Canvas.Left="1964" Canvas.Top="28" />
+                    <Ellipse Width="118" Height="118" Fill="#00BFA5" Canvas.Left="2042" Canvas.Top="136" />
+                    <Ellipse Width="114" Height="114" Fill="#C51162" Canvas.Left="1980" Canvas.Top="234" />
+
+                    <Ellipse Width="116" Height="116" Fill="#FF6D00" Canvas.Left="2160" Canvas.Top="32" />
+                    <Ellipse Width="114" Height="114" Fill="#2979FF" Canvas.Left="2238" Canvas.Top="140" />
+                    <Ellipse Width="116" Height="116" Fill="#AA00FF" Canvas.Left="2176" Canvas.Top="240" />
+                </Canvas>
+            </Grid>
+
+            <!-- Row 1: Text & Call-To-Action Button (Centered in lower space) -->
             <StackPanel Grid.Row="1"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Padding="24,0">
+                        Padding="24,0"
+                        Margin="0,0,0,40">
                 <TextBlock Text="People"
                            Style="{ThemeResource TitleLargeTextBlockStyle}"
                            HorizontalAlignment="Center"
@@ -209,7 +244,7 @@
                            TextAlignment="Center"
                            MaxWidth="520"
                            TextWrapping="Wrap"
-                           Margin="0,0,0,20" />
+                           Margin="0,0,0,22" />
 
                 <Button x:Name="GetStartedButton"
                         Click="GetStartedButton_Click"
