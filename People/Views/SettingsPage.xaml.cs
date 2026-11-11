@@ -18,4 +18,12 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
     }
+
+    private void ReplayOnboarding_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (App.Current.MainWindow is MainWindow mw)
+        {
+            mw.ShowOnboarding();
+        }
+    }
 }

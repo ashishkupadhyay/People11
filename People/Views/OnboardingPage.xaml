@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="People.Views.OnboardingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:People.Views"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <!-- Dark Mode Theme Palette -->
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="#0A0A0C" />
+                    <Color x:Key="OnboardingGlowCenterColor">#2A2C34</Color>
+                    <Color x:Key="OnboardingGlowEdgeColor">#000A0A0C</Color>
+                    <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="GetStartedBtnForeground" Color="#121214" />
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="#ECECED" />
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="#DDDEE2" />
+                </ResourceDictionary>
+
+                <!-- Light Mode Theme Palette -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="#F3F3F5" />
+                    <Color x:Key="OnboardingGlowCenterColor">#FFFFFF</Color>
+                    <Color x:Key="OnboardingGlowEdgeColor">#00F3F3F5</Color>
+                    <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#2C2C2E" />
+                    <SolidColorBrush x:Key="GetStartedBtnForeground" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="#3C3C40" />
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="#1E1E20" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- Soft Ambient Radial Vignette Glow Behind Text Area -->
+            <RadialGradientBrush x:Key="OnboardingGlowBrush"
+                                 Center="0.5, 0.5"
+                                 GradientOrigin="0.5, 0.5"
+                                 RadiusX="0.5" RadiusY="0.5">
+                <GradientStop Color="{ThemeResource OnboardingGlowCenterColor}" Offset="0.0" />
+                <GradientStop Color="{ThemeResource OnboardingGlowEdgeColor}" Offset="1.0" />
+            </RadialGradientBrush>
+
+            <!-- Fluent Get Started Button Style (Neutral High-Contrast, Default Fluent CornerRadius) -->
+            <Style x:Key="GetStartedButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource GetStartedBtnBackground}" />
+                <Setter Property="Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+                <Setter Property="MinWidth" Value="200" />
+                <Setter Property="MinHeight" Value="40" />
+                <Setter Property="Padding" Value="24,8" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <ContentPresenter x:Name="ContentPresenter"
+                                              Background="{TemplateBinding Background}"
+                                              BorderBrush="{TemplateBinding BorderBrush}"
+                                              BorderThickness="{TemplateBinding BorderThickness}"
+                                              CornerRadius="{TemplateBinding CornerRadius}"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              Padding="{TemplateBinding Padding}"
+                                              HorizontalContentAlignment="Center"
+                                              VerticalContentAlignment="Center"
+                                              Foreground="{TemplateBinding Foreground}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Background" Value="{ThemeResource GetStartedBtnBackgroundPointerOver}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Background" Value="{ThemeResource GetStartedBtnBackgroundPressed}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </ContentPresenter>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid Background="{ThemeResource OnboardingBackgroundBrush}">
+        <!-- Transparent Draggable TitleBar Region for full-window drag -->
+        <Grid x:Name="OnboardingTitleBar"
+              Height="48"
+              VerticalAlignment="Top"
+              Background="Transparent"
+              Canvas.ZIndex="20" />
+
+        <!-- Main Onboarding Content Layout -->
+        <Grid VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="0,20,0,30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Row 0: Circular Plain Geometries Constellation Canopy -->
+            <Viewbox Grid.Row="0"
+                     Stretch="Uniform"
+                     MaxWidth="980"
+                     MaxHeight="380"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Top"
+                     Margin="20,10,20,0">
+                <Canvas Width="1024" Height="420">
+                    <Ellipse Width="91" Height="91" Fill="#E8505B" Canvas.Left="539.5" Canvas.Top="43.0" />
+                    <Ellipse Width="99" Height="99" Fill="#2979FF" Canvas.Left="757.5" Canvas.Top="60.5" />
+                    <Ellipse Width="88" Height="88" Fill="#FF9100" Canvas.Left="161.5" Canvas.Top="66.5" />
+                    <Ellipse Width="106" Height="106" Fill="#00BFA5" Canvas.Left="337.5" Canvas.Top="70.0" />
+                    <Ellipse Width="101" Height="101" Fill="#7C4DFF" Canvas.Left="620.5" Canvas.Top="128.5" />
+                    <Ellipse Width="94" Height="94" Fill="#FF5252" Canvas.Left="44.5" Canvas.Top="147.5" />
+                    <Ellipse Width="100" Height="100" Fill="#0091EA" Canvas.Left="888.5" Canvas.Top="151.5" />
+                    <Ellipse Width="99" Height="99" Fill="#00E5FF" Canvas.Left="441.5" Canvas.Top="178.5" />
+                    <Ellipse Width="104" Height="104" Fill="#FF6D00" Canvas.Left="221.5" Canvas.Top="191.5" />
+                    <Ellipse Width="99" Height="99" Fill="#651FFF" Canvas.Left="749.5" Canvas.Top="201.0" />
+                    <Ellipse Width="96" Height="96" Fill="#FFAB00" Canvas.Left="76.5" Canvas.Top="271.5" />
+                    <Ellipse Width="101" Height="101" Fill="#B388FF" Canvas.Left="598.5" Canvas.Top="270.5" />
+                    <Ellipse Width="98" Height="98" Fill="#00C853" Canvas.Left="342.5" Canvas.Top="277.0" />
+                    <Ellipse Width="92" Height="92" Fill="#AA00FF" Canvas.Left="907.5" Canvas.Top="300.5" />
+                    <Ellipse Width="94" Height="94" Fill="#00B0FF" Canvas.Left="771.5" Canvas.Top="322.5" />
+                </Canvas>
+            </Viewbox>
+
+            <!-- Row 1: Ambient Radial Gradient Glow + Text & Action Button -->
+            <Grid Grid.Row="1" HorizontalAlignment="Stretch" Margin="0,-20,0,0">
+                <!-- Radial Glow Overlay -->
+                <Border Width="720" Height="340"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="{StaticResource OnboardingGlowBrush}"
+                        IsHitTestVisible="False" />
+
+                <!-- Text & Call-To-Action Button -->
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Padding="24,0">
+                    <TextBlock Text="People"
+                               Style="{ThemeResource TitleLargeTextBlockStyle}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               Margin="0,0,0,8" />
+
+                    <TextBlock Text="Chat across WhatsApp, SMS, Telegram, Signal, and Discord in a single app."
+                               Style="{ThemeResource BodyLargeTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               MaxWidth="520"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,32" />
+
+                    <Button x:Name="GetStartedButton"
+                            Click="GetStartedButton_Click"
+                            Content="Get started"
+                            Style="{StaticResource GetStartedButtonStyle}"
+                            AutomationProperties.AutomationId="GetStartedBtn"
+                            AutomationProperties.Name="Get started" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

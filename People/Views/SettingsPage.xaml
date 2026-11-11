@@ -272,6 +272,13 @@
                     </ui:SettingsCard.HeaderIcon>
                     <HyperlinkButton Content="Check for Updates" AutomationProperties.Name="Check for updates" AutomationProperties.AutomationId="UpdateBtn" />
                 </ui:SettingsCard>
+
+                <ui:SettingsCard Header="Onboarding Experience" Description="Revisit the welcome and introduction screen">
+                    <ui:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE734;" />
+                    </ui:SettingsCard.HeaderIcon>
+                    <Button Content="Show Onboarding" Click="ReplayOnboarding_Click" AutomationProperties.AutomationId="ReplayOnboardingBtn" />
+                </ui:SettingsCard>
             </StackPanel>
             
         </StackPanel>

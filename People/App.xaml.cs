@@ -91,8 +91,12 @@ public partial class App : Application
             // Pre-navigate to ChatListPage so contacts are preloaded and rendered before window activation
             MainWindow = Services.GetRequiredService<MainWindow>();
 
-            var navService = Services.GetRequiredService<INavigationService>();
-            navService.NavigateTo("Chats", "WhatsApp");
+            var settingsService = Services.GetRequiredService<ISettingsService>();
+            if (settingsService.GetValue<bool>("HasCompletedOnboarding", false))
+            {
+                var navService = Services.GetRequiredService<INavigationService>();
+                navService.NavigateTo("Chats", "WhatsApp");
+            }
 
             MainWindow.Activate();
 

@@ -1,104 +1,35 @@
+using System;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using People.ViewModels;
-using System;
-using System.Threading.Tasks;
 
 namespace People;
 
 public sealed partial class MainWindow : Window
 {
     public MainWindowViewModel ViewModel { get; }
-    public bool HasNavigatedContent => ContentFrame?.Content != null;
-
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _whatsAppDarkSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _whatsAppLightSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _telegramDarkSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _telegramLightSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _signalDarkSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _signalLightSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _discordDarkSource;
-    private Microsoft.UI.Xaml.Media.Imaging.SvgImageSource? _discordLightSource;
-
-    private void UpdateSidebarIcons(ElementTheme theme)
-    {
-        bool isDark = IsDarkTheme(theme);
-
-        if (isDark)
-        {
-            _whatsAppDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-White.svg"));
-            if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = _whatsAppDarkSource;
-
-            _telegramDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Telegram-Logo-White.svg"));
-            if (NavTelegramIcon != null) NavTelegramIcon.Source = _telegramDarkSource;
-
-            _signalDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Signal-Logo-White.svg"));
-            if (NavSignalIcon != null) NavSignalIcon.Source = _signalDarkSource;
-
-            _discordDarkSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Discord-Logo-White.svg"));
-            if (NavDiscordIcon != null) NavDiscordIcon.Source = _discordDarkSource;
-        }
-        else
-        {
-            _whatsAppLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/WhatsApp-Logo-Black.svg"));
-            if (NavWhatsAppIcon != null) NavWhatsAppIcon.Source = _whatsAppLightSource;
-
-            _telegramLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Telegram-Logo-Black.svg"));
-            if (NavTelegramIcon != null) NavTelegramIcon.Source = _telegramLightSource;
-
-            _signalLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Signal-Logo-Black.svg"));
-            if (NavSignalIcon != null) NavSignalIcon.Source = _signalLightSource;
-
-            _discordLightSource ??= new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Assets/Platform_Icons/Discord-Logo-Black.svg"));
-            if (NavDiscordIcon != null) NavDiscordIcon.Source = _discordLightSource;
-        }
-    }
-
-    public Microsoft.UI.Xaml.Visibility ConvertBoolToVisibility(bool isVisible)
-    {
-        return isVisible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-    }
+    public bool HasNavigatedContent => RootFrame?.Content != null;
 
     public MainWindow()
     {
         ViewModel = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         InitializeComponent();
-        
+
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
-        
+
         var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
         themeService.Initialize();
         themeService.ApplyToWindow(this);
 
-        var navServiceCore = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
-        if (navServiceCore is People.Services.NavigationService navService)
-        {
-            navService.Initialize(ContentFrame);
-            navService.Configure("Chats", typeof(Views.ChatListPage));
-            navService.Configure("Conversation", typeof(Views.ConversationPage));
-            navService.Configure("Settings", typeof(Views.SettingsPage));
-            navService.Configure("ComingSoon", typeof(Views.ComingSoonPage));
-        }
-
-        ContentFrame.Navigated += ContentFrame_Navigated;
-        
-        if (NavView.MenuItems.Count > 0)
-        {
-            var initialItem = NavView.MenuItems[0] as NavigationViewItem;
-            NavView.SelectedItem = initialItem;
-        }
-
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-        
+
         if (this.Content is FrameworkElement rootElement)
         {
-            UpdateSidebarIcons(rootElement.ActualTheme);
-
             if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
             {
                 var titleBar = appWindow.TitleBar;
@@ -108,9 +39,8 @@ public sealed partial class MainWindow : Window
                 UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
             }
 
-            rootElement.ActualThemeChanged += (s, args) => 
+            rootElement.ActualThemeChanged += (s, args) =>
             {
-                UpdateSidebarIcons(rootElement.ActualTheme);
                 if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
                 {
                     UpdateTitleBarColors(appWindow.TitleBar, rootElement.ActualTheme);
@@ -140,7 +70,6 @@ public sealed partial class MainWindow : Window
 
         if (targetX == int.MinValue || targetY == int.MinValue)
         {
-            // First launch: center on display work area
             var displayArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(windowId, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
             if (displayArea != null)
             {
@@ -175,8 +104,6 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        NavView.SizeChanged += NavView_SizeChanged;
-
         RootGrid.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((s, e) =>
         {
             var trayService = App.Current.Services.GetService<People.Core.Interfaces.ITrayIconService>();
@@ -191,8 +118,72 @@ public sealed partial class MainWindow : Window
                 trayService?.HideFlyout();
             }
         };
+
+        RootFrame.Navigated += RootFrame_Navigated;
+
+        // Determine initial navigation: Onboarding or Main Shell
+        bool hasCompletedOnboarding = settingsService.GetValue<bool>("HasCompletedOnboarding", false);
+        if (!hasCompletedOnboarding)
+        {
+            RootFrame.Navigate(typeof(Views.OnboardingPage));
+        }
+        else
+        {
+            RootFrame.Navigate(typeof(Views.MainShellPage));
+        }
     }
 
+    private void RootFrame_Navigated(object sender, NavigationEventArgs e)
+    {
+        // When content is first navigated into the frame, make RootGrid transparent to reveal Mica/Acrylic backdrop
+        if (RootGrid.Background is not Microsoft.UI.Xaml.Media.SolidColorBrush scb || scb.Color != Microsoft.UI.Colors.Transparent)
+        {
+            var settingsService = App.Current.Services.GetRequiredService<People.Core.Interfaces.ISettingsService>();
+            var backdrop = settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
+            if (backdrop != "None")
+            {
+                RootGrid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+        }
+    }
+
+    public void ShowOnboarding()
+    {
+        RootFrame.Navigate(typeof(Views.OnboardingPage), null, new Microsoft.UI.Xaml.Media.Animation.DrillInNavigationTransitionInfo());
+    }
+
+    public void BringToFront()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+        if (appWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter && presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+        {
+            presenter.Restore();
+        }
+        this.Activate();
+        SetForegroundWindow(hwnd);
+    }
+
+    public void OpenPlatform(string platform)
+    {
+        if (RootFrame.Content is not Views.MainShellPage)
+        {
+            RootFrame.Navigate(typeof(Views.MainShellPage));
+        }
+
+        Views.MainShellPage.Current?.OpenPlatform(platform);
+    }
+
+    public void OpenChat(People.Core.Models.Chat chat)
+    {
+        if (RootFrame.Content is not Views.MainShellPage)
+        {
+            RootFrame.Navigate(typeof(Views.MainShellPage));
+        }
+
+        Views.MainShellPage.Current?.OpenChat(chat);
+    }
 
     private static bool IsDarkTheme(ElementTheme theme)
     {
@@ -219,171 +210,21 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonForegroundColor = foregroundColor;
         titleBar.ButtonHoverForegroundColor = foregroundColor;
         titleBar.ButtonPressedForegroundColor = foregroundColor;
-        titleBar.ButtonHoverBackgroundColor = isDark 
-            ? Microsoft.UI.ColorHelper.FromArgb(25, 255, 255, 255) 
+        titleBar.ButtonHoverBackgroundColor = isDark
+            ? Microsoft.UI.ColorHelper.FromArgb(25, 255, 255, 255)
             : Microsoft.UI.ColorHelper.FromArgb(25, 0, 0, 0);
-        titleBar.ButtonPressedBackgroundColor = isDark 
-            ? Microsoft.UI.ColorHelper.FromArgb(40, 255, 255, 255) 
+        titleBar.ButtonPressedBackgroundColor = isDark
+            ? Microsoft.UI.ColorHelper.FromArgb(40, 255, 255, 255)
             : Microsoft.UI.ColorHelper.FromArgb(40, 0, 0, 0);
-        titleBar.ButtonInactiveForegroundColor = isDark 
-            ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150) 
+        titleBar.ButtonInactiveForegroundColor = isDark
+            ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150)
             : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
     }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    public void BringToFront()
-    {
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-        if (appWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter && presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
-        {
-            presenter.Restore();
-        }
-        this.Activate();
-        SetForegroundWindow(hwnd);
-    }
-
-    public void OpenPlatform(string platform)
-    {
-        var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
-        if (platform == "WhatsApp")
-        {
-            navService.NavigateTo("Chats", platform);
-            if (NavView.MenuItems.Count > 0)
-            {
-                NavView.SelectedItem = NavView.MenuItems[0];
-            }
-        }
-        else
-        {
-            navService.NavigateTo("ComingSoon", platform);
-            foreach (var item in NavView.MenuItems)
-            {
-                if (item is NavigationViewItem nvi && (string)nvi.Tag == platform)
-                {
-                    NavView.SelectedItem = nvi;
-                    break;
-                }
-            }
-        }
-    }
-
-    public void OpenChat(People.Core.Models.Chat chat)
-    {
-        OpenPlatform(chat.PlatformId ?? "WhatsApp");
-        if (ContentFrame.Content is Views.ChatListPage chatListPage)
-        {
-            chatListPage.OpenChatInDetail(chat);
-        }
-    }
-
-    private void NavView_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        var width = e.NewSize.Width;
-
-        if (width < 1007)
-        {
-            NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftMinimal;
-        }
-        else
-        {
-            NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftCompact;
-        }
-    }
-
-    private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
-    {
-        var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
-        
-        if (args.IsSettingsInvoked)
-        {
-            navService.NavigateTo("Settings");
-        }
-        else
-        {
-            var tag = args.InvokedItemContainer?.Tag?.ToString();
-            if (tag != null)
-            {
-                if (tag == "WhatsApp") 
-                {
-                    navService.NavigateTo("Chats", tag);
-                }
-                else
-                {
-                    navService.NavigateTo("ComingSoon", tag);
-                }
-            }
-        }
-    }
-
-    private void NavView_BackRequested(NavigationView sender, NavigationViewBackRequestedEventArgs args)
-    {
-        HandleBackRequest();
-    }
-
-    private void AppTitleBar_BackRequested(TitleBar sender, object args)
-    {
-        HandleBackRequest();
-    }
-
-    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args)
-    {
-        NavView.IsPaneOpen = !NavView.IsPaneOpen;
-    }
-
-    private void HandleBackRequest()
-    {
-        if (ContentFrame.Content is Views.ChatListPage chatList && chatList.IsDetailVisibleInNarrowMode())
-        {
-            chatList.CloseDetail();
-            return;
-        }
-
-        if (ContentFrame.CanGoBack)
-        {
-            ContentFrame.GoBack();
-        }
-    }
-
-    private void NavView_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
-    {
-        // Handle UI updates based on display mode if necessary
-    }
-
-    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
-    {
-        ViewModel.IsBackEnabled = ContentFrame.CanGoBack;
-
-        // When content is first navigated into the frame, make RootGrid transparent to reveal Mica backdrop
-        if (RootGrid.Background is not Microsoft.UI.Xaml.Media.SolidColorBrush scb || scb.Color != Microsoft.UI.Colors.Transparent)
-        {
-            var settingsService = App.Current.Services.GetRequiredService<People.Core.Interfaces.ISettingsService>();
-            var backdrop = settingsService.GetValue<string>("AppBackdrop") ?? "Mica";
-            if (backdrop != "None")
-            {
-                RootGrid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-            }
-        }
-
-        var themeService = App.Current.Services.GetRequiredService<People.Core.Interfaces.IThemeService>();
-        if (ContentFrame.Content is Views.SettingsPage)
-        {
-            themeService.ClearActivePlatform();
-        }
-        else if (ContentFrame.Content is Views.ConversationPage convPage)
-        {
-            themeService.SetActivePlatform(convPage.ViewModel.CurrentChat?.PlatformId);
-        }
-        else if (ContentFrame.Content is not Views.ChatListPage)
-        {
-            themeService.ClearActivePlatform();
-        }
-    }
 }

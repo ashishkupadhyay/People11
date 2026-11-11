@@ -6,8 +6,6 @@
     xmlns:local="using:People"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls.AnimatedVisuals"
-    xmlns:converters="using:People.Converters"
     mc:Ignorable="d"
     Title="People">
 
@@ -16,66 +14,12 @@
     </Window.SystemBackdrop>
 
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="48" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <TitleBar x:Name="AppTitleBar" Grid.Row="0" Grid.ColumnSpan="2" Canvas.ZIndex="10" Background="Transparent"
-                  AutomationProperties.AutomationId="AppTitleBar"
-                  Title="People"
-                  IsBackButtonVisible="{x:Bind ViewModel.IsBackEnabled, Mode=OneWay}"
-                  BackRequested="AppTitleBar_BackRequested"
-                  IsPaneToggleButtonVisible="True"
-                  PaneToggleRequested="AppTitleBar_PaneToggleRequested">
-            <TitleBar.LeftHeader>
-                <FontIcon Glyph="&#xE716;" FontSize="16" IsHitTestVisible="False" Margin="12,0,12,0" VerticalAlignment="Center" />
-            </TitleBar.LeftHeader>
-        </TitleBar>
-
-        <NavigationView x:Name="NavView" Grid.Row="1" Grid.RowSpan="1"
-                        AutomationProperties.AutomationId="NavView"
-                        IsBackButtonVisible="Collapsed"
-                        IsPaneToggleButtonVisible="False"
-                        ItemInvoked="NavView_ItemInvoked"
-                        DisplayModeChanged="NavView_DisplayModeChanged"
-                        PaneDisplayMode="LeftCompact"
-                        AlwaysShowHeader="False">
-            <NavigationView.MenuItems>
-                <NavigationViewItem Tag="WhatsApp" x:Uid="NavWhatsApp" AutomationProperties.AutomationId="NavWhatsApp">
-                    <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavWhatsAppIcon" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="SMS" x:Uid="NavSMS" AutomationProperties.AutomationId="NavSMS">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8BD;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="Telegram" x:Uid="NavTelegram" AutomationProperties.AutomationId="NavTelegram">
-                    <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavTelegramIcon" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="Signal" x:Uid="NavSignal" AutomationProperties.AutomationId="NavSignal">
-                    <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavSignalIcon" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="Discord" x:Uid="NavDiscord" AutomationProperties.AutomationId="NavDiscord">
-                    <NavigationViewItem.Icon>
-                        <ImageIcon x:Name="NavDiscordIcon" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-            
-            <Frame x:Name="ContentFrame" Margin="0,0,0,0" Padding="0,0,0,0">
-                <Frame.ContentTransitions>
-                    <TransitionCollection>
-                        <NavigationThemeTransition />
-                    </TransitionCollection>
-                </Frame.ContentTransitions>
-            </Frame>
-        </NavigationView>
+        <Frame x:Name="RootFrame">
+            <Frame.ContentTransitions>
+                <TransitionCollection>
+                    <NavigationThemeTransition />
+                </TransitionCollection>
+            </Frame.ContentTransitions>
+        </Frame>
     </Grid>
 </Window>
