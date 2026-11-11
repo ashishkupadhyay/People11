@@ -13,85 +13,135 @@
             <ResourceDictionary.ThemeDictionaries>
                 <!-- Dark Mode Theme Palette -->
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="#0A0A0C" />
-                    <Color x:Key="OnboardingGlowCenterColor">#2A2C34</Color>
-                    <Color x:Key="OnboardingGlowEdgeColor">#000A0A0C</Color>
+                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="#08080A" />
+                    <Color x:Key="OnboardingGlowCenterColor">#484E60</Color>
+                    <Color x:Key="OnboardingGlowMidColor">#1E212A</Color>
+                    <Color x:Key="OnboardingGlowEdgeColor">#0008080A</Color>
+
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="GetStartedBtnForeground" Color="#121214" />
-                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="#ECECED" />
-                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="#DDDEE2" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderBrush" Color="#E0E0E0" />
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="#E2E2E6" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderPointerOver" Color="#C0C0C6" />
+                    <SolidColorBrush x:Key="GetStartedBtnForegroundPointerOver" Color="#000000" />
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="#C6C6CC" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderPressed" Color="#A8A8B0" />
+                    <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="#000000" />
                 </ResourceDictionary>
 
                 <!-- Light Mode Theme Palette -->
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="#F3F3F5" />
+                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="#E5E8EF" />
                     <Color x:Key="OnboardingGlowCenterColor">#FFFFFF</Color>
-                    <Color x:Key="OnboardingGlowEdgeColor">#00F3F3F5</Color>
+                    <Color x:Key="OnboardingGlowMidColor">#F2F4F8</Color>
+                    <Color x:Key="OnboardingGlowEdgeColor">#00E5E8EF</Color>
+
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#2C2C2E" />
                     <SolidColorBrush x:Key="GetStartedBtnForeground" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="#3C3C40" />
-                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="#1E1E20" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderBrush" Color="#222224" />
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="#48484E" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderPointerOver" Color="#666670" />
+                    <SolidColorBrush x:Key="GetStartedBtnForegroundPointerOver" Color="#FFFFFF" />
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="#1C1C1E" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderPressed" Color="#121214" />
+                    <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="#FFFFFF" />
+                </ResourceDictionary>
+
+                <!-- High Contrast Theme Palette -->
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="OnboardingBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <Color x:Key="OnboardingGlowCenterColor">Transparent</Color>
+                    <Color x:Key="OnboardingGlowMidColor">Transparent</Color>
+                    <Color x:Key="OnboardingGlowEdgeColor">Transparent</Color>
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackground" Color="{ThemeResource SystemColorButtonFaceColor}" />
+                    <SolidColorBrush x:Key="GetStartedBtnForeground" Color="{ThemeResource SystemColorButtonTextColor}" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderBrush" Color="{ThemeResource SystemColorButtonTextColor}" />
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="GetStartedBtnForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+
+                    <SolidColorBrush x:Key="GetStartedBtnBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="GetStartedBtnBorderPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
-            <!-- Soft Ambient Radial Vignette Glow Behind Text Area -->
+            <!-- Ambient Radial Vignette Glow Behind Text Area with Increased Intensity -->
             <RadialGradientBrush x:Key="OnboardingGlowBrush"
                                  Center="0.5, 0.5"
                                  GradientOrigin="0.5, 0.5"
                                  RadiusX="0.5" RadiusY="0.5">
                 <GradientStop Color="{ThemeResource OnboardingGlowCenterColor}" Offset="0.0" />
+                <GradientStop Color="{ThemeResource OnboardingGlowMidColor}" Offset="0.5" />
                 <GradientStop Color="{ThemeResource OnboardingGlowEdgeColor}" Offset="1.0" />
             </RadialGradientBrush>
 
-            <!-- Fluent Get Started Button Style (Neutral High-Contrast, Default Fluent CornerRadius) -->
+            <!-- Fluent Get Started Button Style (Refined Proportions, Clear Hover Highlight, Native CornerRadius) -->
             <Style x:Key="GetStartedButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="{ThemeResource GetStartedBtnBackground}" />
                 <Setter Property="Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
-                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="BorderBrush" Value="{ThemeResource GetStartedBtnBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
-                <Setter Property="MinWidth" Value="200" />
-                <Setter Property="MinHeight" Value="40" />
-                <Setter Property="Padding" Value="24,8" />
+                <Setter Property="MinHeight" Value="32" />
+                <Setter Property="MinWidth" Value="120" />
+                <Setter Property="Padding" Value="22,5,22,6" />
+                <Setter Property="FontSize" Value="14" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="HorizontalAlignment" Value="Center" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <ContentPresenter x:Name="ContentPresenter"
-                                              Background="{TemplateBinding Background}"
-                                              BorderBrush="{TemplateBinding BorderBrush}"
-                                              BorderThickness="{TemplateBinding BorderThickness}"
-                                              CornerRadius="{TemplateBinding CornerRadius}"
-                                              Content="{TemplateBinding Content}"
-                                              ContentTransitions="{TemplateBinding ContentTransitions}"
-                                              ContentTemplate="{TemplateBinding ContentTemplate}"
-                                              Padding="{TemplateBinding Padding}"
-                                              HorizontalContentAlignment="Center"
-                                              VerticalContentAlignment="Center"
-                                              Foreground="{TemplateBinding Foreground}">
+                            <Border x:Name="RootBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    Padding="{TemplateBinding Padding}">
                                 <VisualStateManager.VisualStateGroups>
                                     <VisualStateGroup x:Name="CommonStates">
-                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootBorder.Background" Value="{ThemeResource GetStartedBtnBackground}" />
+                                                <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GetStartedBtnBorderBrush}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="ContentPresenter.Background" Value="{ThemeResource GetStartedBtnBackgroundPointerOver}" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
+                                                <Setter Target="RootBorder.Background" Value="{ThemeResource GetStartedBtnBackgroundPointerOver}" />
+                                                <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GetStartedBtnBorderPointerOver}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForegroundPointerOver}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="ContentPresenter.Background" Value="{ThemeResource GetStartedBtnBackgroundPressed}" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForeground}" />
+                                                <Setter Target="RootBorder.Background" Value="{ThemeResource GetStartedBtnBackgroundPressed}" />
+                                                <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource GetStartedBtnBorderPressed}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource GetStartedBtnForegroundPressed}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled">
                                             <VisualState.Setters>
-                                                <Setter Target="ContentPresenter.Opacity" Value="0.4" />
+                                                <Setter Target="RootBorder.Opacity" Value="0.4" />
                                             </VisualState.Setters>
                                         </VisualState>
                                     </VisualStateGroup>
                                 </VisualStateManager.VisualStateGroups>
-                            </ContentPresenter>
+                                <ContentPresenter x:Name="ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTransitions="{TemplateBinding ContentTransitions}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{TemplateBinding Foreground}" />
+                            </Border>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
@@ -143,8 +193,8 @@
 
             <!-- Row 1: Ambient Radial Gradient Glow + Text & Action Button -->
             <Grid Grid.Row="1" HorizontalAlignment="Stretch" Margin="0,-20,0,0">
-                <!-- Radial Glow Overlay -->
-                <Border Width="720" Height="340"
+                <!-- Radial Glow Overlay with Stronger Presence -->
+                <Border Width="880" Height="380"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Background="{StaticResource OnboardingGlowBrush}"
@@ -167,7 +217,7 @@
                                TextAlignment="Center"
                                MaxWidth="520"
                                TextWrapping="Wrap"
-                               Margin="0,0,0,32" />
+                               Margin="0,0,0,24" />
 
                     <Button x:Name="GetStartedButton"
                             Click="GetStartedButton_Click"
