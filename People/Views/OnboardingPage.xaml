@@ -11,16 +11,16 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- Dark Mode Theme Palette (Full-Window Obsidian/Slate Radial Gradient) -->
+                <!-- Dark Mode Theme Palette (Focused Atmospheric Slate Glow behind Text, Fading to Solid Obsidian Black) -->
                 <ResourceDictionary x:Key="Dark">
                     <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
                                          Center="0.5, 0.65"
                                          GradientOrigin="0.5, 0.65"
-                                         RadiusX="0.8" RadiusY="0.65">
-                        <GradientStop Color="#4E5568" Offset="0.0" />
-                        <GradientStop Color="#262933" Offset="0.40" />
-                        <GradientStop Color="#111318" Offset="0.75" />
-                        <GradientStop Color="#070709" Offset="1.0" />
+                                         RadiusX="0.45" RadiusY="0.22">
+                        <GradientStop Color="#484E60" Offset="0.0" />
+                        <GradientStop Color="#252833" Offset="0.35" />
+                        <GradientStop Color="#121319" Offset="0.70" />
+                        <GradientStop Color="#08080A" Offset="1.0" />
                     </RadialGradientBrush>
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#FFFFFF" />
@@ -36,16 +36,16 @@
                     <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="#000000" />
                 </ResourceDictionary>
 
-                <!-- Light Mode Theme Palette (High-Contrast Luminous White Center to Windows 11 Slate Radial Gradient) -->
+                <!-- Light Mode Theme Palette (Focused Greyish Ambient Glow behind Text, Fading to Clean Fluent Light Background) -->
                 <ResourceDictionary x:Key="Light">
                     <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
                                          Center="0.5, 0.65"
                                          GradientOrigin="0.5, 0.65"
-                                         RadiusX="0.8" RadiusY="0.65">
-                        <GradientStop Color="#FFFFFF" Offset="0.0" />
-                        <GradientStop Color="#EDF0F5" Offset="0.30" />
-                        <GradientStop Color="#D0D6E2" Offset="0.65" />
-                        <GradientStop Color="#B2BAC9" Offset="1.0" />
+                                         RadiusX="0.45" RadiusY="0.22">
+                        <GradientStop Color="#C6CBD6" Offset="0.0" />
+                        <GradientStop Color="#D8DCE5" Offset="0.35" />
+                        <GradientStop Color="#EAECEF" Offset="0.70" />
+                        <GradientStop Color="#F5F6F8" Offset="1.0" />
                     </RadialGradientBrush>
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#2C2C2E" />
@@ -146,7 +146,7 @@
         </ResourceDictionary>
     </Page.Resources>
 
-    <!-- Root Grid fills 100% of window with seamless radial gradient (No bands, no rectangular cutoffs) -->
+    <!-- Root Grid fills 100% of window with background gradient -->
     <Grid Background="{ThemeResource OnboardingWindowGradientBrush}">
         <!-- Transparent Draggable TitleBar Region for full-window drag -->
         <Grid x:Name="OnboardingTitleBar"
@@ -155,22 +155,23 @@
               Background="Transparent"
               Canvas.ZIndex="20" />
 
-        <!-- Main Onboarding Content Layout spanning the whole window without clipping -->
-        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <!-- Main Onboarding Content Layout centered as a cohesive group and shifted slightly upwards -->
+        <Grid HorizontalAlignment="Stretch"
+              VerticalAlignment="Center"
+              Margin="0,-32,0,32">
             <Grid.RowDefinitions>
-                <!-- Row 0: Constellation canopy scales dynamically to fill upper window space -->
-                <RowDefinition Height="*" />
-                <!-- Row 1: Title, subtitle, and CTA button anchored cleanly at bottom -->
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!-- Row 0: Circular Plain Geometries Constellation Canopy -->
             <Viewbox Grid.Row="0"
                      Stretch="Uniform"
-                     MaxWidth="1040"
+                     MaxWidth="960"
+                     MaxHeight="340"
                      HorizontalAlignment="Center"
                      VerticalAlignment="Center"
-                     Margin="32,48,32,10">
+                     Margin="32,0,32,8">
                 <Canvas Width="1024" Height="420">
                     <Ellipse Width="91" Height="91" Fill="#E8505B" Canvas.Left="539.5" Canvas.Top="43.0" />
                     <Ellipse Width="99" Height="99" Fill="#2979FF" Canvas.Left="757.5" Canvas.Top="60.5" />
@@ -194,13 +195,12 @@
             <StackPanel Grid.Row="1"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Padding="24,0"
-                        Margin="0,0,0,36">
+                        Padding="24,0">
                 <TextBlock Text="People"
                            Style="{ThemeResource TitleLargeTextBlockStyle}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
-                           Margin="0,0,0,8" />
+                           Margin="0,0,0,6" />
 
                 <TextBlock Text="Chat across WhatsApp, SMS, Telegram, Signal, and Discord in a single app."
                            Style="{ThemeResource BodyLargeTextBlockStyle}"
@@ -209,7 +209,7 @@
                            TextAlignment="Center"
                            MaxWidth="520"
                            TextWrapping="Wrap"
-                           Margin="0,0,0,24" />
+                           Margin="0,0,0,20" />
 
                 <Button x:Name="GetStartedButton"
                         Click="GetStartedButton_Click"
