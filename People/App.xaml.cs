@@ -92,7 +92,7 @@ public partial class App : Application
             MainWindow = Services.GetRequiredService<MainWindow>();
 
             var settingsService = Services.GetRequiredService<ISettingsService>();
-            if (settingsService.GetValue<bool>("HasCompletedOnboarding", false))
+            if (settingsService.GetValue<bool>("HasCompletedOnboarding", false) && People.MainWindow.HasActiveOrSignedInPlatform(Services))
             {
                 var navService = Services.GetRequiredService<INavigationService>();
                 navService.NavigateTo("Chats", "WhatsApp");

@@ -199,7 +199,7 @@
                   VerticalAlignment="Stretch"
                   Margin="0,32,0,0">
                 <Canvas x:Name="CanopyCanvas"
-                        Width="4000" Height="1600"
+                        Width="4000" Height="2400"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Top"
                         Opacity="0" />

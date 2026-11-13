@@ -46,11 +46,12 @@ public sealed partial class OnboardingPage : Page
         { 6, new List<int> { 1, 19, 13, 29, 21 } }
     };
 
-    private readonly HashSet<int> _generatedColumns = new();
+    private readonly Dictionary<int, int> _columnGeneratedRows = new();
     private readonly Dictionary<(int, int), int> _assignedAssets = new();
 
     private bool _animationsStarted;
     private int _currentMaxK = -1;
+    private int _currentTargetRows = -1;
 
     public OnboardingPage()
     {
@@ -64,7 +65,8 @@ public sealed partial class OnboardingPage : Page
         _animationsStarted = true;
 
         double width = ActualWidth > 0 ? ActualWidth : (CanopyHost.ActualWidth > 0 ? CanopyHost.ActualWidth : 1200.0);
-        EnsureColumnsForWidth(width);
+        double height = ActualHeight > 0 ? ActualHeight : (CanopyHost.ActualHeight > 0 ? CanopyHost.ActualHeight : 700.0);
+        EnsureColumnsAndRows(width, height);
 
         StartStaggeredCanopyAnimation(CanopyCanvas.Children.OfType<FrameworkElement>());
         CanopyCanvas.Opacity = 1.0;
@@ -72,27 +74,31 @@ public sealed partial class OnboardingPage : Page
 
     private void OnboardingPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (e.NewSize.Width <= 0) return;
-        EnsureColumnsForWidth(e.NewSize.Width);
+        if (e.NewSize.Width <= 0 || e.NewSize.Height <= 0) return;
+        EnsureColumnsAndRows(e.NewSize.Width, e.NewSize.Height);
     }
 
-    private void EnsureColumnsForWidth(double width)
+    private void EnsureColumnsAndRows(double width, double height)
     {
         int maxK = (int)Math.Ceiling((width / 2.0) / HexDeltaX) + 1;
         if (maxK < 3) maxK = 3;
 
-        if (maxK <= _currentMaxK) return;
-        _currentMaxK = maxK;
+        // Calculate rows required so every column spans the full window height from top edge to past bottom edge
+        int targetRows = (int)Math.Ceiling(Math.Max(height, 600.0) / HexPitchY) + 2;
+        if (targetRows < 4) targetRows = 4;
+
+        if (maxK <= _currentMaxK && targetRows <= _currentTargetRows) return;
+        _currentMaxK = Math.Max(_currentMaxK, maxK);
+        _currentTargetRows = Math.Max(_currentTargetRows, targetRows);
 
         for (int k = -maxK; k <= maxK; k++)
         {
-            if (_generatedColumns.Contains(k)) continue;
-            _generatedColumns.Add(k);
+            int startRow = _columnGeneratedRows.TryGetValue(k, out int currentCount) ? currentCount : 0;
+            if (startRow >= targetRows) continue;
 
-            int count = GetImageCountForColumn(k);
             double left = GetColumnLeft(k);
 
-            for (int row = 0; row < count; row++)
+            for (int row = startRow; row < targetRows; row++)
             {
                 int assetId = GetOrAssignAsset(k, row);
                 double top = GetImageTop(k, row);
@@ -115,14 +121,9 @@ public sealed partial class OnboardingPage : Page
                     img.Opacity = 1.0;
                 }
             }
-        }
-    }
 
-    private static int GetImageCountForColumn(int k)
-    {
-        int absK = Math.Abs(k);
-        if (absK <= 2) return 3;
-        return 3 + ((absK - 1) / 2);
+            _columnGeneratedRows[k] = targetRows;
+        }
     }
 
     private static double GetColumnLeft(int k)

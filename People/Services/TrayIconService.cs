@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using H.NotifyIcon;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using People.Core.Interfaces;
 using People.Views;
@@ -12,7 +14,7 @@ namespace People.Services;
 
 public class TrayIconService : ITrayIconService
 {
-        [DllImport("user32.dll")]
+    [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT lpPoint);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -36,10 +38,12 @@ public class TrayIconService : ITrayIconService
     [DllImport("shell32.dll", SetLastError = true)]
     private static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
 
-    // Using FlyoutWindow.POINT
+    [DllImport("uxtheme.dll", EntryPoint = "#135", SetLastError = true)]
+    private static extern int SetPreferredAppMode(int preferredAppMode);
 
     private TaskbarIcon? _taskbarIcon;
     private FlyoutWindow? _flyoutWindow;
+    private MenuFlyout? _contextMenu;
 
     public void Initialize()
     {
@@ -49,13 +53,17 @@ public class TrayIconService : ITrayIconService
             {
                 try
                 {
+                    _contextMenu = CreateContextMenu();
+
                     _taskbarIcon = new TaskbarIcon
                     {
                         ToolTipText = "People Messaging",
-                        ContextFlyout = CreateContextMenu()
+                        ContextMenuMode = ContextMenuMode.SecondWindow,
+                        ContextFlyout = _contextMenu
                     };
 
                     ApplyTaskbarIconAsset();
+                    ApplyTaskbarMenuTheme();
 
                     _taskbarIcon.LeftClickCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ToggleFlyout);
                     _taskbarIcon.ForceCreate();
@@ -116,6 +124,35 @@ public class TrayIconService : ITrayIconService
         catch { }
     }
 
+    private void ApplyTaskbarMenuTheme()
+    {
+        bool isLight = IsSystemUsesLightTheme();
+
+        // 1. Update native Win32 popup menu theme (UxTheme: 2 = ForceDark, 3 = ForceLight)
+        try
+        {
+            SetPreferredAppMode(isLight ? 3 : 2);
+        }
+        catch { }
+
+        // 2. Update WinUI context menu flyout theme to match the taskbar
+        if (_contextMenu != null)
+        {
+            var targetTheme = isLight ? ElementTheme.Light : ElementTheme.Dark;
+            var presenterStyle = new Style(typeof(MenuFlyoutPresenter));
+            presenterStyle.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, targetTheme));
+            _contextMenu.MenuFlyoutPresenterStyle = presenterStyle;
+
+            foreach (var item in _contextMenu.Items)
+            {
+                if (item is FrameworkElement fe)
+                {
+                    fe.RequestedTheme = targetTheme;
+                }
+            }
+        }
+    }
+
     private void OnUserPreferenceChanged(object? sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
     {
         App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
@@ -127,40 +164,102 @@ public class TrayIconService : ITrayIconService
     private void UpdateTrayIconTheme()
     {
         ApplyTaskbarIconAsset();
+        ApplyTaskbarMenuTheme();
     }
 
-    private Microsoft.UI.Xaml.Controls.MenuFlyout CreateContextMenu()
+    private MenuFlyout CreateContextMenu()
     {
-        var menu = new Microsoft.UI.Xaml.Controls.MenuFlyout();
+        var menu = new MenuFlyout();
 
-        var openAppItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Open Main App" };
+        var openAppItem = new MenuFlyoutItem { Text = "Open Main App" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(openAppItem, "TrayOpenAppMenuBtn");
-        openAppItem.Click += (s, e) => App.Current.MainWindow?.Activate();
-        
-        var settingsItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Settings" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(settingsItem, "TraySettingsMenuBtn");
-        settingsItem.Click += (s, e) => {
-            App.Current.MainWindow?.Activate();
-            var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
-            navService.NavigateTo("Settings");
+        Action openAction = () =>
+        {
+            App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+            {
+                if (App.Current.MainWindow is MainWindow mw)
+                {
+                    mw.BringToFront();
+                }
+            });
         };
+        openAppItem.Command = new CommunityToolkit.Mvvm.Input.RelayCommand(openAction);
+        openAppItem.Click += (s, e) => openAction();
 
-        var quitItem = new Microsoft.UI.Xaml.Controls.MenuFlyoutItem { Text = "Quit" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(quitItem, "TrayQuitMenuBtn");
-        quitItem.Click += (s, e) => {
-            Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
-            _flyoutWindow?.DestroyWindow();
-            _flyoutWindow = null;
-            _taskbarIcon?.Dispose();
-            Microsoft.UI.Xaml.Application.Current.Exit();
+        var settingsItem = new MenuFlyoutItem { Text = "Settings" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(settingsItem, "TraySettingsMenuBtn");
+        Action settingsAction = () =>
+        {
+            App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+            {
+                if (App.Current.MainWindow is MainWindow mw)
+                {
+                    mw.BringToFront();
+                    var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
+                    navService.NavigateTo("Settings");
+                }
+            });
         };
+        settingsItem.Command = new CommunityToolkit.Mvvm.Input.RelayCommand(settingsAction);
+        settingsItem.Click += (s, e) => settingsAction();
+
+        var quitItem = new MenuFlyoutItem { Text = "Quit" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(quitItem, "TrayQuitMenuBtn");
+        Action quitAction = () =>
+        {
+            QuitApplication();
+        };
+        quitItem.Command = new CommunityToolkit.Mvvm.Input.RelayCommand(quitAction);
+        quitItem.Click += (s, e) => quitAction();
 
         menu.Items.Add(openAppItem);
         menu.Items.Add(settingsItem);
-        menu.Items.Add(new Microsoft.UI.Xaml.Controls.MenuFlyoutSeparator());
+        menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(quitItem);
 
+        var isLight = IsSystemUsesLightTheme();
+        var targetTheme = isLight ? ElementTheme.Light : ElementTheme.Dark;
+        var presenterStyle = new Style(typeof(MenuFlyoutPresenter));
+        presenterStyle.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, targetTheme));
+        menu.MenuFlyoutPresenterStyle = presenterStyle;
+
+        foreach (var item in menu.Items)
+        {
+            if (item is FrameworkElement fe)
+            {
+                fe.RequestedTheme = targetTheme;
+            }
+        }
+
         return menu;
+    }
+
+    public void QuitApplication()
+    {
+        App.Current.MainWindow?.DispatcherQueue.TryEnqueue(() =>
+        {
+            try
+            {
+                Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+                _flyoutWindow?.DestroyWindow();
+                _flyoutWindow = null;
+                _taskbarIcon?.Dispose();
+                _taskbarIcon = null;
+
+                if (App.Current.MainWindow is MainWindow mw)
+                {
+                    mw.CloseExplicitly();
+                }
+                else
+                {
+                    Microsoft.UI.Xaml.Application.Current.Exit();
+                }
+            }
+            catch
+            {
+                Environment.Exit(0);
+            }
+        });
     }
 
     public void SetBadgeCount(int count)

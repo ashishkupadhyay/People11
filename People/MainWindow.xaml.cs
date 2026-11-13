@@ -13,6 +13,14 @@ public sealed partial class MainWindow : Window
     public MainWindowViewModel ViewModel { get; }
     public bool HasNavigatedContent => RootFrame?.Content != null;
 
+    private bool _isExplicitExit;
+
+    public void CloseExplicitly()
+    {
+        _isExplicitExit = true;
+        Close();
+    }
+
     public MainWindow()
     {
         ViewModel = App.Current.Services.GetRequiredService<MainWindowViewModel>();
@@ -27,6 +35,16 @@ public sealed partial class MainWindow : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+
+        // Keep app running in background when closed via title bar close button
+        appWindow.Closing += (sender, args) =>
+        {
+            if (!_isExplicitExit)
+            {
+                args.Cancel = true;
+                sender.Hide();
+            }
+        };
 
         if (this.Content is FrameworkElement rootElement)
         {
@@ -122,8 +140,10 @@ public sealed partial class MainWindow : Window
         RootFrame.Navigated += RootFrame_Navigated;
 
         // Determine initial navigation: Onboarding or Main Shell
+        // If user clicked Get Started but didn't activate or sign in to any platform, reopen Onboarding
         bool hasCompletedOnboarding = settingsService.GetValue<bool>("HasCompletedOnboarding", false);
-        if (!hasCompletedOnboarding)
+        bool hasActivePlatform = HasActiveOrSignedInPlatform(App.Current.Services);
+        if (!hasCompletedOnboarding || !hasActivePlatform)
         {
             RootFrame.Navigate(typeof(Views.OnboardingPage));
         }
@@ -157,12 +177,51 @@ public sealed partial class MainWindow : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-        if (appWindow?.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter && presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+        if (appWindow != null)
         {
-            presenter.Restore();
+            appWindow.Show();
+            if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter && presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+            {
+                presenter.Restore();
+            }
         }
         this.Activate();
+        ShowWindow(hwnd, 9); // SW_RESTORE
         SetForegroundWindow(hwnd);
+    }
+
+    public static bool HasActiveOrSignedInPlatform(IServiceProvider services)
+    {
+        try
+        {
+            var providerManager = services.GetService<People.Providers.ProviderManager>();
+            if (providerManager != null)
+            {
+                foreach (var provider in providerManager.GetAllProviders())
+                {
+                    if (provider is People.Core.Interfaces.IWhatsAppProvider wa && wa.IsAuthenticated)
+                    {
+                        return true;
+                    }
+                    if (provider.ConnectionState == People.Core.Models.ConnectionState.Connected)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            var dbFactory = services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<People.Data.PeopleDbContext>>();
+            if (dbFactory != null)
+            {
+                using var db = dbFactory.CreateDbContext();
+                if (System.Linq.Queryable.Any(db.Chats))
+                {
+                    return true;
+                }
+            }
+        }
+        catch { }
+        return false;
     }
 
     public void OpenPlatform(string platform)
@@ -227,4 +286,7 @@ public sealed partial class MainWindow : Window
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }
