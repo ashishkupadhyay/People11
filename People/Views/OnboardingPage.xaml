@@ -11,16 +11,16 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- Dark Mode Theme Palette (Bottom-anchored atmospheric glow spanning bottom left-to-right) -->
+                <!-- Dark Mode Theme Palette (Standard WinUI window dark mode grey #202020 with bottom-anchored atmospheric glow) -->
                 <ResourceDictionary x:Key="Dark">
                     <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
                                          Center="0.5, 1.0"
                                          GradientOrigin="0.5, 1.0"
                                          RadiusX="1.0" RadiusY="0.58">
                         <GradientStop Color="#484E60" Offset="0.0" />
-                        <GradientStop Color="#252833" Offset="0.35" />
-                        <GradientStop Color="#121319" Offset="0.70" />
-                        <GradientStop Color="#08080A" Offset="1.0" />
+                        <GradientStop Color="#333744" Offset="0.35" />
+                        <GradientStop Color="#26282E" Offset="0.70" />
+                        <GradientStop Color="#202020" Offset="1.0" />
                     </RadialGradientBrush>
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#FFFFFF" />
@@ -144,6 +144,29 @@
                     </Setter.Value>
                 </Setter>
             </Style>
+
+            <!-- Canopy Entrance Storyboard: Fades in and rises from behind text with BackEase bounce-back -->
+            <Storyboard x:Name="CanopyEntranceStoryboard">
+                <!-- Upward translation from behind text with fluid BackEase bounce-back -->
+                <DoubleAnimation Storyboard.TargetName="CanopyTranslation"
+                                 Storyboard.TargetProperty="Y"
+                                 From="240" To="0"
+                                 Duration="0:0:0.95">
+                    <DoubleAnimation.EasingFunction>
+                        <BackEase EasingMode="EaseOut" Amplitude="0.38" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+
+                <!-- Simultaneous opacity fade-in -->
+                <DoubleAnimation Storyboard.TargetName="CanopyCanvas"
+                                 Storyboard.TargetProperty="Opacity"
+                                 From="0.0" To="1.0"
+                                 Duration="0:0:0.75">
+                    <DoubleAnimation.EasingFunction>
+                        <CubicEase EasingMode="EaseOut" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
         </ResourceDictionary>
     </Page.Resources>
 
@@ -165,68 +188,97 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Row 0: Circular Plain Geometries Constellation Canopy (Fixed size, clips on window edge, tiles continuously) -->
+            <!-- Row 0: Continuous 2400px Circular Profile Constellation Canopy (ZIndex=0 so it rises from behind text) -->
             <Grid Grid.Row="0"
+                  x:Name="CanopyHost"
+                  Canvas.ZIndex="0"
                   HorizontalAlignment="Stretch"
                   Height="360"
                   Margin="0,32,0,0">
-                <Canvas Width="2400" Height="360" HorizontalAlignment="Center">
-                    <!-- Left Continuous Tiling (X = 40 to 860) -->
-                    <Ellipse Width="116" Height="116" Fill="#E8505B" Canvas.Left="120" Canvas.Top="26" />
-                    <Ellipse Width="114" Height="114" Fill="#7C4DFF" Canvas.Left="42" Canvas.Top="138" />
-                    <Ellipse Width="116" Height="116" Fill="#00BFA5" Canvas.Left="104" Canvas.Top="236" />
+                <Canvas x:Name="CanopyCanvas"
+                        Width="2400" Height="360"
+                        HorizontalAlignment="Center"
+                        Opacity="0">
+                    <Canvas.RenderTransform>
+                        <TranslateTransform x:Name="CanopyTranslation" Y="240" />
+                    </Canvas.RenderTransform>
 
-                    <Ellipse Width="116" Height="116" Fill="#00E676" Canvas.Left="316" Canvas.Top="32" />
-                    <Ellipse Width="116" Height="116" Fill="#2979FF" Canvas.Left="238" Canvas.Top="140" />
-                    <Ellipse Width="118" Height="118" Fill="#FF6D00" Canvas.Left="300" Canvas.Top="240" />
+                    <!-- ============================================================ -->
+                    <!-- LEFT CONTINUOUS TILING (Cols 1-4, X = 40 to 860)            -->
+                    <!-- ============================================================ -->
+                    <!-- Col 1 (Far Left Flank: repeats Cols 11/12 with ~1900px distance) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="120" Canvas.Top="26" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="114" Height="114" Canvas.Left="42" Canvas.Top="138" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="116" Height="116" Canvas.Left="104" Canvas.Top="236" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="116" Height="116" Fill="#AA00FF" Canvas.Left="512" Canvas.Top="24" />
-                    <Ellipse Width="118" Height="118" Fill="#FF4081" Canvas.Left="434" Canvas.Top="136" />
-                    <Ellipse Width="114" Height="114" Fill="#FFD600" Canvas.Left="496" Canvas.Top="234" />
+                    <!-- Col 2 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="316" Canvas.Top="32" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="116" Height="116" Canvas.Left="238" Canvas.Top="140" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="118" Height="118" Canvas.Left="300" Canvas.Top="240" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="118" Height="118" Fill="#FF9100" Canvas.Left="710" Canvas.Top="30" />
-                    <Ellipse Width="114" Height="114" Fill="#3D5AFE" Canvas.Left="630" Canvas.Top="144" />
-                    <Ellipse Width="116" Height="116" Fill="#1DE9B6" Canvas.Left="692" Canvas.Top="238" />
+                    <!-- Col 3 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture2.png" Width="116" Height="116" Canvas.Left="512" Canvas.Top="24" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture8.png" Width="118" Height="118" Canvas.Left="434" Canvas.Top="136" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture14.png" Width="114" Height="114" Canvas.Left="496" Canvas.Top="234" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <!-- Center Arch Cluster (X = 820 to 1580, centered around X = 1200) -->
-                    <Ellipse Width="116" Height="116" Fill="#00BFA5" Canvas.Left="902" Canvas.Top="34" />
-                    <Ellipse Width="116" Height="116" Fill="#FF5252" Canvas.Left="828" Canvas.Top="148" />
-                    <Ellipse Width="114" Height="114" Fill="#FFAB00" Canvas.Left="848" Canvas.Top="246" />
+                    <!-- Col 4 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture3.png" Width="118" Height="118" Canvas.Left="710" Canvas.Top="30" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture9.png" Width="114" Height="114" Canvas.Left="630" Canvas.Top="144" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture15.png" Width="116" Height="116" Canvas.Left="692" Canvas.Top="238" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="118" Height="118" Fill="#FF6D00" Canvas.Left="1030" Canvas.Top="116" />
-                    <Ellipse Width="116" Height="116" Fill="#00C853" Canvas.Left="982" Canvas.Top="228" />
+                    <!-- ============================================================ -->
+                    <!-- CENTER ARCH CLUSTER (Cols 5-9, X = 820 to 1580, center X=1200) -->
+                    <!-- ============================================================ -->
+                    <!-- Col 5 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture4.png" Width="116" Height="116" Canvas.Left="902" Canvas.Top="34" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture10.png" Width="116" Height="116" Canvas.Left="828" Canvas.Top="148" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="114" Height="114" Canvas.Left="848" Canvas.Top="246" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="116" Height="116" Fill="#E8505B" Canvas.Left="1142" Canvas.Top="12" />
-                    <Ellipse Width="112" Height="112" Fill="#00E5FF" Canvas.Left="1144" Canvas.Top="176" />
+                    <!-- Col 6 (Arch Left Wing) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture5.png" Width="118" Height="118" Canvas.Left="1030" Canvas.Top="116" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture11.png" Width="116" Height="116" Canvas.Left="982" Canvas.Top="228" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="116" Height="116" Fill="#7C4DFF" Canvas.Left="1252" Canvas.Top="112" />
-                    <Ellipse Width="118" Height="118" Fill="#651FFF" Canvas.Left="1304" Canvas.Top="222" />
+                    <!-- Col 7 (Arch Crown Keystone & Suspended Center Midpoint) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture6.png" Width="116" Height="116" Canvas.Left="1142" Canvas.Top="12" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture12.png" Width="112" Height="112" Canvas.Left="1144" Canvas.Top="176" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="118" Height="118" Fill="#2979FF" Canvas.Left="1380" Canvas.Top="28" />
-                    <Ellipse Width="118" Height="118" Fill="#0091EA" Canvas.Left="1458" Canvas.Top="142" />
-                    <Ellipse Width="116" Height="116" Fill="#AA00FF" Canvas.Left="1436" Canvas.Top="248" />
+                    <!-- Col 8 (Arch Right Wing) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture17.png" Width="116" Height="116" Canvas.Left="1252" Canvas.Top="112" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture22.png" Width="118" Height="118" Canvas.Left="1304" Canvas.Top="222" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <!-- Right Continuous Tiling (X = 1570 to 2350) -->
-                    <Ellipse Width="116" Height="116" Fill="#FFAB00" Canvas.Left="1572" Canvas.Top="26" />
-                    <Ellipse Width="118" Height="118" Fill="#FF4081" Canvas.Left="1650" Canvas.Top="138" />
-                    <Ellipse Width="114" Height="114" Fill="#00E676" Canvas.Left="1588" Canvas.Top="236" />
+                    <!-- Col 9 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture18.png" Width="118" Height="118" Canvas.Left="1380" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture24.png" Width="118" Height="118" Canvas.Left="1458" Canvas.Top="142" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture29.png" Width="116" Height="116" Canvas.Left="1436" Canvas.Top="248" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="118" Height="118" Fill="#7C4DFF" Canvas.Left="1768" Canvas.Top="30" />
-                    <Ellipse Width="114" Height="114" Fill="#00E5FF" Canvas.Left="1846" Canvas.Top="142" />
-                    <Ellipse Width="116" Height="116" Fill="#FF9100" Canvas.Left="1784" Canvas.Top="238" />
+                    <!-- ============================================================ -->
+                    <!-- RIGHT CONTINUOUS TILING (Cols 10-13, X = 1570 to 2350)       -->
+                    <!-- ============================================================ -->
+                    <!-- Col 10 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture19.png" Width="116" Height="116" Canvas.Left="1572" Canvas.Top="26" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture25.png" Width="118" Height="118" Canvas.Left="1650" Canvas.Top="138" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture30.png" Width="114" Height="114" Canvas.Left="1588" Canvas.Top="236" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="116" Height="116" Fill="#3D5AFE" Canvas.Left="1964" Canvas.Top="28" />
-                    <Ellipse Width="118" Height="118" Fill="#00BFA5" Canvas.Left="2042" Canvas.Top="136" />
-                    <Ellipse Width="114" Height="114" Fill="#C51162" Canvas.Left="1980" Canvas.Top="234" />
+                    <!-- Col 11 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture20.png" Width="118" Height="118" Canvas.Left="1768" Canvas.Top="30" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture26.png" Width="114" Height="114" Canvas.Left="1846" Canvas.Top="142" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture23.png" Width="116" Height="116" Canvas.Left="1784" Canvas.Top="238" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <Ellipse Width="116" Height="116" Fill="#FF6D00" Canvas.Left="2160" Canvas.Top="32" />
-                    <Ellipse Width="114" Height="114" Fill="#2979FF" Canvas.Left="2238" Canvas.Top="140" />
-                    <Ellipse Width="116" Height="116" Fill="#AA00FF" Canvas.Left="2176" Canvas.Top="240" />
+                    <!-- Col 12 -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="1964" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="118" Height="118" Canvas.Left="2042" Canvas.Top="136" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="114" Height="114" Canvas.Left="1980" Canvas.Top="234" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+
+                    <!-- Col 13 (Far Right Flank: repeats Col 2 with ~1900px distance) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="2160" Canvas.Top="32" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="114" Height="114" Canvas.Left="2238" Canvas.Top="140" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="116" Height="116" Canvas.Left="2176" Canvas.Top="240" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                 </Canvas>
             </Grid>
 
-            <!-- Row 1: Text & Call-To-Action Button (Centered in lower space) -->
+            <!-- Row 1: Text & Call-To-Action Button (Foreground Layer: ZIndex=10) -->
             <StackPanel Grid.Row="1"
+                        Canvas.ZIndex="10"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Padding="24,0"

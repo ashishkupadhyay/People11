@@ -40,6 +40,9 @@
     <Content Include="Assets\Conversation_Test_Images\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\ProfilePictures\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\People.Interop\runtimes\win-x64\native\whatsapp_bridge.dll">
       <Link>whatsapp_bridge.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

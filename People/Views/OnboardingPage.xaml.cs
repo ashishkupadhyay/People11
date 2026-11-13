@@ -12,6 +12,12 @@ public sealed partial class OnboardingPage : Page
     public OnboardingPage()
     {
         InitializeComponent();
+        Loaded += OnboardingPage_Loaded;
+    }
+
+    private void OnboardingPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        CanopyEntranceStoryboard.Begin();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
