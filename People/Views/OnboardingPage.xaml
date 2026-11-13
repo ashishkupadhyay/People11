@@ -11,16 +11,26 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- Dark Mode Theme Palette (Standard WinUI window dark mode grey #202020 with bottom-anchored atmospheric glow) -->
+                <!-- Dark Mode Theme Palette (Standard WinUI window dark mode grey #202020 with atmospheric glow cover overlay) -->
                 <ResourceDictionary x:Key="Dark">
-                    <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
+                    <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#202020" />
+
+                    <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
                                          Center="0.5, 1.0"
                                          GradientOrigin="0.5, 1.0"
-                                         RadiusX="1.0" RadiusY="0.58">
-                        <GradientStop Color="#484E60" Offset="0.0" />
-                        <GradientStop Color="#333744" Offset="0.35" />
-                        <GradientStop Color="#26282E" Offset="0.70" />
-                        <GradientStop Color="#202020" Offset="1.0" />
+                                         RadiusX="1.0" RadiusY="0.68">
+                        <!-- Bottom Center: Dense Luminous Atmosphere behind text -->
+                        <GradientStop Color="#FF484E60" Offset="0.00" />
+                        <!-- Row 1 Lower: Atmospheric Glow behind text -->
+                        <GradientStop Color="#DC383E4E" Offset="0.30" />
+                        <!-- Canopy Lower Tier: Covers lower images (62% veil) -->
+                        <GradientStop Color="#9E2E3340" Offset="0.55" />
+                        <!-- Canopy Mid Tier: Soft 30% translucent emergence -->
+                        <GradientStop Color="#4D252830" Offset="0.75" />
+                        <!-- Canopy Upper Transition: Gentle 10% feather -->
+                        <GradientStop Color="#1A202020" Offset="0.90" />
+                        <!-- Canopy Top & Crown: 100% Clear & Pristine -->
+                        <GradientStop Color="#00202020" Offset="1.00" />
                     </RadialGradientBrush>
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#FFFFFF" />
@@ -36,17 +46,26 @@
                     <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="#000000" />
                 </ResourceDictionary>
 
-                <!-- Light Mode Theme Palette (Bottom-anchored distinct greyish glow spanning bottom left-to-right) -->
+                <!-- Light Mode Theme Palette (Clean Light Window Surface with atmospheric glow cover overlay) -->
                 <ResourceDictionary x:Key="Light">
-                    <RadialGradientBrush x:Key="OnboardingWindowGradientBrush"
+                    <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#F5F6F8" />
+
+                    <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
                                          Center="0.5, 1.0"
                                          GradientOrigin="0.5, 1.0"
-                                         RadiusX="1.0" RadiusY="0.58">
-                        <GradientStop Color="#B4BCD0" Offset="0.0" />
-                        <GradientStop Color="#CAD1DE" Offset="0.30" />
-                        <GradientStop Color="#DFE3EC" Offset="0.60" />
-                        <GradientStop Color="#EDF0F5" Offset="0.85" />
-                        <GradientStop Color="#F5F6F8" Offset="1.0" />
+                                         RadiusX="1.0" RadiusY="0.68">
+                        <!-- Bottom Center: Cool Silver/Slate Fluent Glow -->
+                        <GradientStop Color="#FFB4BCD0" Offset="0.00" />
+                        <!-- Row 1 Lower: Smooth Light Atmosphere behind text -->
+                        <GradientStop Color="#D9BCC5D6" Offset="0.30" />
+                        <!-- Canopy Lower Tier: Covers lower images (60% veil) -->
+                        <GradientStop Color="#99CBD2DF" Offset="0.55" />
+                        <!-- Canopy Mid Tier: Soft 30% translucent emergence -->
+                        <GradientStop Color="#4DDBE0EB" Offset="0.75" />
+                        <!-- Canopy Upper Transition: Gentle 10% feather -->
+                        <GradientStop Color="#1AF5F6F8" Offset="0.90" />
+                        <!-- Canopy Top & Crown: 100% Clear & Pristine -->
+                        <GradientStop Color="#00F5F6F8" Offset="1.00" />
                     </RadialGradientBrush>
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="#2C2C2E" />
@@ -64,7 +83,8 @@
 
                 <!-- High Contrast Theme Palette -->
                 <ResourceDictionary x:Key="HighContrast">
-                    <SolidColorBrush x:Key="OnboardingWindowGradientBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="OnboardingGlowOverlayBrush" Color="Transparent" />
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="{ThemeResource SystemColorButtonFaceColor}" />
                     <SolidColorBrush x:Key="GetStartedBtnForeground" Color="{ThemeResource SystemColorButtonTextColor}" />
@@ -147,8 +167,8 @@
         </ResourceDictionary>
     </Page.Resources>
 
-    <!-- Root Grid fills 100% of window with background gradient -->
-    <Grid Background="{ThemeResource OnboardingWindowGradientBrush}">
+    <!-- Root Grid fills 100% of window with solid base surface background -->
+    <Grid Background="{ThemeResource OnboardingBaseBackgroundBrush}">
         <!-- Transparent Draggable TitleBar Region for full-window drag -->
         <Grid x:Name="OnboardingTitleBar"
               Height="48"
@@ -165,7 +185,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Row 0: Continuous 2400px Circular Profile Constellation Canopy (ZIndex=0 so it rises from behind text) -->
+            <!-- Row 0: Continuous 2400px Circular Profile Constellation Canopy (ZIndex=0: base image layer) -->
             <Grid Grid.Row="0"
                   x:Name="CanopyHost"
                   Canvas.ZIndex="0"
@@ -181,7 +201,7 @@
                     <!-- LEFT CONTINUOUS TILING (Cols 1-4, X = 451.8 to 825.9)        -->
                     <!-- ============================================================ -->
                     <!-- Col 1 (Far Left Flank: repeats Cols 11/12 with ~1372px distance) -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="393.8" Canvas.Top="14.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="116" Height="116" Canvas.Left="393.8" Canvas.Top="14.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="116" Height="116" Canvas.Left="393.8" Canvas.Top="158.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="116" Height="116" Canvas.Left="393.8" Canvas.Top="302.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
@@ -205,18 +225,21 @@
                     <!-- ============================================================ -->
                     <!-- Col 5 -->
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture4.png" Width="116" Height="116" Canvas.Left="892.6" Canvas.Top="14.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="116" Height="116" Canvas.Left="892.6" Canvas.Top="158.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="116" Height="116" Canvas.Left="892.6" Canvas.Top="302.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture19.png" Width="116" Height="116" Canvas.Left="892.6" Canvas.Top="158.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="892.6" Canvas.Top="302.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 6 (Arch Left Wing) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture30.png" Width="116" Height="116" Canvas.Left="1017.3" Canvas.Top="-58.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture5.png" Width="116" Height="116" Canvas.Left="1017.3" Canvas.Top="86.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture11.png" Width="116" Height="116" Canvas.Left="1017.3" Canvas.Top="230.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <!-- Col 7 (Arch Crown Keystone & Suspended Center Midpoint) -->
+                    <!-- Col 7 (Arch Crown Keystone, Midpoint, and Lower Center) -->
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture6.png" Width="116" Height="116" Canvas.Left="1142.0" Canvas.Top="14.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture12.png" Width="116" Height="116" Canvas.Left="1142.0" Canvas.Top="158.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="116" Height="116" Canvas.Left="1142.0" Canvas.Top="302.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 8 (Arch Right Wing) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="116" Height="116" Canvas.Left="1266.7" Canvas.Top="-58.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture2.png" Width="116" Height="116" Canvas.Left="1266.7" Canvas.Top="86.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture8.png" Width="116" Height="116" Canvas.Left="1266.7" Canvas.Top="230.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
@@ -229,7 +252,7 @@
                     <!-- RIGHT CONTINUOUS TILING (Cols 10-13, X = 1574.1 to 1948.3)   -->
                     <!-- ============================================================ -->
                     <!-- Col 10 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture19.png" Width="116" Height="116" Canvas.Left="1516.1" Canvas.Top="-58.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="116" Height="116" Canvas.Left="1516.1" Canvas.Top="-58.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture25.png" Width="116" Height="116" Canvas.Left="1516.1" Canvas.Top="86.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture30.png" Width="116" Height="116" Canvas.Left="1516.1" Canvas.Top="230.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
@@ -239,16 +262,25 @@
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture23.png" Width="116" Height="116" Canvas.Left="1640.8" Canvas.Top="302.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 12 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="1765.5" Canvas.Top="-58.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="116" Height="116" Canvas.Left="1765.5" Canvas.Top="-58.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="116" Height="116" Canvas.Left="1765.5" Canvas.Top="86.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="116" Height="116" Canvas.Left="1765.5" Canvas.Top="230.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 13 (Far Right Flank: repeats Col 2 with ~1372px distance) -->
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="1890.2" Canvas.Top="14.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="116" Height="116" Canvas.Left="1890.2" Canvas.Top="158.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture19.png" Width="116" Height="116" Canvas.Left="1890.2" Canvas.Top="158.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                     <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="116" Height="116" Canvas.Left="1890.2" Canvas.Top="302.0" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                 </Canvas>
             </Grid>
+
+            <!-- Atmospheric Glow Overlay (ZIndex="5": covers lower canopy images, fading out towards the top) -->
+            <Rectangle Grid.Row="0"
+                       Grid.RowSpan="2"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"
+                       Canvas.ZIndex="5"
+                       IsHitTestVisible="False"
+                       Fill="{ThemeResource OnboardingGlowOverlayBrush}" />
 
             <!-- Row 1: Text & Call-To-Action Button (Foreground Layer: ZIndex=10) -->
             <StackPanel Grid.Row="1"
