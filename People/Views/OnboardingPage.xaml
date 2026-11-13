@@ -144,29 +144,6 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-
-            <!-- Canopy Entrance Storyboard: Fades in and rises from behind text with BackEase bounce-back -->
-            <Storyboard x:Name="CanopyEntranceStoryboard">
-                <!-- Upward translation from behind text with fluid BackEase bounce-back -->
-                <DoubleAnimation Storyboard.TargetName="CanopyTranslation"
-                                 Storyboard.TargetProperty="Y"
-                                 From="240" To="0"
-                                 Duration="0:0:0.95">
-                    <DoubleAnimation.EasingFunction>
-                        <BackEase EasingMode="EaseOut" Amplitude="0.38" />
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-
-                <!-- Simultaneous opacity fade-in -->
-                <DoubleAnimation Storyboard.TargetName="CanopyCanvas"
-                                 Storyboard.TargetProperty="Opacity"
-                                 From="0.0" To="1.0"
-                                 Duration="0:0:0.75">
-                    <DoubleAnimation.EasingFunction>
-                        <CubicEase EasingMode="EaseOut" />
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-            </Storyboard>
         </ResourceDictionary>
     </Page.Resources>
 
@@ -199,9 +176,6 @@
                         Width="2400" Height="360"
                         HorizontalAlignment="Center"
                         Opacity="0">
-                    <Canvas.RenderTransform>
-                        <TranslateTransform x:Name="CanopyTranslation" Y="240" />
-                    </Canvas.RenderTransform>
 
                     <!-- ============================================================ -->
                     <!-- LEFT CONTINUOUS TILING (Cols 1-4, X = 40 to 860)            -->
