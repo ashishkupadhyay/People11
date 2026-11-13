@@ -178,75 +178,75 @@
                         Opacity="0">
 
                     <!-- ============================================================ -->
-                    <!-- LEFT CONTINUOUS TILING (Cols 1-4, X = 40 to 860)            -->
+                    <!-- LEFT CONTINUOUS TILING (Cols 1-4, X = 5 to 780)              -->
                     <!-- ============================================================ -->
-                    <!-- Col 1 (Far Left Flank: repeats Cols 11/12 with ~1900px distance) -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="120" Canvas.Top="26" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="114" Height="114" Canvas.Left="42" Canvas.Top="138" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="116" Height="116" Canvas.Left="104" Canvas.Top="236" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <!-- Col 1 (Far Left Flank: repeats Cols 11/12 with ~1886px distance) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="127" Canvas.Top="24" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="114" Height="114" Canvas.Left="5" Canvas.Top="112" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="116" Height="116" Canvas.Left="78" Canvas.Top="237" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 2 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="316" Canvas.Top="32" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="116" Height="116" Canvas.Left="238" Canvas.Top="140" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="118" Height="118" Canvas.Left="300" Canvas.Top="240" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="271" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="116" Height="116" Canvas.Left="195" Canvas.Top="152" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="118" Height="118" Canvas.Left="314" Canvas.Top="242" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 3 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture2.png" Width="116" Height="116" Canvas.Left="512" Canvas.Top="24" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture8.png" Width="118" Height="118" Canvas.Left="434" Canvas.Top="136" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture14.png" Width="114" Height="114" Canvas.Left="496" Canvas.Top="234" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture2.png" Width="116" Height="116" Canvas.Left="505" Canvas.Top="13" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture8.png" Width="118" Height="118" Canvas.Left="389" Canvas.Top="116" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture14.png" Width="114" Height="114" Canvas.Left="465" Canvas.Top="244" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 4 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture3.png" Width="118" Height="118" Canvas.Left="710" Canvas.Top="30" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture9.png" Width="114" Height="114" Canvas.Left="630" Canvas.Top="144" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture15.png" Width="116" Height="116" Canvas.Left="692" Canvas.Top="238" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture3.png" Width="118" Height="118" Canvas.Left="660" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture9.png" Width="114" Height="114" Canvas.Left="572" Canvas.Top="144" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture15.png" Width="116" Height="116" Canvas.Left="694" Canvas.Top="228" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- ============================================================ -->
-                    <!-- CENTER ARCH CLUSTER (Cols 5-9, X = 820 to 1580, center X=1200) -->
+                    <!-- CENTER ARCH CLUSTER (Cols 5-9, X = 780 to 1620, center X=1200) -->
                     <!-- ============================================================ -->
                     <!-- Col 5 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture4.png" Width="116" Height="116" Canvas.Left="902" Canvas.Top="34" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture10.png" Width="116" Height="116" Canvas.Left="828" Canvas.Top="148" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="114" Height="114" Canvas.Left="848" Canvas.Top="246" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture4.png" Width="116" Height="116" Canvas.Left="886" Canvas.Top="11" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture10.png" Width="116" Height="116" Canvas.Left="780" Canvas.Top="112" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture16.png" Width="114" Height="114" Canvas.Left="838" Canvas.Top="244" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 6 (Arch Left Wing) -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture5.png" Width="118" Height="118" Canvas.Left="1030" Canvas.Top="116" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture11.png" Width="116" Height="116" Canvas.Left="982" Canvas.Top="228" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture5.png" Width="118" Height="118" Canvas.Left="1015" Canvas.Top="80" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture11.png" Width="116" Height="116" Canvas.Left="980" Canvas.Top="222" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 7 (Arch Crown Keystone & Suspended Center Midpoint) -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture6.png" Width="116" Height="116" Canvas.Left="1142" Canvas.Top="12" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture12.png" Width="112" Height="112" Canvas.Left="1144" Canvas.Top="176" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture6.png" Width="116" Height="116" Canvas.Left="1142" Canvas.Top="9" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture12.png" Width="112" Height="112" Canvas.Left="1144" Canvas.Top="166" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 8 (Arch Right Wing) -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture17.png" Width="116" Height="116" Canvas.Left="1252" Canvas.Top="112" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture22.png" Width="118" Height="118" Canvas.Left="1304" Canvas.Top="222" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture17.png" Width="116" Height="116" Canvas.Left="1269" Canvas.Top="80" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture22.png" Width="118" Height="118" Canvas.Left="1302" Canvas.Top="222" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 9 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture18.png" Width="118" Height="118" Canvas.Left="1380" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture24.png" Width="118" Height="118" Canvas.Left="1458" Canvas.Top="142" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture29.png" Width="116" Height="116" Canvas.Left="1436" Canvas.Top="248" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture18.png" Width="118" Height="118" Canvas.Left="1396" Canvas.Top="11" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture24.png" Width="118" Height="118" Canvas.Left="1502" Canvas.Top="112" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture29.png" Width="116" Height="116" Canvas.Left="1446" Canvas.Top="244" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- ============================================================ -->
-                    <!-- RIGHT CONTINUOUS TILING (Cols 10-13, X = 1570 to 2350)       -->
+                    <!-- RIGHT CONTINUOUS TILING (Cols 10-13, X = 1590 to 2395)       -->
                     <!-- ============================================================ -->
                     <!-- Col 10 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture19.png" Width="116" Height="116" Canvas.Left="1572" Canvas.Top="26" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture25.png" Width="118" Height="118" Canvas.Left="1650" Canvas.Top="138" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture30.png" Width="114" Height="114" Canvas.Left="1588" Canvas.Top="236" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture19.png" Width="116" Height="116" Canvas.Left="1624" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture25.png" Width="118" Height="118" Canvas.Left="1710" Canvas.Top="144" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture30.png" Width="114" Height="114" Canvas.Left="1592" Canvas.Top="228" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 11 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture20.png" Width="118" Height="118" Canvas.Left="1768" Canvas.Top="30" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture26.png" Width="114" Height="114" Canvas.Left="1846" Canvas.Top="142" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture23.png" Width="116" Height="116" Canvas.Left="1784" Canvas.Top="238" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture20.png" Width="118" Height="118" Canvas.Left="1777" Canvas.Top="13" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture26.png" Width="114" Height="114" Canvas.Left="1897" Canvas.Top="116" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture23.png" Width="116" Height="116" Canvas.Left="1819" Canvas.Top="244" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
                     <!-- Col 12 -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="1964" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="118" Height="118" Canvas.Left="2042" Canvas.Top="136" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="114" Height="114" Canvas.Left="1980" Canvas.Top="234" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture21.png" Width="116" Height="116" Canvas.Left="2013" Canvas.Top="28" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture27.png" Width="118" Height="118" Canvas.Left="2087" Canvas.Top="152" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture28.png" Width="114" Height="114" Canvas.Left="1972" Canvas.Top="242" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
 
-                    <!-- Col 13 (Far Right Flank: repeats Col 2 with ~1900px distance) -->
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="2160" Canvas.Top="32" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="114" Height="114" Canvas.Left="2238" Canvas.Top="140" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
-                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="116" Height="116" Canvas.Left="2176" Canvas.Top="240" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <!-- Col 13 (Far Right Flank: repeats Col 2 with ~1886px distance) -->
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture1.png" Width="116" Height="116" Canvas.Left="2157" Canvas.Top="24" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture7.png" Width="114" Height="114" Canvas.Left="2281" Canvas.Top="112" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
+                    <Image Source="ms-appx:///Assets/ProfilePictures/ProfilePicture13.png" Width="116" Height="116" Canvas.Left="2206" Canvas.Top="237" Stretch="UniformToFill" AutomationProperties.AccessibilityView="Raw" />
                 </Canvas>
             </Grid>
 

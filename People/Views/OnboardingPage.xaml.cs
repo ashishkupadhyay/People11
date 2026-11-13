@@ -57,8 +57,8 @@ public sealed partial class OnboardingPage : Page
 
         const double canopyEpicenterX = 1200.0;
         const double canopyEpicenterY = 150.0;
-        const double minCanopyDistance = 80.0;
-        const double maxCanopyDistance = 1102.0;
+        const double minCanopyDistance = 72.0;
+        const double maxCanopyDistance = 1138.0;
         const double maxStaggerDurationMs = 240.0;
 
         int imageIndex = 0;
