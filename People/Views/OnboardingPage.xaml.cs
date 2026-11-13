@@ -1,11 +1,16 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using People.Core.Interfaces;
 
@@ -18,7 +23,34 @@ public sealed partial class OnboardingPage : Page
     private const float ReboundDipY = 7.0f;
     private const float FinalY = 0.0f;
 
+    private const double HexDeltaX = 124.707658144959; // 72 * sqrt(3)
+    private const double HexPitchY = 144.0;
+    private const double CanopyCenterX = 2000.0;
+
+    private static readonly BitmapImage[] s_profilePictures = new BitmapImage[31];
+
+    private static readonly Dictionary<int, List<int>> s_curatedColumns = new()
+    {
+        { 0, new List<int> { 6, 12, 16 } },
+        { -1, new List<int> { 30, 5, 11 } },
+        { 1, new List<int> { 13, 2, 8 } },
+        { -2, new List<int> { 4, 19, 21 } },
+        { 2, new List<int> { 18, 24, 3 } },
+        { -3, new List<int> { 29, 9, 15, 27 } },
+        { 3, new List<int> { 7, 25, 30, 14 } },
+        { -4, new List<int> { 17, 22, 14, 8 } },
+        { 4, new List<int> { 20, 26, 23, 5 } },
+        { -5, new List<int> { 1, 10, 13, 6, 25 } },
+        { 5, new List<int> { 16, 27, 28, 12, 2 } },
+        { -6, new List<int> { 16, 27, 28, 19, 9 } },
+        { 6, new List<int> { 1, 19, 13, 29, 21 } }
+    };
+
+    private readonly HashSet<int> _generatedColumns = new();
+    private readonly Dictionary<(int, int), int> _assignedAssets = new();
+
     private bool _animationsStarted;
+    private int _currentMaxK = -1;
 
     public OnboardingPage()
     {
@@ -31,11 +63,136 @@ public sealed partial class OnboardingPage : Page
         if (_animationsStarted) return;
         _animationsStarted = true;
 
-        StartStaggeredCanopyAnimation();
+        double width = ActualWidth > 0 ? ActualWidth : (CanopyHost.ActualWidth > 0 ? CanopyHost.ActualWidth : 1200.0);
+        EnsureColumnsForWidth(width);
+
+        StartStaggeredCanopyAnimation(CanopyCanvas.Children.OfType<FrameworkElement>());
         CanopyCanvas.Opacity = 1.0;
     }
 
-    private void StartStaggeredCanopyAnimation()
+    private void OnboardingPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.NewSize.Width <= 0) return;
+        EnsureColumnsForWidth(e.NewSize.Width);
+    }
+
+    private void EnsureColumnsForWidth(double width)
+    {
+        int maxK = (int)Math.Ceiling((width / 2.0) / HexDeltaX) + 1;
+        if (maxK < 3) maxK = 3;
+
+        if (maxK <= _currentMaxK) return;
+        _currentMaxK = maxK;
+
+        for (int k = -maxK; k <= maxK; k++)
+        {
+            if (_generatedColumns.Contains(k)) continue;
+            _generatedColumns.Add(k);
+
+            int count = GetImageCountForColumn(k);
+            double left = GetColumnLeft(k);
+
+            for (int row = 0; row < count; row++)
+            {
+                int assetId = GetOrAssignAsset(k, row);
+                double top = GetImageTop(k, row);
+
+                var img = new Image
+                {
+                    Source = GetProfileImage(assetId),
+                    Width = 116,
+                    Height = 116,
+                    Stretch = Stretch.UniformToFill
+                };
+                AutomationProperties.SetAccessibilityView(img, AccessibilityView.Raw);
+                Canvas.SetLeft(img, left);
+                Canvas.SetTop(img, top);
+
+                CanopyCanvas.Children.Add(img);
+
+                if (_animationsStarted)
+                {
+                    img.Opacity = 1.0;
+                }
+            }
+        }
+    }
+
+    private static int GetImageCountForColumn(int k)
+    {
+        int absK = Math.Abs(k);
+        if (absK <= 2) return 3;
+        return 3 + ((absK - 1) / 2);
+    }
+
+    private static double GetColumnLeft(int k)
+    {
+        return (CanopyCenterX - 58.0) + (k * HexDeltaX);
+    }
+
+    private static double GetImageTop(int k, int row)
+    {
+        bool isEven = (Math.Abs(k) % 2 == 0);
+        double baseTop = isEven ? 14.0 : -58.0;
+        return baseTop + (row * HexPitchY);
+    }
+
+    private int GetOrAssignAsset(int k, int row)
+    {
+        if (_assignedAssets.TryGetValue((k, row), out int cached))
+        {
+            return cached;
+        }
+
+        if (s_curatedColumns.TryGetValue(k, out var list) && row < list.Count)
+        {
+            int curatedId = list[row];
+            _assignedAssets[(k, row)] = curatedId;
+            return curatedId;
+        }
+
+        var forbidden = new HashSet<int>();
+        if (_assignedAssets.TryGetValue((k, row - 1), out int above)) forbidden.Add(above);
+        if (_assignedAssets.TryGetValue((k, row + 1), out int below)) forbidden.Add(below);
+
+        bool isEven = (Math.Abs(k) % 2 == 0);
+        int r1 = isEven ? row : row - 1;
+        int r2 = isEven ? row + 1 : row;
+
+        if (_assignedAssets.TryGetValue((k - 1, r1), out int n1)) forbidden.Add(n1);
+        if (_assignedAssets.TryGetValue((k - 1, r2), out int n2)) forbidden.Add(n2);
+        if (_assignedAssets.TryGetValue((k + 1, r1), out int n3)) forbidden.Add(n3);
+        if (_assignedAssets.TryGetValue((k + 1, r2), out int n4)) forbidden.Add(n4);
+
+        int hash = Math.Abs(k * 37 + row * 19 + 7);
+        int candidate = (hash % 30) + 1;
+        int chosen = candidate;
+
+        for (int step = 0; step < 30; step++)
+        {
+            int assetId = ((candidate - 1 + step) % 30) + 1;
+            if (!forbidden.Contains(assetId))
+            {
+                chosen = assetId;
+                break;
+            }
+        }
+
+        _assignedAssets[(k, row)] = chosen;
+        return chosen;
+    }
+
+    private static BitmapImage GetProfileImage(int id)
+    {
+        if (id < 1 || id > 30) id = 1;
+        if (s_profilePictures[id] == null)
+        {
+            s_profilePictures[id] = new BitmapImage(new Uri($"ms-appx:///Assets/ProfilePictures/ProfilePicture{id}.png"));
+        }
+        return s_profilePictures[id];
+    }
+
+    private void StartStaggeredCanopyAnimation(IEnumerable<FrameworkElement> elements)
     {
         Compositor compositor = CompositionTarget.GetCompositorForCurrentThread();
 
@@ -55,16 +212,15 @@ public sealed partial class OnboardingPage : Page
             new Vector2(0.16f, 0.84f),
             new Vector2(0.44f, 1.00f));
 
-        const double canopyEpicenterX = 1200.0;
+        const double canopyEpicenterX = CanopyCenterX;
         const double canopyEpicenterY = 150.0;
         const double minCanopyDistance = 66.0;
-        const double maxCanopyDistance = 778.0;
+        const double maxCanopyDistance = 900.0;
         const double maxStaggerDurationMs = 240.0;
 
         int imageIndex = 0;
-        foreach (UIElement child in CanopyCanvas.Children)
+        foreach (FrameworkElement item in elements)
         {
-            if (child is not FrameworkElement item) continue;
             imageIndex++;
 
             double left = Canvas.GetLeft(item);
