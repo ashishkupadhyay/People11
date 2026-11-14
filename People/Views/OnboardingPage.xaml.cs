@@ -62,14 +62,60 @@ public sealed partial class OnboardingPage : Page
     private void OnboardingPage_Loaded(object sender, RoutedEventArgs e)
     {
         if (_animationsStarted) return;
-        _animationsStarted = true;
 
         double width = ActualWidth > 0 ? ActualWidth : (CanopyHost.ActualWidth > 0 ? CanopyHost.ActualWidth : 1200.0);
         double height = ActualHeight > 0 ? ActualHeight : (CanopyHost.ActualHeight > 0 ? CanopyHost.ActualHeight : 700.0);
         EnsureColumnsAndRows(width, height);
 
-        StartStaggeredCanopyAnimation(CanopyCanvas.Children.OfType<FrameworkElement>());
+        TriggerCanopyEntranceWhenReady();
+    }
+
+    private void TriggerCanopyEntranceWhenReady()
+    {
+        if (_animationsStarted) return;
+
+        // Verify if keystone central images are already decoded and ready
+        var keyBmp1 = GetProfileImage(6);
+        var keyBmp2 = GetProfileImage(12);
+
+        if (keyBmp1.PixelWidth > 0 && keyBmp2.PixelWidth > 0)
+        {
+            ExecuteCanopyEntranceAnimation();
+            return;
+        }
+
+        bool executed = false;
+        void OnReady()
+        {
+            if (executed) return;
+            executed = true;
+            keyBmp1.ImageOpened -= OnBmpOpened;
+            keyBmp2.ImageOpened -= OnBmpOpened;
+            ExecuteCanopyEntranceAnimation();
+        }
+
+        void OnBmpOpened(object? s, RoutedEventArgs args) => DispatcherQueue.TryEnqueue(OnReady);
+
+        keyBmp1.ImageOpened += OnBmpOpened;
+        keyBmp2.ImageOpened += OnBmpOpened;
+
+        // Safety fallback: if ImageOpened does not fire within 80ms, start entrance anyway
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+        timer.Tick += (s, args) =>
+        {
+            timer.Stop();
+            OnReady();
+        };
+        timer.Start();
+    }
+
+    private void ExecuteCanopyEntranceAnimation()
+    {
+        if (_animationsStarted) return;
+        _animationsStarted = true;
+
         CanopyCanvas.Opacity = 1.0;
+        StartStaggeredCanopyAnimation(CanopyCanvas.Children.OfType<FrameworkElement>());
     }
 
     private void OnboardingPage_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -183,12 +229,27 @@ public sealed partial class OnboardingPage : Page
         return chosen;
     }
 
+    public static void PreloadProfilePictures()
+    {
+        for (int i = 1; i <= 30; i++)
+        {
+            GetProfileImage(i);
+        }
+    }
+
     private static BitmapImage GetProfileImage(int id)
     {
         if (id < 1 || id > 30) id = 1;
         if (s_profilePictures[id] == null)
         {
-            s_profilePictures[id] = new BitmapImage(new Uri($"ms-appx:///Assets/ProfilePictures/ProfilePicture{id}.png"));
+            var bmp = new BitmapImage
+            {
+                DecodePixelWidth = 116,
+                DecodePixelHeight = 116,
+                DecodePixelType = DecodePixelType.Logical,
+                UriSource = new Uri($"ms-appx:///Assets/ProfilePictures/ProfilePicture{id}.png")
+            };
+            s_profilePictures[id] = bmp;
         }
         return s_profilePictures[id];
     }

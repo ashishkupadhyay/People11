@@ -17,21 +17,21 @@
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#202020" />
 
                     <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
-                                         Center="0.5, 1.0"
-                                         GradientOrigin="0.5, 1.0"
-                                         RadiusX="0.55" RadiusY="0.80">
-                        <!-- Bottom Center: Dense Luminous Core behind text -->
-                        <GradientStop Color="#FF464C5E" Offset="0.00" />
+                                         Center="0.5, 1.25"
+                                         GradientOrigin="0.5, 1.25"
+                                         RadiusX="0.95" RadiusY="0.80">
+                        <!-- Bottom Center: Dense Luminous Core behind text & button -->
+                        <GradientStop Color="#FF3E4556" Offset="0.00" />
                         <!-- Row 1 Lower: Solid Atmosphere behind text & button -->
-                        <GradientStop Color="#FF343A48" Offset="0.25" />
-                        <!-- Dense Shadow Bed (96% opaque veil over lower canopy) -->
-                        <GradientStop Color="#F5282C37" Offset="0.45" />
-                        <!-- Canopy Mid-Lower Tier: 80% opaque dark shadow veil -->
-                        <GradientStop Color="#CC22242D" Offset="0.65" />
-                        <!-- Canopy Mid Tier: 40% soft translucent emergence -->
-                        <GradientStop Color="#66202020" Offset="0.82" />
-                        <!-- Canopy Upper Transition: Gentle 10% feather -->
-                        <GradientStop Color="#1A202020" Offset="0.93" />
+                        <GradientStop Color="#FF303644" Offset="0.22" />
+                        <!-- Solid Shadow Bed: 100% opaque window grey #202020 covering lower tiers -->
+                        <GradientStop Color="#FF202020" Offset="0.48" />
+                        <!-- Deep Veil: 96% opaque #202020 covering bottom corners & lower avatars -->
+                        <GradientStop Color="#F5202020" Offset="0.65" />
+                        <!-- Canopy Mid Tier: 70% dark shadow veil -->
+                        <GradientStop Color="#B2202020" Offset="0.80" />
+                        <!-- Canopy Upper Transition: Gentle 25% feather -->
+                        <GradientStop Color="#40202020" Offset="0.92" />
                         <!-- Canopy Top & Crown: 100% Clear & Pristine -->
                         <GradientStop Color="#00202020" Offset="1.00" />
                     </RadialGradientBrush>
@@ -54,21 +54,21 @@
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#F5F6F8" />
 
                     <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
-                                         Center="0.5, 1.0"
-                                         GradientOrigin="0.5, 1.0"
-                                         RadiusX="0.55" RadiusY="0.80">
-                        <!-- Bottom Center: Rich Cool Slate Shadow Core -->
-                        <GradientStop Color="#FFA6B0C4" Offset="0.00" />
+                                         Center="0.5, 1.25"
+                                         GradientOrigin="0.5, 1.25"
+                                         RadiusX="0.95" RadiusY="0.80">
+                        <!-- Bottom Center: Rich Cool Slate Shadow Core behind text & button -->
+                        <GradientStop Color="#FFA0ABBE" Offset="0.00" />
                         <!-- Row 1 Lower: Solid Cool Shadow Atmosphere behind text & button -->
-                        <GradientStop Color="#FFB4BED2" Offset="0.25" />
-                        <!-- Dense Shadow Bed (96% opaque veil over lower canopy) -->
-                        <GradientStop Color="#F5C2CCDC" Offset="0.45" />
-                        <!-- Canopy Mid-Lower Tier: 80% opaque cool shadow veil -->
-                        <GradientStop Color="#CCD0DAE6" Offset="0.65" />
-                        <!-- Canopy Mid Tier: 40% soft translucent emergence -->
-                        <GradientStop Color="#66DFE4EE" Offset="0.82" />
-                        <!-- Canopy Upper Transition: Gentle 10% feather to window surface -->
-                        <GradientStop Color="#1AF5F6F8" Offset="0.93" />
+                        <GradientStop Color="#FFB8C2D4" Offset="0.22" />
+                        <!-- Solid Shadow Bed: 100% opaque window surface #F5F6F8 covering lower tiers -->
+                        <GradientStop Color="#FFF5F6F8" Offset="0.48" />
+                        <!-- Deep Veil: 96% opaque #F5F6F8 covering bottom corners & lower avatars -->
+                        <GradientStop Color="#F5F5F6F8" Offset="0.65" />
+                        <!-- Canopy Mid Tier: 70% cool shadow veil -->
+                        <GradientStop Color="#B2F5F6F8" Offset="0.80" />
+                        <!-- Canopy Upper Transition: Gentle 25% feather to window surface -->
+                        <GradientStop Color="#40F5F6F8" Offset="0.92" />
                         <!-- Canopy Top & Crown: 100% Clear & Pristine -->
                         <GradientStop Color="#00F5F6F8" Offset="1.00" />
                     </RadialGradientBrush>
@@ -220,12 +220,12 @@
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Padding="24,0"
-                        Margin="0,0,0,40">
+                        Margin="0,0,0,56">
                 <TextBlock Text="People"
                            Style="{ThemeResource TitleLargeTextBlockStyle}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center"
-                           Margin="0,0,0,16" />
+                           Margin="0,0,0,26" />
 
                 <TextBlock Text="Chat across WhatsApp, SMS, Telegram, Signal, and Discord in a single app."
                            Style="{ThemeResource BodyLargeTextBlockStyle}"

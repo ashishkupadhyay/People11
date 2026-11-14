@@ -145,6 +145,7 @@ public sealed partial class MainWindow : Window
         bool hasActivePlatform = HasActiveOrSignedInPlatform(App.Current.Services);
         if (!hasCompletedOnboarding || !hasActivePlatform)
         {
+            Views.OnboardingPage.PreloadProfilePictures();
             RootFrame.Navigate(typeof(Views.OnboardingPage));
         }
         else
@@ -169,6 +170,7 @@ public sealed partial class MainWindow : Window
 
     public void ShowOnboarding()
     {
+        Views.OnboardingPage.PreloadProfilePictures();
         RootFrame.Navigate(typeof(Views.OnboardingPage), null, new Microsoft.UI.Xaml.Media.Animation.DrillInNavigationTransitionInfo());
     }
 

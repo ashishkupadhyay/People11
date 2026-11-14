@@ -140,6 +140,7 @@ public class TrayIconService : ITrayIconService
         {
             var targetTheme = isLight ? ElementTheme.Light : ElementTheme.Dark;
             var presenterStyle = new Style(typeof(MenuFlyoutPresenter));
+            presenterStyle.Setters.Add(new Setter(FrameworkElement.MinWidthProperty, 210.0));
             presenterStyle.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, targetTheme));
             _contextMenu.MenuFlyoutPresenterStyle = presenterStyle;
 
@@ -171,7 +172,7 @@ public class TrayIconService : ITrayIconService
     {
         var menu = new MenuFlyout();
 
-        var openAppItem = new MenuFlyoutItem { Text = "Open Main App" };
+        var openAppItem = new MenuFlyoutItem { Text = "Open Main App", MinWidth = 190.0 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(openAppItem, "TrayOpenAppMenuBtn");
         Action openAction = () =>
         {
@@ -186,7 +187,7 @@ public class TrayIconService : ITrayIconService
         openAppItem.Command = new CommunityToolkit.Mvvm.Input.RelayCommand(openAction);
         openAppItem.Click += (s, e) => openAction();
 
-        var settingsItem = new MenuFlyoutItem { Text = "Settings" };
+        var settingsItem = new MenuFlyoutItem { Text = "Settings", MinWidth = 190.0 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(settingsItem, "TraySettingsMenuBtn");
         Action settingsAction = () =>
         {
@@ -203,7 +204,7 @@ public class TrayIconService : ITrayIconService
         settingsItem.Command = new CommunityToolkit.Mvvm.Input.RelayCommand(settingsAction);
         settingsItem.Click += (s, e) => settingsAction();
 
-        var quitItem = new MenuFlyoutItem { Text = "Quit" };
+        var quitItem = new MenuFlyoutItem { Text = "Quit", MinWidth = 190.0 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(quitItem, "TrayQuitMenuBtn");
         Action quitAction = () =>
         {
@@ -220,6 +221,7 @@ public class TrayIconService : ITrayIconService
         var isLight = IsSystemUsesLightTheme();
         var targetTheme = isLight ? ElementTheme.Light : ElementTheme.Dark;
         var presenterStyle = new Style(typeof(MenuFlyoutPresenter));
+        presenterStyle.Setters.Add(new Setter(FrameworkElement.MinWidthProperty, 210.0));
         presenterStyle.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, targetTheme));
         menu.MenuFlyoutPresenterStyle = presenterStyle;
 
