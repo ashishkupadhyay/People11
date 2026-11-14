@@ -34,19 +34,19 @@
                         <GradientStop Color="#00202020" Offset="1.00" />
                     </RadialGradientBrush>
 
-                    <!-- Atmospheric Luminous Glow Bloom (ZIndex="6"): Radiant Royal-Blue / Indigo aura centered at bottom -->
+                    <!-- Atmospheric Luminous Glow Bloom (ZIndex="6"): Concentrated Royal-Blue / Indigo aura centered at bottom -->
                     <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
                                          Center="0.5, 1.05"
                                          GradientOrigin="0.5, 1.05"
-                                         RadiusX="0.60" RadiusY="0.55">
+                                         RadiusX="0.48" RadiusY="0.38">
                         <!-- Bottom Center: Radiant Luminous Royal Blue Core -->
-                        <GradientStop Color="#B05B82D0" Offset="0.00" />
-                        <!-- Row 1 Lower: Atmospheric Glow bathing button & subtitle -->
-                        <GradientStop Color="#804868B4" Offset="0.30" />
-                        <!-- Row 1 Mid: Soft Atmospheric aura behind People text -->
-                        <GradientStop Color="#35344E88" Offset="0.65" />
+                        <GradientStop Color="#A05B82D0" Offset="0.00" />
+                        <!-- Row 1 Lower: Atmospheric Glow bathing button -->
+                        <GradientStop Color="#704868B4" Offset="0.32" />
+                        <!-- Transition aura -->
+                        <GradientStop Color="#25344E88" Offset="0.68" />
                         <!-- Canopy Transition: Gentle feather -->
-                        <GradientStop Color="#10263660" Offset="0.88" />
+                        <GradientStop Color="#08263660" Offset="0.88" />
                         <!-- Clear fade -->
                         <GradientStop Color="#00202020" Offset="1.00" />
                     </RadialGradientBrush>
