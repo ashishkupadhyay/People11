@@ -101,7 +101,7 @@ public sealed partial class FlyoutWindow : Window
         ApplyFlyoutBackdrop();
 
         ContentFrame.Navigated += ContentFrame_Navigated;
-        NavigateToPlatform("WhatsApp");
+        UpdateNavigationState();
 
         this.Activated += OnActivated;
     }
@@ -115,6 +115,10 @@ public sealed partial class FlyoutWindow : Window
         else if (key.StartsWith("BrandColor_") || key == "AppTheme" || key == $"{_selectedPlatform}Enabled")
         {
             DispatcherQueue.TryEnqueue(() => ApplyFlyoutPlatformAccent(_selectedPlatform));
+        }
+        else if (key == "HasCompletedOnboarding")
+        {
+            DispatcherQueue.TryEnqueue(UpdateNavigationState);
         }
     }
 
@@ -144,6 +148,11 @@ public sealed partial class FlyoutWindow : Window
 
     private void ApplyFlyoutPlatformAccent(string platform)
     {
+        if (ContentFrame.Content is OnboardingPage)
+        {
+            return;
+        }
+
         var themeService = App.Current.Services.GetRequiredService<IThemeService>();
         themeService.ApplyAccentToResourceDictionary(RootGrid.Resources, platform);
         CurrentFlyoutResources = RootGrid.Resources;
@@ -235,6 +244,7 @@ public sealed partial class FlyoutWindow : Window
     public void ShowFlyoutAnimated(POINT? anchorPos = null)
     {
         IsFlyoutVisible = true;
+        UpdateNavigationState();
         PositionAndResizeWindow(anchorPos);
         ApplyFlyoutPlatformAccent(_selectedPlatform);
 
@@ -425,6 +435,32 @@ public sealed partial class FlyoutWindow : Window
         return false;
     }
 
+    public void UpdateNavigationState()
+    {
+        bool hasSignedInPlatform = MainWindow.HasActiveOrSignedInPlatform(App.Current.Services);
+        if (!hasSignedInPlatform)
+        {
+            FlyoutHeaderBar.Visibility = Visibility.Collapsed;
+            if (ContentFrame.Content is not OnboardingPage)
+            {
+                Views.OnboardingPage.PreloadProfilePictures();
+                ContentFrame.Navigate(typeof(OnboardingPage), "Flyout");
+            }
+        }
+        else
+        {
+            FlyoutHeaderBar.Visibility = Visibility.Visible;
+            if (ContentFrame.Content is OnboardingPage || ContentFrame.Content == null)
+            {
+                NavigateToPlatform(_selectedPlatform);
+            }
+            else
+            {
+                ApplyFlyoutPlatformAccent(_selectedPlatform);
+            }
+        }
+    }
+
     private void NavigateToPlatform(string platform)
     {
         _selectedPlatform = platform;
@@ -444,6 +480,15 @@ public sealed partial class FlyoutWindow : Window
 
     private void ContentFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
+        if (ContentFrame.Content is OnboardingPage)
+        {
+            FlyoutHeaderBar.Visibility = Visibility.Collapsed;
+            FlyoutBackButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        FlyoutHeaderBar.Visibility = Visibility.Visible;
+
         if (_currentChatListPage != null)
         {
             _currentChatListPage.ConversationOpened -= OnConversationOpened;

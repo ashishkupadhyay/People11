@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
         
         <!-- Flyout Header Bar -->
-        <Border Grid.Row="0" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+        <Border x:Name="FlyoutHeaderBar" Grid.Row="0" Background="Transparent" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1" Padding="12,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />

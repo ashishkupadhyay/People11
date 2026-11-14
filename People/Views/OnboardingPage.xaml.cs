@@ -31,7 +31,7 @@ public sealed partial class OnboardingPage : Page
 
     private static readonly Dictionary<int, List<int>> s_curatedColumns = new()
     {
-        { 0, new List<int> { 6, 12, 16 } },
+        { 0, new List<int> { 12, 16, 6 } },
         { -1, new List<int> { 30, 5, 11 } },
         { 1, new List<int> { 13, 2, 8 } },
         { -2, new List<int> { 4, 19, 21 } },
@@ -40,9 +40,9 @@ public sealed partial class OnboardingPage : Page
         { 3, new List<int> { 7, 25, 30, 14 } },
         { -4, new List<int> { 17, 22, 14, 8 } },
         { 4, new List<int> { 20, 26, 23, 5 } },
-        { -5, new List<int> { 1, 10, 13, 6, 25 } },
-        { 5, new List<int> { 16, 27, 28, 12, 2 } },
-        { -6, new List<int> { 16, 27, 28, 19, 9 } },
+        { -5, new List<int> { 1, 10, 13, 12, 25 } },
+        { 5, new List<int> { 6, 27, 28, 16, 2 } },
+        { -6, new List<int> { 6, 27, 28, 19, 9 } },
         { 6, new List<int> { 1, 19, 13, 29, 21 } }
     };
 
@@ -50,6 +50,7 @@ public sealed partial class OnboardingPage : Page
     private readonly Dictionary<(int, int), int> _assignedAssets = new();
 
     private bool _animationsStarted;
+    private bool _isFlyout;
     private int _currentMaxK = -1;
     private int _currentTargetRows = -1;
 
@@ -65,9 +66,23 @@ public sealed partial class OnboardingPage : Page
 
         double width = ActualWidth > 0 ? ActualWidth : (CanopyHost.ActualWidth > 0 ? CanopyHost.ActualWidth : 1200.0);
         double height = ActualHeight > 0 ? ActualHeight : (CanopyHost.ActualHeight > 0 ? CanopyHost.ActualHeight : 700.0);
+        UpdateTopSpacerHeight(height);
         EnsureColumnsAndRows(width, height);
 
         TriggerCanopyEntranceWhenReady();
+    }
+
+    private void UpdateTopSpacerHeight(double height)
+    {
+        if (height < 680.0)
+        {
+            double spacerHeight = Math.Max(100.0, height - 340.0);
+            TopSpacerRow.Height = new GridLength(spacerHeight, GridUnitType.Pixel);
+        }
+        else
+        {
+            TopSpacerRow.Height = new GridLength(360.0, GridUnitType.Pixel);
+        }
     }
 
     private void TriggerCanopyEntranceWhenReady()
@@ -75,8 +90,8 @@ public sealed partial class OnboardingPage : Page
         if (_animationsStarted) return;
 
         // Verify if keystone central images are already decoded and ready
-        var keyBmp1 = GetProfileImage(6);
-        var keyBmp2 = GetProfileImage(12);
+        var keyBmp1 = GetProfileImage(12);
+        var keyBmp2 = GetProfileImage(16);
 
         if (keyBmp1.PixelWidth > 0 && keyBmp2.PixelWidth > 0)
         {
@@ -121,6 +136,7 @@ public sealed partial class OnboardingPage : Page
     private void OnboardingPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (e.NewSize.Width <= 0 || e.NewSize.Height <= 0) return;
+        UpdateTopSpacerHeight(e.NewSize.Height);
         EnsureColumnsAndRows(e.NewSize.Width, e.NewSize.Height);
     }
 
@@ -329,9 +345,16 @@ public sealed partial class OnboardingPage : Page
     {
         base.OnNavigatedTo(e);
 
-        if (App.Current.MainWindow is MainWindow mainWindow)
+        _isFlyout = (e.Parameter as string == "Flyout") || (FlyoutWindow.CurrentFlyoutWindow != null && this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot);
+
+        if (!_isFlyout && App.Current.MainWindow is MainWindow mainWindow)
         {
             mainWindow.SetTitleBar(OnboardingTitleBar);
+            OnboardingTitleBar.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            OnboardingTitleBar.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -340,10 +363,24 @@ public sealed partial class OnboardingPage : Page
         var settingsService = App.Current.Services.GetRequiredService<ISettingsService>();
         settingsService.SetValue("HasCompletedOnboarding", true);
 
-        if (this.Frame is Frame rootFrame)
+        bool isFlyout = _isFlyout || (FlyoutWindow.CurrentFlyoutWindow != null && this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot);
+
+        if (isFlyout)
         {
-            rootFrame.Navigate(typeof(MainShellPage), null, new DrillInNavigationTransitionInfo());
-            rootFrame.BackStack.Clear();
+            if (App.Current.MainWindow is MainWindow mainWindow)
+            {
+                mainWindow.BringToFront();
+                mainWindow.OpenPlatform("WhatsApp");
+            }
+            FlyoutWindow.CurrentFlyoutWindow?.HideFlyoutAnimated();
+        }
+        else
+        {
+            if (this.Frame is Frame rootFrame)
+            {
+                rootFrame.Navigate(typeof(MainShellPage), null, new DrillInNavigationTransitionInfo());
+                rootFrame.BackStack.Clear();
+            }
         }
     }
 }

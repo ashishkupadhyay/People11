@@ -215,8 +215,8 @@
         <!-- Main Onboarding Content Layout -->
         <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Grid.RowDefinitions>
-                <!-- Row 0: Fixed 360px upper viewport boundary for top canopy tiers -->
-                <RowDefinition Height="360" />
+                <!-- Row 0: Upper viewport boundary for top canopy tiers -->
+                <RowDefinition x:Name="TopSpacerRow" Height="360" />
                 <!-- Row 1: Responsive lower viewport for text, CTA button, and lower expanding columns -->
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
