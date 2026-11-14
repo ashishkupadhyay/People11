@@ -12,27 +12,42 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- Dark Mode Theme Palette (Standard WinUI window dark mode grey #202020 with curved bow-shaped atmospheric glow cover overlay) -->
+                <!-- Dark Mode Theme Palette (Standard WinUI window dark mode grey #202020 with curved bow shadow veil + radiant atmospheric glow) -->
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#202020" />
 
+                    <!-- Curved Bow Shadow Veil (ZIndex="4"): +30% reach in center column (Y=0.285) while keeping edges at Y=0.57 -->
+                    <RadialGradientBrush x:Key="OnboardingShadowVeilBrush"
+                                         Center="0.5, 1.50"
+                                         GradientOrigin="0.5, 1.50"
+                                         RadiusX="0.78" RadiusY="1.215">
+                        <!-- 100% Solid Window Grey veil covering lower tiers -->
+                        <GradientStop Color="#FF202020" Offset="0.00" />
+                        <GradientStop Color="#FF202020" Offset="0.70" />
+                        <!-- Dense Veil: 96% opaque #202020 at offset 0.80 -->
+                        <GradientStop Color="#F5202020" Offset="0.80" />
+                        <!-- Mid-tier rounded dome transition -->
+                        <GradientStop Color="#A0202020" Offset="0.90" />
+                        <!-- Soft emergence feather -->
+                        <GradientStop Color="#30202020" Offset="0.96" />
+                        <!-- Pristine Clear upper canopy -->
+                        <GradientStop Color="#00202020" Offset="1.00" />
+                    </RadialGradientBrush>
+
+                    <!-- Atmospheric Luminous Glow Bloom (ZIndex="6"): Radiant Royal-Blue / Indigo aura centered at bottom -->
                     <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
-                                         Center="0.5, 1.25"
-                                         GradientOrigin="0.5, 1.25"
-                                         RadiusX="0.95" RadiusY="0.80">
-                        <!-- Bottom Center: Dense Luminous Core behind text & button -->
-                        <GradientStop Color="#FF3E4556" Offset="0.00" />
-                        <!-- Row 1 Lower: Solid Atmosphere behind text & button -->
-                        <GradientStop Color="#FF303644" Offset="0.22" />
-                        <!-- Solid Shadow Bed: 100% opaque window grey #202020 covering lower tiers -->
-                        <GradientStop Color="#FF202020" Offset="0.48" />
-                        <!-- Deep Veil: 96% opaque #202020 covering bottom corners & lower avatars -->
-                        <GradientStop Color="#F5202020" Offset="0.65" />
-                        <!-- Canopy Mid Tier: 70% dark shadow veil -->
-                        <GradientStop Color="#B2202020" Offset="0.80" />
-                        <!-- Canopy Upper Transition: Gentle 25% feather -->
-                        <GradientStop Color="#40202020" Offset="0.92" />
-                        <!-- Canopy Top & Crown: 100% Clear & Pristine -->
+                                         Center="0.5, 1.05"
+                                         GradientOrigin="0.5, 1.05"
+                                         RadiusX="0.60" RadiusY="0.55">
+                        <!-- Bottom Center: Radiant Luminous Royal Blue Core -->
+                        <GradientStop Color="#B05B82D0" Offset="0.00" />
+                        <!-- Row 1 Lower: Atmospheric Glow bathing button & subtitle -->
+                        <GradientStop Color="#804868B4" Offset="0.30" />
+                        <!-- Row 1 Mid: Soft Atmospheric aura behind People text -->
+                        <GradientStop Color="#35344E88" Offset="0.65" />
+                        <!-- Canopy Transition: Gentle feather -->
+                        <GradientStop Color="#10263660" Offset="0.88" />
+                        <!-- Clear fade -->
                         <GradientStop Color="#00202020" Offset="1.00" />
                     </RadialGradientBrush>
 
@@ -49,27 +64,42 @@
                     <SolidColorBrush x:Key="GetStartedBtnForegroundPressed" Color="#000000" />
                 </ResourceDictionary>
 
-                <!-- Light Mode Theme Palette (Clean Light Window Surface with curved bow-shaped atmospheric glow shadow overlay) -->
+                <!-- Light Mode Theme Palette (Clean Light Window Surface with curved bow shadow veil + radiant atmospheric glow) -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#F5F6F8" />
 
+                    <!-- Curved Bow Shadow Veil (ZIndex="4"): +30% reach in center column (Y=0.285) while keeping edges at Y=0.57 -->
+                    <RadialGradientBrush x:Key="OnboardingShadowVeilBrush"
+                                         Center="0.5, 1.50"
+                                         GradientOrigin="0.5, 1.50"
+                                         RadiusX="0.78" RadiusY="1.215">
+                        <!-- 100% Solid Window Surface veil covering lower tiers -->
+                        <GradientStop Color="#FFF5F6F8" Offset="0.00" />
+                        <GradientStop Color="#FFF5F6F8" Offset="0.70" />
+                        <!-- Dense Veil: 96% opaque #F5F6F8 at offset 0.80 -->
+                        <GradientStop Color="#F5F5F6F8" Offset="0.80" />
+                        <!-- Mid-tier rounded dome transition -->
+                        <GradientStop Color="#A0F5F6F8" Offset="0.90" />
+                        <!-- Soft emergence feather -->
+                        <GradientStop Color="#30F5F6F8" Offset="0.96" />
+                        <!-- Pristine Clear upper canopy -->
+                        <GradientStop Color="#00F5F6F8" Offset="1.00" />
+                    </RadialGradientBrush>
+
+                    <!-- Atmospheric Luminous Glow Bloom (ZIndex="6"): Radiant Sky-Blue aura centered at bottom -->
                     <RadialGradientBrush x:Key="OnboardingGlowOverlayBrush"
-                                         Center="0.5, 1.25"
-                                         GradientOrigin="0.5, 1.25"
-                                         RadiusX="0.95" RadiusY="0.80">
-                        <!-- Bottom Center: Rich Cool Slate Shadow Core behind text & button -->
-                        <GradientStop Color="#FFA0ABBE" Offset="0.00" />
-                        <!-- Row 1 Lower: Solid Cool Shadow Atmosphere behind text & button -->
-                        <GradientStop Color="#FFB8C2D4" Offset="0.22" />
-                        <!-- Solid Shadow Bed: 100% opaque window surface #F5F6F8 covering lower tiers -->
-                        <GradientStop Color="#FFF5F6F8" Offset="0.48" />
-                        <!-- Deep Veil: 96% opaque #F5F6F8 covering bottom corners & lower avatars -->
-                        <GradientStop Color="#F5F5F6F8" Offset="0.65" />
-                        <!-- Canopy Mid Tier: 70% cool shadow veil -->
-                        <GradientStop Color="#B2F5F6F8" Offset="0.80" />
-                        <!-- Canopy Upper Transition: Gentle 25% feather to window surface -->
-                        <GradientStop Color="#40F5F6F8" Offset="0.92" />
-                        <!-- Canopy Top & Crown: 100% Clear & Pristine -->
+                                         Center="0.5, 1.05"
+                                         GradientOrigin="0.5, 1.05"
+                                         RadiusX="0.60" RadiusY="0.55">
+                        <!-- Bottom Center: Radiant Luminous Sky Blue Core -->
+                        <GradientStop Color="#B06592E0" Offset="0.00" />
+                        <!-- Row 1 Lower: Atmospheric Glow bathing button & subtitle -->
+                        <GradientStop Color="#8084A8E8" Offset="0.30" />
+                        <!-- Row 1 Mid: Soft Atmospheric aura behind People text -->
+                        <GradientStop Color="#35B0C8F2" Offset="0.65" />
+                        <!-- Canopy Transition: Gentle feather -->
+                        <GradientStop Color="#10DCE6FA" Offset="0.88" />
+                        <!-- Clear fade -->
                         <GradientStop Color="#00F5F6F8" Offset="1.00" />
                     </RadialGradientBrush>
 
@@ -89,6 +119,7 @@
                 <!-- High Contrast Theme Palette -->
                 <ResourceDictionary x:Key="HighContrast">
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="OnboardingShadowVeilBrush" Color="Transparent" />
                     <SolidColorBrush x:Key="OnboardingGlowOverlayBrush" Color="Transparent" />
 
                     <SolidColorBrush x:Key="GetStartedBtnBackground" Color="{ThemeResource SystemColorButtonFaceColor}" />
@@ -205,12 +236,21 @@
                         Opacity="0" />
             </Grid>
 
-            <!-- Atmospheric Glow Overlay (ZIndex="5": covers lower canopy images, fading out towards the top) -->
+            <!-- Curved Bow Shadow Veil Overlay (ZIndex="4": covers lower canopy images with 30% higher center reach, keeping edges consistent) -->
             <Rectangle Grid.Row="0"
                        Grid.RowSpan="2"
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"
-                       Canvas.ZIndex="5"
+                       Canvas.ZIndex="4"
+                       IsHitTestVisible="False"
+                       Fill="{ThemeResource OnboardingShadowVeilBrush}" />
+
+            <!-- Atmospheric Luminous Glow Overlay (ZIndex="6": blooms radiant colored aura from the bottom center over the veiled background) -->
+            <Rectangle Grid.Row="0"
+                       Grid.RowSpan="2"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"
+                       Canvas.ZIndex="6"
                        IsHitTestVisible="False"
                        Fill="{ThemeResource OnboardingGlowOverlayBrush}" />
 
