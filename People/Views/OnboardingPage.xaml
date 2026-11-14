@@ -16,11 +16,11 @@
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#202020" />
 
-                    <!-- Curved Bow Shadow Veil (ZIndex="4"): +30% reach in center column (Y=0.285) while keeping edges at Y=0.57 -->
+                    <!-- Curved Bow Shadow Veil (ZIndex="4"): Center reach at Y=0.285 with elevated edge reach at Y=0.504 -->
                     <RadialGradientBrush x:Key="OnboardingShadowVeilBrush"
-                                         Center="0.5, 1.50"
-                                         GradientOrigin="0.5, 1.50"
-                                         RadiusX="0.78" RadiusY="1.215">
+                                         Center="0.5, 1.52"
+                                         GradientOrigin="0.5, 1.52"
+                                         RadiusX="0.88" RadiusY="1.235">
                         <!-- 100% Solid Window Grey veil covering lower tiers -->
                         <GradientStop Color="#FF202020" Offset="0.00" />
                         <GradientStop Color="#FF202020" Offset="0.70" />
@@ -68,11 +68,11 @@
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="OnboardingBaseBackgroundBrush" Color="#F5F6F8" />
 
-                    <!-- Curved Bow Shadow Veil (ZIndex="4"): +30% reach in center column (Y=0.285) while keeping edges at Y=0.57 -->
+                    <!-- Curved Bow Shadow Veil (ZIndex="4"): Center reach at Y=0.285 with elevated edge reach at Y=0.504 -->
                     <RadialGradientBrush x:Key="OnboardingShadowVeilBrush"
-                                         Center="0.5, 1.50"
-                                         GradientOrigin="0.5, 1.50"
-                                         RadiusX="0.78" RadiusY="1.215">
+                                         Center="0.5, 1.52"
+                                         GradientOrigin="0.5, 1.52"
+                                         RadiusX="0.88" RadiusY="1.235">
                         <!-- 100% Solid Window Surface veil covering lower tiers -->
                         <GradientStop Color="#FFF5F6F8" Offset="0.00" />
                         <GradientStop Color="#FFF5F6F8" Offset="0.70" />
