@@ -47,8 +47,12 @@ public partial class ChatListViewModel : ViewModelBase
     public partial string QrRefreshCountdownText { get; set; } = string.Empty;
 
     private System.Threading.Timer? _qrCountdownTimer;
-    private int _qrSecondsRemaining = 20;
-    private const int QrLifetimeSeconds = 20;
+    private int _qrSecondsRemaining = 60;
+    private const int FirstQrLifetimeSeconds = 60;
+    private const int SubsequentQrLifetimeSeconds = 20;
+    private bool _isFirstQrInSession = true;
+    private int _stalledRefreshSeconds = 0;
+    private bool _isRefreshingSession = false;
 
     public event EventHandler? RequestSlideToQr;
     public event EventHandler? RequestDrillInToSync;
@@ -273,11 +277,14 @@ public partial class ChatListViewModel : ViewModelBase
     {
         IsWelcomeVisible = false;
         IsQrLinkVisible = true;
+        _isFirstQrInSession = true;
+        _stalledRefreshSeconds = 0;
+        _isRefreshingSession = false;
         RequestSlideToQr?.Invoke(this, EventArgs.Empty);
 
         if (HasQrCodeBytes)
         {
-            StartQrCountdown();
+            StartQrCountdown(FirstQrLifetimeSeconds);
         }
 
         if (_provider is IWhatsAppProvider waProvider)
@@ -306,6 +313,9 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             StopQrCountdown();
+            _isFirstQrInSession = true;
+            _stalledRefreshSeconds = 0;
+            _isRefreshingSession = false;
             IsWelcomeVisible = true;
             IsQrLinkVisible = false;
             IsConnecting = false;
@@ -1204,19 +1214,24 @@ public partial class ChatListViewModel : ViewModelBase
         {
             IsConnecting = false;
             HasError = false;
+            _isRefreshingSession = false;
+            _stalledRefreshSeconds = 0;
             QrCodeBytes = GenerateQrCodeBytes(qrString);
             if (!IsWelcomeVisible)
             {
                 IsQrLinkVisible = true;
             }
-            StartQrCountdown();
+            int ttl = _isFirstQrInSession ? FirstQrLifetimeSeconds : SubsequentQrLifetimeSeconds;
+            _isFirstQrInSession = false;
+            StartQrCountdown(ttl);
         });
     }
 
-    private void StartQrCountdown()
+    private void StartQrCountdown(int ttlSeconds = 20)
     {
         _qrCountdownTimer?.Dispose();
-        _qrSecondsRemaining = QrLifetimeSeconds;
+        _qrSecondsRemaining = ttlSeconds;
+        _stalledRefreshSeconds = 0;
         UpdateQrCountdownDisplay();
 
         _qrCountdownTimer = new System.Threading.Timer(_ =>
@@ -1233,6 +1248,28 @@ public partial class ChatListViewModel : ViewModelBase
                 {
                     _qrSecondsRemaining--;
                     UpdateQrCountdownDisplay();
+                }
+                else
+                {
+                    _stalledRefreshSeconds++;
+                    UpdateQrCountdownDisplay();
+
+                    // If stuck at "Refreshing" for >= 4 seconds, WhatsApp pairing rotation has exhausted or stalled.
+                    // Automatically request a fresh QR session to resume rotation seamlessly.
+                    if (_stalledRefreshSeconds >= 4)
+                    {
+                        if (!_isRefreshingSession)
+                        {
+                            _isRefreshingSession = true;
+                            _isFirstQrInSession = true;
+                            _ = RefreshQrSessionAsync();
+                        }
+                        else if (_stalledRefreshSeconds >= 15)
+                        {
+                            _isRefreshingSession = false;
+                            _stalledRefreshSeconds = 0;
+                        }
+                    }
                 }
             });
         }, null, 1000, 1000);
@@ -1254,7 +1291,31 @@ public partial class ChatListViewModel : ViewModelBase
     {
         _qrCountdownTimer?.Dispose();
         _qrCountdownTimer = null;
+        _stalledRefreshSeconds = 0;
+        _isRefreshingSession = false;
         QrRefreshCountdownText = string.Empty;
+    }
+
+    private async Task RefreshQrSessionAsync()
+    {
+        if (_provider is IWhatsAppProvider waProvider)
+        {
+            try
+            {
+                await waProvider.DisconnectAsync();
+                await waProvider.ConnectAsync();
+                await waProvider.AuthenticateAsync();
+            }
+            catch (Exception ex)
+            {
+                _dispatcherService.Enqueue(() =>
+                {
+                    _isRefreshingSession = false;
+                    HasError = true;
+                    ErrorMessage = ex.Message;
+                });
+            }
+        }
     }
 
     private byte[] GenerateQrCodeBytes(string text)
