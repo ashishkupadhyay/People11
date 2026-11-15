@@ -103,50 +103,66 @@
                     <ToggleSwitch IsOn="{x:Bind ViewModel.IsWhatsAppEnabled, Mode=TwoWay}" AutomationProperties.Name="WhatsApp enabled" AutomationProperties.AutomationId="WhatsAppToggle" />
                     
                     <ui:SettingsExpander.Items>
-                        <ui:SettingsCard Header="Authentication" Description="Re-authenticate your WhatsApp session">
-                            <Button x:Uid="ReauthBtn" Command="{x:Bind ViewModel.ReauthenticateCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Re-authenticate WhatsApp" AutomationProperties.AutomationId="ReauthBtn" />
+                        <!-- Account / User Profile / Logout Section -->
+                        <ui:SettingsCard>
+                            <ui:SettingsCard.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                                    <Grid Width="40" Height="40" VerticalAlignment="Center">
+                                        <!-- Signed-in profile picture (with fallback to initials) -->
+                                        <PersonPicture Width="40" Height="40"
+                                                       DisplayName="{x:Bind ViewModel.WhatsAppUserName, Mode=OneWay}"
+                                                       ProfilePicture="{x:Bind ViewModel.WhatsAppProfilePicture, Mode=OneWay}"
+                                                       Visibility="{x:Bind ViewModel.SignedInVisibility, Mode=OneWay}" />
+
+                                        <!-- Not signed in: circular icon with user glyph -->
+                                        <Border Width="40" Height="40" CornerRadius="20"
+                                                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                                Visibility="{x:Bind ViewModel.NotSignedInVisibility, Mode=OneWay}">
+                                            <FontIcon Glyph="&#xE77B;" FontSize="18"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{x:Bind ViewModel.WhatsAppUserName, Mode=OneWay}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{x:Bind ViewModel.WhatsAppUserStatus, Mode=OneWay}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </ui:SettingsCard.Header>
+                            <Button Content="Log out"
+                                    Command="{x:Bind ViewModel.LogoutCommand}"
+                                    IsEnabled="{x:Bind ViewModel.IsWhatsAppSignedIn, Mode=OneWay}"
+                                    AutomationProperties.Name="Log out of WhatsApp"
+                                    AutomationProperties.AutomationId="WhatsAppLogoutBtn" />
                         </ui:SettingsCard>
+
                         <ui:SettingsCard Header="Testing / Demo Mode" Description="Bypass QR code authentication and use simulated data for testing UI changes">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE7BE;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <ToggleSwitch IsOn="{x:Bind ViewModel.IsWhatsAppTestingMode, Mode=TwoWay}" AutomationProperties.Name="WhatsApp testing mode" AutomationProperties.AutomationId="WhatsAppTestingToggle" />
                         </ui:SettingsCard>
-                        <ui:SettingsCard Header="Sample Data" Description="Inject test conversations and messages for UI testing">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE8B7;" />
-                            </ui:SettingsCard.HeaderIcon>
-                            <Button Content="Inject Test Data" Command="{x:Bind ViewModel.InjectSampleDataCommand}" AutomationProperties.Name="Inject test data" AutomationProperties.AutomationId="InjectDataBtn" />
-                        </ui:SettingsCard>
+
                         <ui:SettingsCard Header="Automatically download media" Description="Choose which media types to download automatically">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE896;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <StackPanel Orientation="Vertical" Spacing="8">
                                 <CheckBox Content="Photos" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadPhotos, Mode=TwoWay}" AutomationProperties.Name="Auto download photos" />
                                 <CheckBox Content="Videos" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadVideos, Mode=TwoWay}" AutomationProperties.Name="Auto download videos" />
                                 <CheckBox Content="Documents" IsChecked="{x:Bind ViewModel.WhatsAppAutoDownloadDocuments, Mode=TwoWay}" AutomationProperties.Name="Auto download documents" />
                             </StackPanel>
                         </ui:SettingsCard>
+
                         <ui:SettingsCard Header="Enter sends the message" Description="Press Enter to send, Shift + Enter for a new line">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE751;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <ToggleSwitch IsOn="{x:Bind ViewModel.EnterSendsMessage, Mode=TwoWay}" AutomationProperties.Name="Enter sends the message" AutomationProperties.AutomationId="EnterSendsMessageToggle" />
                         </ui:SettingsCard>
+
                         <ui:SettingsCard x:Uid="WhatsAppAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <RadioButtons SelectedIndex="{x:Bind ViewModel.WhatsAppBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
                                 <RadioButton x:Uid="WhatsAppBrandRadio" Content="WhatsApp (default colour scheme)" />
                                 <RadioButton x:Uid="UseSystemSettingWhatsAppRadio" Content="Use system setting" />
                             </RadioButtons>
                         </ui:SettingsCard>
+
                         <ui:SettingsCard Header="Chat background wallpaper" Description="Show the WhatsApp doodle pattern as the chat background">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xEB9F;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <ToggleSwitch IsOn="{x:Bind ViewModel.WhatsAppDoodleWallpaperEnabled, Mode=TwoWay}" AutomationProperties.Name="WhatsApp doodle wallpaper" AutomationProperties.AutomationId="WhatsAppDoodleToggle" />
                         </ui:SettingsCard>
                     </ui:SettingsExpander.Items>
@@ -162,9 +178,6 @@
                     </Border>
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard x:Uid="SmsAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <RadioButtons SelectedIndex="{x:Bind ViewModel.SmsBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
                                 <RadioButton x:Uid="SmsBrandRadio" Content="SMS (default colour scheme)" />
                                 <RadioButton x:Uid="UseSystemSettingSmsRadio" Content="Use system setting" />
@@ -181,9 +194,6 @@
                     
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard x:Uid="TelegramAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <RadioButtons SelectedIndex="{x:Bind ViewModel.TelegramBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
                                 <RadioButton x:Uid="TelegramBrandRadio" Content="Telegram (default colour scheme)" />
                                 <RadioButton x:Uid="UseSystemSettingTelegramRadio" Content="Use system setting" />
@@ -202,9 +212,6 @@
                     </Border>
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard x:Uid="DiscordAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <RadioButtons SelectedIndex="{x:Bind ViewModel.DiscordBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
                                 <RadioButton x:Uid="DiscordBrandRadio" Content="Discord (default colour scheme)" />
                                 <RadioButton x:Uid="UseSystemSettingDiscordRadio" Content="Use system setting" />
@@ -223,9 +230,6 @@
                     </Border>
                     <ui:SettingsExpander.Items>
                         <ui:SettingsCard x:Uid="SignalAccentColorCard" Header="Accent colour">
-                            <ui:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE790;" />
-                            </ui:SettingsCard.HeaderIcon>
                             <RadioButtons SelectedIndex="{x:Bind ViewModel.SignalBubbleColorIndex, Mode=TwoWay}" Margin="0,0,0,0">
                                 <RadioButton x:Uid="SignalBrandRadio" Content="Signal (default colour scheme)" />
                                 <RadioButton x:Uid="UseSystemSettingSignalRadio" Content="Use system setting" />

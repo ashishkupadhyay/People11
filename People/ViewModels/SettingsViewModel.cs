@@ -24,6 +24,23 @@ public partial class SettingsViewModel : ViewModelBase
     public partial bool IsWhatsAppTestingMode { get; set; } = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SignedInVisibility))]
+    [NotifyPropertyChangedFor(nameof(NotSignedInVisibility))]
+    public partial bool IsWhatsAppSignedIn { get; set; }
+
+    [ObservableProperty]
+    public partial string WhatsAppUserName { get; set; } = "Not logged in";
+
+    [ObservableProperty]
+    public partial string WhatsAppUserStatus { get; set; } = "No active session";
+
+    [ObservableProperty]
+    public partial Microsoft.UI.Xaml.Media.ImageSource? WhatsAppProfilePicture { get; set; }
+
+    public Microsoft.UI.Xaml.Visibility SignedInVisibility => IsWhatsAppSignedIn ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Visibility NotSignedInVisibility => IsWhatsAppSignedIn ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+    [ObservableProperty]
     public partial bool WhatsAppAutoDownloadPhotos { get; set; } = true;
 
     [ObservableProperty]
@@ -130,108 +147,90 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task ReauthenticateAsync()
+    private async Task LogoutAsync()
     {
+        bool isTesting = _settingsService.GetValue<bool>("WhatsAppTestingMode", false);
+        if (isTesting)
+        {
+            _settingsService.SetValue("WhatsAppTestingMode", false);
+        }
+        else
+        {
+            var provider = App.Current.Services.GetService<IMessagingProvider>();
+            if (provider is IWhatsAppProvider waProvider)
+            {
+                await waProvider.ReauthenticateAsync();
+            }
+        }
+
+        RefreshWhatsAppAuthStatus();
+
         var navService = App.Current.Services.GetRequiredService<INavigationService>();
         navService.NavigateTo("Chats", "WhatsApp");
 
         var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
         chatListVm?.PrepareForReauthentication();
-
-        var provider = App.Current.Services.GetService<IMessagingProvider>();
-        if (provider is IWhatsAppProvider waProvider)
-        {
-            await waProvider.ReauthenticateAsync();
-        }
     }
 
-    [RelayCommand]
-    private async Task InjectSampleDataAsync()
+    public void RefreshWhatsAppAuthStatus()
     {
-        var factory = App.Current.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<People.Data.PeopleDbContext>>();
-        await using var dbContext = await factory.CreateDbContextAsync();
-        await dbContext.Database.EnsureCreatedAsync();
-
-        var existingChat = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(dbContext.Chats, c => c.Id == "sample_wa_1");
-        if (existingChat == null)
+        var provider = App.Current.Services.GetService<IMessagingProvider>();
+        bool isTesting = _settingsService.GetValue<bool>("WhatsAppTestingMode", false);
+        bool isAuth = false;
+        if (provider is IWhatsAppProvider wa)
         {
-            var userContact = new People.Core.Models.Contact
-            {
-                Id = "contact_sarah",
-                Name = "Sarah Connor",
-                PhoneNumber = "+1 555-0199",
-                PlatformId = "WhatsApp"
-            };
-
-            var sampleChat = new People.Core.Models.Chat
-            {
-                Id = "sample_wa_1",
-                Title = "Sarah Connor",
-                PlatformId = "WhatsApp",
-                UnreadCount = 1,
-                LastMessageTime = DateTimeOffset.UtcNow
-            };
-
-            var sampleMsg1 = new People.Core.Models.Message
-            {
-                Id = "msg_1",
-                ChatId = sampleChat.Id,
-                SenderId = userContact.Id,
-                PlatformId = "WhatsApp",
-                Content = new People.Core.Models.MessageContent { Text = "Hey! Is the Windows 11 People app ready?" },
-                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-15),
-                Status = People.Core.Models.MessageStatus.Read,
-                IsOutgoing = false
-            };
-
-            var sampleMsg2 = new People.Core.Models.Message
-            {
-                Id = "msg_2",
-                ChatId = sampleChat.Id,
-                SenderId = "me",
-                PlatformId = "WhatsApp",
-                Content = new People.Core.Models.MessageContent { Text = "Yes, we just implemented the full WhatsApp provider and testing mode!" },
-                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5),
-                Status = People.Core.Models.MessageStatus.Delivered,
-                IsOutgoing = true
-            };
-
-            var groupChat = new People.Core.Models.Chat
-            {
-                Id = "sample_wa_2",
-                Title = "Windows Dev Team",
-                PlatformId = "WhatsApp",
-                IsGroup = true,
-                UnreadCount = 3,
-                LastMessageTime = DateTimeOffset.UtcNow.AddHours(-1)
-            };
-
-            var groupMsg = new People.Core.Models.Message
-            {
-                Id = "msg_3",
-                ChatId = groupChat.Id,
-                SenderId = "dev_alex",
-                PlatformId = "WhatsApp",
-                Content = new People.Core.Models.MessageContent { Text = "The Fluent Design Mica backdrop looks amazing!" },
-                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-20),
-                Status = People.Core.Models.MessageStatus.Read,
-                IsOutgoing = false
-            };
-
-            dbContext.Contacts.Add(userContact);
-            dbContext.Chats.AddRange(sampleChat, groupChat);
-            await dbContext.SaveChangesAsync();
-
-            dbContext.Messages.AddRange(sampleMsg1, sampleMsg2, groupMsg);
-            await dbContext.SaveChangesAsync();
-
-            sampleChat.LastMessage = sampleMsg2;
-            groupChat.LastMessage = groupMsg;
-            await dbContext.SaveChangesAsync();
+            isAuth = wa.IsAuthenticated;
         }
 
-        var trayService = App.Current.Services.GetService<ITrayIconService>();
-        trayService?.ShowNotification("Sample Data Injected", "Test chats and messages were added to WhatsApp.");
+        if (isTesting)
+        {
+            IsWhatsAppSignedIn = true;
+            WhatsAppUserName = "Test User";
+            WhatsAppUserStatus = "Testing Mode";
+            try
+            {
+                WhatsAppProfilePicture = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/ProfilePictures/ProfilePicture1.png"));
+            }
+            catch
+            {
+                WhatsAppProfilePicture = null;
+            }
+        }
+        else if (isAuth && provider is IWhatsAppProvider waProvider)
+        {
+            IsWhatsAppSignedIn = true;
+            var name = waProvider.GetContactName("self") 
+                       ?? waProvider.GetPushName("self") 
+                       ?? waProvider.GetPhoneNumber("self");
+            WhatsAppUserName = !string.IsNullOrWhiteSpace(name) ? name : Environment.UserName;
+            WhatsAppUserStatus = "Connected";
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var picUrl = await waProvider.GetProfilePictureUrlAsync("self");
+                    if (!string.IsNullOrEmpty(picUrl))
+                    {
+                        App.Current.MainWindow?.DispatcherQueue?.TryEnqueue(() =>
+                        {
+                            WhatsAppProfilePicture = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(picUrl));
+                        });
+                    }
+                }
+                catch { }
+            });
+        }
+        else
+        {
+            IsWhatsAppSignedIn = false;
+            WhatsAppUserName = "Not logged in";
+            WhatsAppUserStatus = "No active session";
+            WhatsAppProfilePicture = null;
+        }
+
+        OnPropertyChanged(nameof(SignedInVisibility));
+        OnPropertyChanged(nameof(NotSignedInVisibility));
     }
 
     public SettingsViewModel(ISettingsService settingsService, IThemeService themeService)
@@ -255,6 +254,7 @@ public partial class SettingsViewModel : ViewModelBase
                 IsWhatsAppTestingMode = val;
                 _isInitializing = false;
             }
+            RefreshWhatsAppAuthStatus();
         }
     }
 
@@ -280,6 +280,8 @@ public partial class SettingsViewModel : ViewModelBase
         SignalBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_Signal", false) ? "Brand" : "Accent";
         SmsBubbleColorOption = _settingsService.GetValue<bool>("BrandColor_SMS", false) ? "Brand" : "Accent";
         
+        RefreshWhatsAppAuthStatus();
+
         _isInitializing = false;
     }
 

@@ -17,6 +17,7 @@ public sealed partial class SettingsPage : Page
     protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        ViewModel.RefreshWhatsAppAuthStatus();
     }
 
     private void ReplayOnboarding_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
