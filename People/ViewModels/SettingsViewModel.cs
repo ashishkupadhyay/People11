@@ -238,8 +238,24 @@ public partial class SettingsViewModel : ViewModelBase
     {
         _settingsService = settingsService;
         _themeService = themeService;
+
+        _settingsService.SettingChanged += OnSettingChanged;
         
         LoadSettings();
+    }
+
+    private void OnSettingChanged(object? sender, string key)
+    {
+        if (key == "WhatsAppTestingMode")
+        {
+            var val = _settingsService.GetValue<bool>("WhatsAppTestingMode", false);
+            if (IsWhatsAppTestingMode != val)
+            {
+                _isInitializing = true;
+                IsWhatsAppTestingMode = val;
+                _isInitializing = false;
+            }
+        }
     }
 
                 private bool _isInitializing = true;

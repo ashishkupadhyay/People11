@@ -46,6 +46,7 @@ public sealed partial class ChatListPage : Page
         ViewModel.RequestSlideToQr += (s, e) => PlaySlideToQrAnimation();
         ViewModel.RequestDrillInToSync += (s, e) => PlayDrillInToSyncAnimation();
         ViewModel.RequestDrillInToMain += (s, e) => PlayDrillInToMainAnimation();
+        ViewModel.RequestCloseDetail += (s, e) => CloseDetail();
 
         ViewModel.PropertyChanged += (s, e) =>
         {
@@ -56,6 +57,34 @@ public sealed partial class ChatListPage : Page
                 if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
                 {
                     MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                    if (ViewModel.IsWelcomeVisible)
+                    {
+                        WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                        WelcomeOverlay.Opacity = 1.0;
+                        WelcomeTransform.TranslateX = 0;
+                    }
+                    if (ViewModel.IsQrLinkVisible)
+                    {
+                        QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                        QrLinkOverlay.Opacity = 1.0;
+                        QrLinkTransform.TranslateX = 0;
+                    }
+                    if (ViewModel.IsOnboardingActive)
+                    {
+                        OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                    }
+                    CloseDetail();
+                }
+                else
+                {
+                    MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                    MainContentGrid.Opacity = 1.0;
+                    MainLayoutTransform.ScaleX = 1.0;
+                    MainLayoutTransform.ScaleY = 1.0;
+                    WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                    QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                    SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                    OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
                 }
             }
         };
@@ -383,6 +412,7 @@ public sealed partial class ChatListPage : Page
 
     public void CloseDetail()
     {
+        if (ChatsListView != null) ChatsListView.SelectedItem = null;
         if (DetailFrame.CanGoBack)
         {
             DetailFrame.GoBack();

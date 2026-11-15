@@ -92,6 +92,7 @@ public partial class ChatListViewModel : ViewModelBase
 
     private readonly IMessagingProvider _provider;
     private readonly IDispatcherService _dispatcherService;
+    private readonly ISettingsService _settingsService;
     private readonly IChatRepository? _chatRepository;
     private readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _contactNamesByPhoneDigits = new(StringComparer.Ordinal);
@@ -99,14 +100,20 @@ public partial class ChatListViewModel : ViewModelBase
     private int _isLoadingChats;
     private volatile bool _needsReloadChats;
 
+    public event EventHandler? RequestCloseDetail;
+
     public ChatListViewModel(
         IMessagingProvider provider, 
         IDispatcherService dispatcherService,
+        ISettingsService settingsService,
         IChatRepository? chatRepository = null)
     {
         _provider = provider;
         _dispatcherService = dispatcherService;
+        _settingsService = settingsService;
         _chatRepository = chatRepository;
+
+        _settingsService.SettingChanged += OnSettingChanged;
         _provider.ConnectionStateChanged += OnConnectionStateChanged;
         _provider.ChatUpdated += OnChatUpdated;
         _provider.MessageReceived += OnMessageReceived;
@@ -293,16 +300,75 @@ public partial class ChatListViewModel : ViewModelBase
     [RelayCommand]
     private async Task UseTestingModeAsync()
     {
-        var settingsService = App.Current.Services.GetRequiredService<ISettingsService>();
-        settingsService.SetValue("WhatsAppTestingMode", true);
-        IsWelcomeVisible = false;
-        IsQrLinkVisible = false;
-        ShowQrCode = false;
-        IsInitialSyncing = false;
+        _settingsService.SetValue("WhatsAppTestingMode", true);
+        await Task.CompletedTask;
+    }
+
+    private void OnSettingChanged(object? sender, string key)
+    {
+        if (key == "WhatsAppTestingMode")
+        {
+            _dispatcherService.Enqueue(async () =>
+            {
+                await HandleTestingModeToggledAsync();
+            });
+        }
+    }
+
+    private async Task HandleTestingModeToggledAsync()
+    {
+        bool isTesting = _settingsService.GetValue<bool>("WhatsAppTestingMode", false);
         if (_provider is IWhatsAppProvider waProvider)
         {
-            await waProvider.DisconnectAsync();
-            await ConnectAndAuthenticateAsync(waProvider);
+            if (isTesting)
+            {
+                // Testing mode enabled: disconnect live client, clear overlays and load test chats
+                try { await waProvider.DisconnectAsync(); } catch { }
+
+                IsWelcomeVisible = false;
+                IsQrLinkVisible = false;
+                ShowQrCode = false;
+                IsInitialSyncing = false;
+                IsSyncing = false;
+                IsConnecting = false;
+                HasError = false;
+                ErrorMessage = string.Empty;
+
+                Chats.Clear();
+                RequestCloseDetail?.Invoke(this, EventArgs.Empty);
+
+                await LoadChatsAsync();
+            }
+            else
+            {
+                // Testing mode disabled: check if real authenticated session exists
+                bool isAuth = await Task.Run(() => waProvider.IsAuthenticated);
+
+                Chats.Clear();
+                RequestCloseDetail?.Invoke(this, EventArgs.Empty);
+
+                if (isAuth)
+                {
+                    // Live session exists: reconnect real client and load real chats
+                    await ConnectAndAuthenticateAsync(waProvider);
+                }
+                else
+                {
+                    // No live session: tear down immediately to unauthenticated Welcome screen
+                    IsConnecting = false;
+                    ShowQrCode = false;
+                    HasError = false;
+                    ErrorMessage = string.Empty;
+                    QrCodeBytes = null;
+                    IsSyncing = false;
+                    IsInitialSyncing = false;
+                    IsWelcomeVisible = true;
+                    IsQrLinkVisible = false;
+
+                    try { await waProvider.DisconnectAsync(); } catch { }
+                    _ = Task.Run(() => waProvider.ConnectAsync());
+                }
+            }
         }
     }
 

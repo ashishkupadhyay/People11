@@ -117,7 +117,7 @@ public sealed partial class FlyoutWindow : Window
         {
             DispatcherQueue.TryEnqueue(() => ApplyFlyoutPlatformAccent(_selectedPlatform));
         }
-        else if (key == "HasCompletedOnboarding")
+        else if (key == "HasCompletedOnboarding" || key == "WhatsAppTestingMode")
         {
             DispatcherQueue.TryEnqueue(UpdateNavigationState);
         }
