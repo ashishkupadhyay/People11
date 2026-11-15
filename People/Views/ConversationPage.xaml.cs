@@ -905,11 +905,6 @@ public sealed partial class ConversationPage : Page
             }
         }
 
-        if (!Resources.MergedDictionaries.Contains(targetDict))
-        {
-            Resources.MergedDictionaries.Add(targetDict);
-        }
-
         if (targetDict.TryGetValue("TextControlBorderBrushFocused", out var focusBrush) && focusBrush is Microsoft.UI.Xaml.Media.Brush b)
         {
             Resources["TextControlBorderBrushFocused"] = b;
