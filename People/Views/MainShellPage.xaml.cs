@@ -26,6 +26,7 @@ public sealed partial class MainShellPage : Page
     public MainShellPage()
     {
         Current = this;
+        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         ViewModel = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         InitializeComponent();
 
@@ -37,6 +38,17 @@ public sealed partial class MainShellPage : Page
             navService.Configure("Conversation", typeof(Views.ConversationPage));
             navService.Configure("Settings", typeof(Views.SettingsPage));
             navService.Configure("ComingSoon", typeof(Views.ComingSoonPage));
+
+            // Navigate ContentFrame immediately so ChatListPage is part of the initial visual tree
+            if (ContentFrame.Content == null)
+            {
+                navService.NavigateTo("Chats", "WhatsApp");
+
+                if (NavView.MenuItems.Count > 0)
+                {
+                    NavView.SelectedItem = NavView.MenuItems[0];
+                }
+            }
         }
 
         ContentFrame.Navigated += ContentFrame_Navigated;

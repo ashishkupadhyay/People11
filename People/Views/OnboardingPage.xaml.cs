@@ -379,7 +379,7 @@ public sealed partial class OnboardingPage : Page
         {
             if (this.Frame is Frame rootFrame)
             {
-                rootFrame.Navigate(typeof(MainShellPage), null, new DrillInNavigationTransitionInfo());
+                rootFrame.Navigate(typeof(MainShellPage), null, new EntranceNavigationTransitionInfo());
                 rootFrame.BackStack.Clear();
             }
         }

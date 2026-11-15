@@ -40,11 +40,21 @@ public class SettingsService : ISettingsService
         try
         {
             var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_settingsFilePath, json);
+            Task.Run(() =>
+            {
+                try
+                {
+                    File.WriteAllText(_settingsFilePath, json);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to write settings file: {ex.Message}");
+                }
+            });
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Failed to serialize settings: {ex.Message}");
         }
     }
 
