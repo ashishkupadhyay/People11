@@ -73,7 +73,7 @@ public sealed partial class MainWindow : Window
         if (appWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
             presenter.PreferredMinimumWidth = (int)(340 * scalingFactor);
-            presenter.PreferredMinimumHeight = (int)(640 * scalingFactor);
+            presenter.PreferredMinimumHeight = (int)(420 * scalingFactor);
         }
 
         int savedWidth = settingsService.GetValue<int>("WindowWidth", 0);

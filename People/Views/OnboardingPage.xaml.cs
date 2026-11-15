@@ -367,12 +367,7 @@ public sealed partial class OnboardingPage : Page
 
         if (isFlyout)
         {
-            if (App.Current.MainWindow is MainWindow mainWindow)
-            {
-                mainWindow.BringToFront();
-                mainWindow.OpenPlatform("WhatsApp");
-            }
-            FlyoutWindow.CurrentFlyoutWindow?.HideFlyoutAnimated();
+            FlyoutWindow.CurrentFlyoutWindow?.NavigateToPlatformFromOnboarding("WhatsApp");
         }
         else
         {

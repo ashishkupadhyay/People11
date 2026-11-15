@@ -68,6 +68,7 @@ public sealed partial class FlyoutWindow : Window
     private bool _isTopTaskbar;
     private bool _isLeftTaskbar;
     private bool _isRightTaskbar;
+    private bool _dismissedOnboardingInFlyout;
 
     public static FlyoutWindow? CurrentFlyoutWindow { get; private set; }
     public static ResourceDictionary? CurrentFlyoutResources { get; private set; }
@@ -438,7 +439,7 @@ public sealed partial class FlyoutWindow : Window
     public void UpdateNavigationState()
     {
         bool hasSignedInPlatform = MainWindow.HasActiveOrSignedInPlatform(App.Current.Services);
-        if (!hasSignedInPlatform)
+        if (!hasSignedInPlatform && !_dismissedOnboardingInFlyout)
         {
             FlyoutHeaderBar.Visibility = Visibility.Collapsed;
             if (ContentFrame.Content is not OnboardingPage)
@@ -459,6 +460,13 @@ public sealed partial class FlyoutWindow : Window
                 ApplyFlyoutPlatformAccent(_selectedPlatform);
             }
         }
+    }
+
+    public void NavigateToPlatformFromOnboarding(string platform = "WhatsApp")
+    {
+        _dismissedOnboardingInFlyout = true;
+        FlyoutHeaderBar.Visibility = Visibility.Visible;
+        NavigateToPlatform(platform);
     }
 
     private void NavigateToPlatform(string platform)

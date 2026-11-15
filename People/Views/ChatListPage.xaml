@@ -313,132 +313,154 @@
                 <Grid.RenderTransform>
                     <CompositeTransform x:Name="QrLinkTransform" />
                 </Grid.RenderTransform>
-                <!-- Large rectangular card virtually divided into two sections (Opaque background) -->
-                <Border Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                        BorderThickness="1"
-                        CornerRadius="{ThemeResource OverlayCornerRadius}"
-                        BackgroundSizing="InnerBorderEdge"
-                        Padding="36,32,36,32"
-                        MaxWidth="780"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                    <Grid ColumnSpacing="36">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Left section: Instructions with interconnected circles 1, 2, 3 -->
-                        <Grid Grid.Column="0">
+                <ScrollViewer x:Name="QrScrollViewer"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch">
+                    <!-- Responsive card dynamically adapting between wide side-by-side and narrow stacked layout -->
+                    <Border x:Name="QrCardBorder"
+                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{ThemeResource OverlayCornerRadius}"
+                            BackgroundSizing="InnerBorderEdge"
+                            Padding="36,32,36,32"
+                            MaxWidth="780"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                        <Grid x:Name="QrCardGrid" ColumnSpacing="36">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="QrInstructionsCol" Width="*" />
+                                <ColumnDefinition x:Name="QrCodeCol" Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
+                                <RowDefinition x:Name="QrRow0" Height="Auto" />
+                                <RowDefinition x:Name="QrRow1" Height="Auto" />
+                                <RowDefinition x:Name="QrRow2" Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0"
-                                       Text="To set up WhatsApp on your computer"
-                                       Style="{ThemeResource SubtitleTextBlockStyle}"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,24" />
-
-                            <!-- Instructions with interconnected circles -->
-                            <Grid Grid.Row="1">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="32" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                            <!-- Instructions section with interconnected circles 1, 2, 3 -->
+                            <Grid x:Name="QrInstructionsSection" Grid.Column="0" Grid.Row="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
-                                <!-- Step 1: Connector from center of Circle 1 to bottom of row, and Circle 1 -->
-                                <Rectangle Grid.Row="0" Grid.Column="0" Width="1.5"
-                                           Fill="{ThemeResource TextFillColorSecondaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Stretch"
-                                           Margin="0,14,0,0" />
-                                <Border Grid.Row="0" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
-                                        BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                                        HorizontalAlignment="Center" VerticalAlignment="Top">
-                                    <TextBlock Text="1" FontSize="13" FontWeight="SemiBold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </Border>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,4,0,28" VerticalAlignment="Top"
-                                           Text="Open WhatsApp on your phone"
-                                           Style="{ThemeResource BodyTextBlockStyle}" />
+                                <TextBlock Grid.Row="0"
+                                           Text="To set up WhatsApp on your computer"
+                                           Style="{ThemeResource SubtitleTextBlockStyle}"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,24" />
 
-                                <!-- Step 2: Connector spanning entire row, and Circle 2 covering top -->
-                                <Rectangle Grid.Row="1" Grid.Column="0" Width="1.5"
-                                           Fill="{ThemeResource TextFillColorSecondaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Stretch" />
-                                <Border Grid.Row="1" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
-                                        BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                                        HorizontalAlignment="Center" VerticalAlignment="Top">
-                                    <TextBlock Text="2" FontSize="13" FontWeight="SemiBold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </Border>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="14,4,0,28" VerticalAlignment="Top"
-                                           Text="Tap Menu on Android, or Settings on iPhone"
-                                           Style="{ThemeResource BodyTextBlockStyle}" />
+                                <!-- Instructions with interconnected circles -->
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="32" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                                <!-- Step 3: Connector entering top of Circle 3, and Circle 3 (no line below) -->
-                                <Rectangle Grid.Row="2" Grid.Column="0" Width="1.5"
-                                           Fill="{ThemeResource TextFillColorSecondaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Top"
-                                           Height="14" />
-                                <Border Grid.Row="2" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
-                                        BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
-                                        HorizontalAlignment="Center" VerticalAlignment="Top">
-                                    <TextBlock Text="3" FontSize="13" FontWeight="SemiBold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </Border>
-                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="14,4,0,0" Spacing="4" VerticalAlignment="Top">
-                                    <TextBlock Text="Tap Linked devices and then Link a device"
+                                    <!-- Step 1: Connector from center of Circle 1 to bottom of row, and Circle 1 -->
+                                    <Rectangle Grid.Row="0" Grid.Column="0" Width="1.5"
+                                               Fill="{ThemeResource TextFillColorSecondaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Stretch"
+                                               Margin="0,14,0,0" />
+                                    <Border Grid.Row="0" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
+                                            BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Top">
+                                        <TextBlock Text="1" FontSize="13" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </Border>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Margin="14,4,0,28" VerticalAlignment="Top"
+                                               Text="Open WhatsApp on your phone"
+                                               TextWrapping="Wrap"
                                                Style="{ThemeResource BodyTextBlockStyle}" />
-                                    <TextBlock Text="Point your phone at this screen to capture the QR code."
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
+
+                                    <!-- Step 2: Connector spanning entire row, and Circle 2 covering top -->
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Width="1.5"
+                                               Fill="{ThemeResource TextFillColorSecondaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Stretch" />
+                                    <Border Grid.Row="1" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
+                                            BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Top">
+                                        <TextBlock Text="2" FontSize="13" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </Border>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="14,4,0,28" VerticalAlignment="Top"
+                                               Text="Tap Menu on Android, or Settings on iPhone"
+                                               TextWrapping="Wrap"
+                                               Style="{ThemeResource BodyTextBlockStyle}" />
+
+                                    <!-- Step 3: Connector entering top of Circle 3, and Circle 3 (no line below) -->
+                                    <Rectangle Grid.Row="2" Grid.Column="0" Width="1.5"
+                                               Fill="{ThemeResource TextFillColorSecondaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Top"
+                                               Height="14" />
+                                    <Border Grid.Row="2" Grid.Column="0" Width="28" Height="28" CornerRadius="14"
+                                            BorderThickness="1.5" BorderBrush="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Top">
+                                        <TextBlock Text="3" FontSize="13" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </Border>
+                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="14,4,0,0" Spacing="4" VerticalAlignment="Top">
+                                        <TextBlock Text="Tap Linked devices and then Link a device"
+                                                   TextWrapping="Wrap"
+                                                   Style="{ThemeResource BodyTextBlockStyle}" />
+                                        <TextBlock Text="Point your phone at this screen to capture the QR code."
+                                                   TextWrapping="Wrap"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
 
-                            <Button Grid.Row="2" Content="Switch to Demo / Testing Mode"
+                            <!-- Live QR code section -->
+                            <Border x:Name="QrCodeContainer"
+                                    Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
+                                    Background="White" Padding="14"
+                                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                                <Grid x:Name="QrImageGrid" Width="256" Height="256">
+                                    <Image x:Name="QrCodeImage"
+                                           Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}"
+                                           Width="256" Height="256"
+                                           Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                                                Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
+                                        <ProgressRing IsActive="True" Width="44" Height="44" />
+                                        <TextBlock Text="Generating QR code..."
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="#666666" HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Demo / Testing Mode button -->
+                            <Button x:Name="DemoModeButton"
+                                    Grid.Column="0" Grid.Row="1"
+                                    Content="Switch to Demo / Testing Mode"
                                     Style="{ThemeResource DefaultButtonStyle}"
                                     HorizontalAlignment="Left" Margin="0,20,0,0"
                                     Command="{x:Bind ViewModel.UseTestingModeCommand}" />
                         </Grid>
-
-                        <!-- Right section: Live QR code -->
-                        <Border Grid.Column="1" Background="White" Padding="14"
-                                CornerRadius="{ThemeResource OverlayCornerRadius}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
-                            <Grid Width="256" Height="256">
-                                <Image Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}"
-                                       Width="256" Height="256"
-                                       Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
-                                            Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
-                                    <ProgressRing IsActive="True" Width="44" Height="44" />
-                                    <TextBlock Text="Generating QR code..."
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="#666666" HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
+                    </Border>
+                </ScrollViewer>
             </Grid>
         </Grid>
 
