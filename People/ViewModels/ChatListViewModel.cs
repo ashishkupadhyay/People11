@@ -27,6 +27,14 @@ public partial class ChatListViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsOnboardingActive))]
     public partial bool IsQrLinkVisible { get; set; }
 
+    partial void OnIsQrLinkVisibleChanged(bool value)
+    {
+        if (!value)
+        {
+            StopQrCountdown();
+        }
+    }
+
     public bool IsOnboardingActive => IsWelcomeVisible || IsQrLinkVisible;
 
     [ObservableProperty]
@@ -34,6 +42,13 @@ public partial class ChatListViewModel : ViewModelBase
     public partial byte[]? QrCodeBytes { get; set; }
 
     public bool HasQrCodeBytes => QrCodeBytes != null && QrCodeBytes.Length > 0;
+
+    [ObservableProperty]
+    public partial string QrRefreshCountdownText { get; set; } = string.Empty;
+
+    private System.Threading.Timer? _qrCountdownTimer;
+    private int _qrSecondsRemaining = 20;
+    private const int QrLifetimeSeconds = 20;
 
     public event EventHandler? RequestSlideToQr;
     public event EventHandler? RequestDrillInToSync;
@@ -260,6 +275,11 @@ public partial class ChatListViewModel : ViewModelBase
         IsQrLinkVisible = true;
         RequestSlideToQr?.Invoke(this, EventArgs.Empty);
 
+        if (HasQrCodeBytes)
+        {
+            StartQrCountdown();
+        }
+
         if (_provider is IWhatsAppProvider waProvider)
         {
             try
@@ -285,6 +305,7 @@ public partial class ChatListViewModel : ViewModelBase
     {
         _dispatcherService.Enqueue(() =>
         {
+            StopQrCountdown();
             IsWelcomeVisible = true;
             IsQrLinkVisible = false;
             IsConnecting = false;
@@ -1188,7 +1209,52 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 IsQrLinkVisible = true;
             }
+            StartQrCountdown();
         });
+    }
+
+    private void StartQrCountdown()
+    {
+        _qrCountdownTimer?.Dispose();
+        _qrSecondsRemaining = QrLifetimeSeconds;
+        UpdateQrCountdownDisplay();
+
+        _qrCountdownTimer = new System.Threading.Timer(_ =>
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                if (!IsQrLinkVisible || !HasQrCodeBytes)
+                {
+                    StopQrCountdown();
+                    return;
+                }
+
+                if (_qrSecondsRemaining > 0)
+                {
+                    _qrSecondsRemaining--;
+                    UpdateQrCountdownDisplay();
+                }
+            });
+        }, null, 1000, 1000);
+    }
+
+    private void UpdateQrCountdownDisplay()
+    {
+        if (_qrSecondsRemaining > 0)
+        {
+            QrRefreshCountdownText = $"Refreshes in {_qrSecondsRemaining}s";
+        }
+        else
+        {
+            QrRefreshCountdownText = "Refreshing...";
+        }
+    }
+
+    private void StopQrCountdown()
+    {
+        _qrCountdownTimer?.Dispose();
+        _qrCountdownTimer = null;
+        QrRefreshCountdownText = string.Empty;
     }
 
     private byte[] GenerateQrCodeBytes(string text)

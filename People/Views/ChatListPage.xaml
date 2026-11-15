@@ -430,27 +430,47 @@
                                 </Grid>
                             </Grid>
 
-                            <!-- Live QR code section -->
-                            <Border x:Name="QrCodeContainer"
-                                    Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
-                                    Background="White" Padding="14"
-                                    CornerRadius="{ThemeResource OverlayCornerRadius}"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
-                                <Grid x:Name="QrImageGrid" Width="256" Height="256">
-                                    <Image x:Name="QrCodeImage"
-                                           Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}"
-                                           Width="256" Height="256"
-                                           Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
-                                                Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
-                                        <ProgressRing IsActive="True" Width="44" Height="44" />
-                                        <TextBlock Text="Generating QR code..."
-                                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                                   Foreground="#666666" HorizontalAlignment="Center" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                            <!-- Live QR code section with timer below -->
+                            <StackPanel x:Name="QrCodeContainer"
+                                        Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Spacing="10">
+                                <Border x:Name="QrBorder"
+                                        Background="White" Padding="14"
+                                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}" BorderThickness="1">
+                                    <Grid x:Name="QrImageGrid" Width="256" Height="256">
+                                        <Image x:Name="QrCodeImage"
+                                               Source="{x:Bind ViewModel.QrCodeBytes, Mode=OneWay, Converter={StaticResource ByteArrayToImageSourceConverter}}"
+                                               Width="256" Height="256"
+                                               Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                                                    Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
+                                            <ProgressRing IsActive="True" Width="44" Height="44" />
+                                            <TextBlock Text="Generating QR code..."
+                                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                                       Foreground="#666666" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Timer below QR code -->
+                                <StackPanel x:Name="QrTimerPanel"
+                                            Orientation="Horizontal"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="6"
+                                            Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <FontIcon Glyph="&#xE72C;" FontSize="12"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Bind ViewModel.QrRefreshCountdownText, Mode=OneWay}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
 
                             <!-- Demo / Testing Mode button -->
                             <Button x:Name="DemoModeButton"
