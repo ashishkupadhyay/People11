@@ -84,13 +84,13 @@ public class TrayIconService : ITrayIconService
     private static string GetIconFilePath(string fileName)
     {
         var baseDir = AppContext.BaseDirectory;
-        var path = Path.Combine(baseDir, "Assets", "Icons", fileName);
+        var path = Path.Combine(baseDir, "Assets", "Icons", "TrayIcons", fileName);
         if (File.Exists(path)) return path;
 
         try
         {
             var packagePath = Windows.ApplicationModel.Package.Current.InstalledLocation.Path;
-            path = Path.Combine(packagePath, "Assets", "Icons", fileName);
+            path = Path.Combine(packagePath, "Assets", "Icons", "TrayIcons", fileName);
             if (File.Exists(path)) return path;
         }
         catch { }
@@ -119,7 +119,7 @@ public class TrayIconService : ITrayIconService
         var pngFileName = isLightTaskbar ? "TrayIcon_Dark.png" : "TrayIcon_White.png";
         try
         {
-            _taskbarIcon.IconSource = new BitmapImage(new Uri($"ms-appx:///Assets/Icons/{pngFileName}"));
+            _taskbarIcon.IconSource = new BitmapImage(new Uri($"ms-appx:///Assets/Icons/TrayIcons/{pngFileName}"));
         }
         catch { }
     }
