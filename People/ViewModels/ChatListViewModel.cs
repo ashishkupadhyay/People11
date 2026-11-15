@@ -1246,7 +1246,7 @@ public partial class ChatListViewModel : ViewModelBase
         }
         else
         {
-            QrRefreshCountdownText = "Refreshing...";
+            QrRefreshCountdownText = "Refreshing";
         }
     }
 

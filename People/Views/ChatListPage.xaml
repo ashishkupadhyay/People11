@@ -457,17 +457,13 @@
 
                                 <!-- Timer below QR code -->
                                 <StackPanel x:Name="QrTimerPanel"
-                                            Orientation="Horizontal"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            Spacing="6"
                                             Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <FontIcon Glyph="&#xE72C;" FontSize="12"
-                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                              VerticalAlignment="Center" />
                                     <TextBlock Text="{x:Bind ViewModel.QrRefreshCountdownText, Mode=OneWay}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               HorizontalAlignment="Center"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
                             </StackPanel>
