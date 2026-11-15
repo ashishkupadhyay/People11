@@ -212,6 +212,12 @@ public sealed partial class MainWindow : Window
                 }
             }
 
+            var dbPath = System.IO.Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, "people.db");
+            if (!System.IO.File.Exists(dbPath))
+            {
+                return false;
+            }
+
             var dbFactory = services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<People.Data.PeopleDbContext>>();
             if (dbFactory != null)
             {

@@ -31,6 +31,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             try
             {
                 var dbPath = GetSessionDbPath();
+                if (!File.Exists(dbPath)) return false;
                 return WhatsAppNative.wa_is_authenticated(dbPath) == 1;
             }
             catch

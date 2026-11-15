@@ -118,13 +118,21 @@ public partial class ChatListViewModel : ViewModelBase
         _provider.ChatUpdated += OnChatUpdated;
         _provider.MessageReceived += OnMessageReceived;
 
-        // Synchronously preload cached chats so Chats is populated BEFORE page render
-        PreloadCachedChats();
-
-        _ = Task.Run(RebuildContactsAsync);
-
         if (_provider is IWhatsAppProvider waProvider)
         {
+            bool isAuth = waProvider.IsAuthenticated;
+            if (!isAuth)
+            {
+                IsWelcomeVisible = true;
+                IsQrLinkVisible = false;
+            }
+            else
+            {
+                // Synchronously preload cached chats so Chats is populated BEFORE page render
+                PreloadCachedChats();
+                _ = Task.Run(RebuildContactsAsync);
+            }
+
             waProvider.QrCodeReceived += OnQrCodeReceived;
             waProvider.SyncProgressChanged += OnSyncProgressChanged;
             waProvider.ChatMarkedRead += OnChatMarkedRead;
@@ -132,6 +140,8 @@ public partial class ChatListViewModel : ViewModelBase
         }
         else
         {
+            PreloadCachedChats();
+            _ = Task.Run(RebuildContactsAsync);
             LoadMockData();
         }
     }
@@ -179,10 +189,7 @@ public partial class ChatListViewModel : ViewModelBase
 
     private async Task ConnectAndAuthenticateAsync(IWhatsAppProvider provider)
     {
-        // Immediately load any cached chats so the list displays without delay
-        _ = LoadChatsAsync();
-
-        bool isAuth = await Task.Run(() => provider.IsAuthenticated);
+        bool isAuth = provider.IsAuthenticated;
 
         if (isAuth)
         {
@@ -200,6 +207,8 @@ public partial class ChatListViewModel : ViewModelBase
                 IsSyncIndeterminate = true;
                 SyncStatusText = string.Empty;
             });
+
+            _ = LoadChatsAsync();
 
             try
             {
@@ -276,7 +285,9 @@ public partial class ChatListViewModel : ViewModelBase
     {
         _dispatcherService.Enqueue(() =>
         {
-            IsConnecting = true;
+            IsWelcomeVisible = true;
+            IsQrLinkVisible = false;
+            IsConnecting = false;
             ShowQrCode = false;
             HasError = false;
             ErrorMessage = string.Empty;

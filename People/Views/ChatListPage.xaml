@@ -61,7 +61,8 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
-        <Grid x:Name="MainContentGrid">
+        <Grid x:Name="MainContentGrid"
+              Visibility="{x:Bind ViewModel.IsOnboardingActive, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
             <Grid.RenderTransform>
                 <CompositeTransform x:Name="MainLayoutTransform" />
             </Grid.RenderTransform>

@@ -48,44 +48,15 @@ public sealed partial class ChatListPage : Page
         ViewModel.RequestDrillInToMain += (s, e) => PlayDrillInToMainAnimation();
         ViewModel.RequestCloseDetail += (s, e) => CloseDetail();
 
+        UpdateOverlayVisibilities();
+
         ViewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(ChatListViewModel.IsWelcomeVisible) ||
                 e.PropertyName == nameof(ChatListViewModel.IsQrLinkVisible) ||
                 e.PropertyName == nameof(ChatListViewModel.IsInitialSyncing))
             {
-                if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
-                {
-                    MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                    if (ViewModel.IsWelcomeVisible)
-                    {
-                        WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                        WelcomeOverlay.Opacity = 1.0;
-                        WelcomeTransform.TranslateX = 0;
-                    }
-                    if (ViewModel.IsQrLinkVisible)
-                    {
-                        QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                        QrLinkOverlay.Opacity = 1.0;
-                        QrLinkTransform.TranslateX = 0;
-                    }
-                    if (ViewModel.IsOnboardingActive)
-                    {
-                        OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                    }
-                    CloseDetail();
-                }
-                else
-                {
-                    MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                    MainContentGrid.Opacity = 1.0;
-                    MainLayoutTransform.ScaleX = 1.0;
-                    MainLayoutTransform.ScaleY = 1.0;
-                    WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                    QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                    SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                    OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                }
+                UpdateOverlayVisibilities();
             }
         };
 
@@ -95,6 +66,65 @@ public sealed partial class ChatListPage : Page
             ViewModel.FilterContacts(string.Empty);
             _ = ViewModel.RebuildContactsAsync();
         };
+    }
+
+    private void UpdateOverlayVisibilities()
+    {
+        if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
+        {
+            MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            if (ViewModel.IsWelcomeVisible)
+            {
+                WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                WelcomeOverlay.Opacity = 1.0;
+                WelcomeTransform.TranslateX = 0;
+            }
+            else
+            {
+                WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
+
+            if (ViewModel.IsQrLinkVisible)
+            {
+                QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                QrLinkOverlay.Opacity = 1.0;
+                QrLinkTransform.TranslateX = 0;
+            }
+            else
+            {
+                QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
+
+            if (ViewModel.IsInitialSyncing)
+            {
+                SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            }
+            else
+            {
+                SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
+
+            if (ViewModel.IsOnboardingActive)
+            {
+                OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            }
+            else
+            {
+                OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
+            CloseDetail();
+        }
+        else
+        {
+            MainContentGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            MainContentGrid.Opacity = 1.0;
+            MainLayoutTransform.ScaleX = 1.0;
+            MainLayoutTransform.ScaleY = 1.0;
+            WelcomeOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            QrLinkOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            SyncingOverlay.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            OnboardingDoodleHost.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
     }
 
     private void ChatListPage_SizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)

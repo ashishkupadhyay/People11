@@ -70,6 +70,12 @@ public sealed partial class OnboardingPage : Page
         EnsureColumnsAndRows(width, height);
 
         TriggerCanopyEntranceWhenReady();
+
+        // Pre-warm ChatListViewModel in background while user views onboarding so navigation is instantaneous
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            _ = App.Current.Services.GetService<People.ViewModels.ChatListViewModel>();
+        });
     }
 
     private void UpdateTopSpacerHeight(double height)
