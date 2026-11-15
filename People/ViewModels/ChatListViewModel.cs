@@ -515,6 +515,12 @@ public partial class ChatListViewModel : ViewModelBase
                 if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)
                 {
                     chat.LastMessage.Status = msg.Status;
+                    if (msg.IsEdited && chat.LastMessage.Content != null && msg.Content != null)
+                    {
+                        chat.LastMessage.Content.Text = msg.Content.Text;
+                        chat.LastMessage.Content.Caption = msg.Content.Caption;
+                        chat.LastMessage.IsEdited = true;
+                    }
                     chat.RefreshLastMessagePreview();
                 }
                 else
@@ -666,7 +672,7 @@ public partial class ChatListViewModel : ViewModelBase
             }
 
             var chats = await _provider.GetChatsAsync();
-            var validChats = chats.Where(c => !string.IsNullOrWhiteSpace(c.Id) && c.LastMessage != null && (!string.IsNullOrWhiteSpace(c.LastMessage.Content?.Text) || c.LastMessage.Content?.Type != MessageContentType.Text)).ToList();
+            var validChats = chats.Where(c => !string.IsNullOrWhiteSpace(c.Id) && (c.LastMessage != null || !string.IsNullOrWhiteSpace(c.Title))).ToList();
 
             // Resolve titles on background thread BEFORE dispatching to UI
             foreach (var incoming in validChats)

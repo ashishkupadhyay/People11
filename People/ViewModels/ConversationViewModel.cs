@@ -660,6 +660,12 @@ public partial class ConversationViewModel : ViewModelBase
                     }
                     if (e.Message.Content != null && existing.Content != null)
                     {
+                        if (e.Message.IsEdited)
+                        {
+                            existing.Content.Text = e.Message.Content.Text;
+                            existing.Content.Caption = e.Message.Content.Caption;
+                            existing.IsEdited = true;
+                        }
                         if (!string.IsNullOrEmpty(e.Message.Content.LocalFilePath))
                             existing.Content.LocalFilePath = e.Message.Content.LocalFilePath;
                         if (!string.IsNullOrEmpty(e.Message.Content.ThumbnailUrl))

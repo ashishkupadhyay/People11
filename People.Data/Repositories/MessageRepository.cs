@@ -124,6 +124,12 @@ public class MessageRepository : IMessageRepository
         try
         {
             using var context = await _contextFactory.CreateDbContextAsync();
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN IsEdited INTEGER NOT NULL DEFAULT 0;");
+            }
+            catch { }
+
             var candidates = await context.Messages
                 .Where(m => m.Content != null)
                 .ToListAsync();

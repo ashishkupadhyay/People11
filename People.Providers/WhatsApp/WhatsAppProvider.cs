@@ -559,6 +559,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
                     Status = root.TryGetProperty("status", out var stProp) ? (MessageStatus)stProp.GetInt32() : ((root.TryGetProperty("isOutgoing", out var isOut) && isOut.GetBoolean()) ? MessageStatus.Sent : MessageStatus.Delivered),
                     IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
+                    IsEdited = root.TryGetProperty("isEdited", out var editProp) && editProp.GetBoolean(),
                     QuotedText = root.TryGetProperty("quotedText", out var qTextProp) ? qTextProp.GetString() : null,
                     QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
                     Reactions = reactionsList
@@ -854,8 +855,8 @@ public class WhatsAppProvider : IWhatsAppProvider
             var chats = new List<Chat>(dtos.Count);
             foreach (var dto in dtos)
             {
-                // Filter out phantom empty chat stubs (no valid last message)
-                if (dto.LastMessage == null || (dto.LastMessage.MediaType == "text" && string.IsNullOrWhiteSpace(dto.LastMessage.Text)))
+                // Filter out phantom empty chat stubs (must have an ID and either a message, title, or timestamp)
+                if (string.IsNullOrWhiteSpace(dto.Id) || (dto.LastMessage == null && string.IsNullOrWhiteSpace(dto.Title) && dto.LastMessageTimestamp <= 0))
                 {
                     continue;
                 }
@@ -948,6 +949,23 @@ public class WhatsAppProvider : IWhatsAppProvider
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "Failed to load messages from SQLite for {ChatId}", chatId);
+            }
+        }
+
+        // 2b. If both native cache and SQLite had 0 messages and client is connected, try on-demand history fetch
+        if (resultList.Count == 0 && _clientPtr != IntPtr.Zero && HasInternetAccess())
+        {
+            try
+            {
+                var fetched = await GetOlderMessagesAsync(chatId, limit, DateTimeOffset.UtcNow, null, false, ct);
+                if (fetched.Count > 0)
+                {
+                    resultList.AddRange(fetched);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "On-demand fetch for empty chat {ChatId} returned no messages", chatId);
             }
         }
 
@@ -1048,6 +1066,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                 : DateTimeOffset.UnixEpoch,
             Status = (MessageStatus)dto.Status,
+            IsEdited = dto.IsEdited,
             QuotedText = dto.QuotedText,
             QuotedSender = dto.QuotedSender,
             Reactions = dto.ReactionDetails?.ToList() ?? dto.Reactions?.Select(e => new MessageReaction { Emoji = e, SenderId = "peer", SenderName = null, IsFromMe = false }).ToList() ?? new()
@@ -2050,5 +2069,6 @@ public class WhatsAppProvider : IWhatsAppProvider
         public string? ThumbnailBase64 { get; set; }
         public string? Caption { get; set; }
         public int? DurationSeconds { get; set; }
+        public bool IsEdited { get; set; }
     }
 }

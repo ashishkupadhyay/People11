@@ -69,6 +69,19 @@ public class Message : INotifyPropertyChanged
     public string? SenderName { get; set; }
     public bool IsOutgoing { get; set; }
     public DateTimeOffset Timestamp { get; set; }
+    private bool _isEdited;
+    public bool IsEdited
+    {
+        get => _isEdited;
+        set
+        {
+            if (_isEdited != value)
+            {
+                _isEdited = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     private MessageStatus _status;
     public MessageStatus Status
     {

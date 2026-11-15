@@ -692,6 +692,12 @@
 
                                                     <!-- Timestamp and status icons -->
                                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4" Margin="0,2,0,-2">
+                                                        <TextBlock Text="Edited" 
+                                                                   FontSize="9" 
+                                                                   FontStyle="Italic"
+                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                                   Visibility="{x:Bind IsEdited, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                   VerticalAlignment="Center" />
                                                         <TextBlock Text="{x:Bind FormattedTime, Mode=OneTime}" 
                                                                    FontSize="10" 
                                                                    Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
