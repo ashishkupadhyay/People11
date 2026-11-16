@@ -70,6 +70,54 @@ public partial class ConversationViewModel : ViewModelBase
     [ObservableProperty]
     public partial string? SenderPushName { get; set; }
 
+    [ObservableProperty]
+    public partial Message? ReplyingToMessage { get; set; }
+
+    public bool IsReplying => ReplyingToMessage != null;
+
+    public string ReplySenderName => ReplyingToMessage?.IsOutgoing == true
+        ? "You"
+        : (!string.IsNullOrWhiteSpace(ReplyingToMessage?.SenderName) ? ReplyingToMessage.SenderName : "Contact");
+
+    public string ReplyPreviewText
+    {
+        get
+        {
+            if (ReplyingToMessage == null) return string.Empty;
+            if (!string.IsNullOrWhiteSpace(ReplyingToMessage.Content?.DisplayCaptionOrText))
+                return ReplyingToMessage.Content.DisplayCaptionOrText;
+            if (!string.IsNullOrWhiteSpace(ReplyingToMessage.Content?.Text))
+                return ReplyingToMessage.Content.Text;
+            if (ReplyingToMessage.Content?.IsImage == true)
+                return "Photo";
+            if (ReplyingToMessage.Content?.IsVideo == true)
+                return "Video";
+            if (ReplyingToMessage.Content?.IsAudio == true)
+                return "Audio";
+            if (ReplyingToMessage.Content?.IsDocument == true)
+                return ReplyingToMessage.Content.DisplayName ?? "Document";
+            return "Message";
+        }
+    }
+
+    partial void OnReplyingToMessageChanged(Message? value)
+    {
+        OnPropertyChanged(nameof(IsReplying));
+        OnPropertyChanged(nameof(ReplySenderName));
+        OnPropertyChanged(nameof(ReplyPreviewText));
+    }
+
+    [RelayCommand]
+    public void CancelReply()
+    {
+        ReplyingToMessage = null;
+    }
+
+    public void SetReplyingTo(Message? msg)
+    {
+        ReplyingToMessage = msg;
+    }
+
     public bool HasMoreOlderMessages { get; set; } = true;
 
     public event EventHandler? InitialMessagesLoaded;
@@ -131,6 +179,7 @@ public partial class ConversationViewModel : ViewModelBase
         var token = _loadChatCts.Token;
 
         CurrentChat = chat;
+        ReplyingToMessage = null;
         UpdateDoodleWallpaperVisibility();
         int unreadCount = chat.UnreadCount;
         if (unreadCount > 0)
@@ -442,6 +491,11 @@ public partial class ConversationViewModel : ViewModelBase
         var text = MessageText;
         MessageText = string.Empty;
 
+        var replyTarget = ReplyingToMessage;
+        string? quotedText = replyTarget != null ? ReplyPreviewText : null;
+        string? quotedSender = replyTarget != null ? ReplySenderName : null;
+        ReplyingToMessage = null;
+
         var content = new MessageContent { Text = text, Type = MessageContentType.Text };
         var pendingId = "pending_" + Guid.NewGuid().ToString("N");
         var pendingMsg = new Message
@@ -453,7 +507,9 @@ public partial class ConversationViewModel : ViewModelBase
             Timestamp = DateTimeOffset.UtcNow,
             Status = MessageStatus.Sending,
             SenderId = "me",
-            IsOutgoing = true
+            IsOutgoing = true,
+            QuotedText = quotedText,
+            QuotedSender = quotedSender
         };
 
         // 1. Instantly display in conversation history with timer icon
@@ -1721,6 +1777,110 @@ public partial class ConversationViewModel : ViewModelBase
                     existing.Status = sentMsg.Status;
                 }
             });
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    public async Task DeleteMessageAsync(Message? msg)
+    {
+        if (msg == null) return;
+
+        Messages.Remove(msg);
+        RecalculateDateSeparators();
+        UpdateChatDateString();
+
+        if (CurrentChat != null && CurrentChat.LastMessage?.Id == msg.Id)
+        {
+            CurrentChat.LastMessage = Messages.LastOrDefault();
+            CurrentChat.LastMessageTime = CurrentChat.LastMessage?.Timestamp ?? DateTimeOffset.MinValue;
+            var chatRepo = App.Current.Services.GetService<IChatRepository>();
+            if (chatRepo != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await chatRepo.SaveAsync(CurrentChat); } catch { }
+                });
+            }
+        }
+
+        var messageRepo = App.Current.Services.GetService<IMessageRepository>();
+        if (messageRepo != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await messageRepo.DeleteAsync(msg.Id); } catch { }
+            });
+        }
+    }
+
+    public async Task ForwardMessageAsync(Message sourceMsg, Chat targetChat)
+    {
+        if (sourceMsg == null || targetChat == null) return;
+
+        var content = new MessageContent
+        {
+            Text = sourceMsg.Content?.Text ?? string.Empty,
+            Caption = sourceMsg.Content?.Caption,
+            Type = sourceMsg.Content?.Type ?? MessageContentType.Text,
+            LocalFilePath = sourceMsg.Content?.LocalFilePath,
+            FileName = sourceMsg.Content?.FileName,
+            FileSize = sourceMsg.Content?.FileSize,
+            MimeType = sourceMsg.Content?.MimeType,
+            DurationSeconds = sourceMsg.Content?.DurationSeconds
+        };
+
+        var pendingId = "pending_" + Guid.NewGuid().ToString("N");
+        var fwdMsg = new Message
+        {
+            Id = pendingId,
+            ChatId = targetChat.Id,
+            PlatformId = targetChat.PlatformId,
+            Content = content,
+            Timestamp = DateTimeOffset.UtcNow,
+            Status = MessageStatus.Sending,
+            SenderId = "me",
+            IsOutgoing = true
+        };
+
+        if (CurrentChat?.Id == targetChat.Id)
+        {
+            Messages.Add(fwdMsg);
+            RecalculateDateSeparators();
+            UpdateChatDateString();
+        }
+
+        targetChat.LastMessage = fwdMsg;
+        targetChat.LastMessageTime = fwdMsg.Timestamp;
+
+        var chatRepo = App.Current.Services.GetService<IChatRepository>();
+        if (chatRepo != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await chatRepo.SaveAsync(targetChat); } catch { }
+            });
+        }
+
+        try
+        {
+            string? localPath = content.LocalFilePath ?? sourceMsg.Content?.EffectiveImagePath;
+            if (content.IsMedia && !string.IsNullOrEmpty(localPath) && File.Exists(localPath))
+            {
+                if (content.IsImage || content.IsVideo)
+                    await SendMediaFileAsync(localPath);
+                else if (content.IsDocument)
+                    await SendDocumentFileAsync(localPath);
+                else if (content.IsAudio)
+                    await SendAudioFileAsync(localPath);
+            }
+            else
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await _provider.SendMessageAsync(targetChat.Id, content, pendingId); } catch { }
+                });
+            }
         }
         catch { }
     }

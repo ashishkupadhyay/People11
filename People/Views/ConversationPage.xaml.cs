@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -30,6 +32,11 @@ public sealed partial class ConversationPage : Page
     private People.Controls.ReactionDetailsControl? _reactionDetailsControl;
     private Message? _activeReactionMessage;
     private FrameworkElement? _activeReactionButton;
+
+    private MenuFlyout? _textContextMenu;
+    private MenuFlyout? _mediaContextMenu;
+    private MenuFlyout? _documentContextMenu;
+    private Message? _contextMenuTargetMessage;
 
     private static readonly SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
     private static readonly SvgImageSource _darkDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_dark.svg"));
@@ -475,7 +482,7 @@ public sealed partial class ConversationPage : Page
 
     private void OpenMediaInApp_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        if (GetMessageFromSender(sender) is Message msg)
         {
             _ = ViewModel.OpenMediaViewerAsync(msg);
         }
@@ -483,7 +490,7 @@ public sealed partial class ConversationPage : Page
 
     private void OpenMediaDefaultApp_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        if (GetMessageFromSender(sender) is Message msg)
         {
             _ = ViewModel.OpenMessageInDefaultAppAsync(msg);
         }
@@ -491,7 +498,7 @@ public sealed partial class ConversationPage : Page
 
     private void DocumentCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        if (GetMessageFromSender(sender) is Message msg)
         {
             _ = ViewModel.DownloadAndOpenDocumentAsync(msg);
         }
@@ -499,7 +506,7 @@ public sealed partial class ConversationPage : Page
 
     private void OpenDocumentDefaultApp_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        if (GetMessageFromSender(sender) is Message msg)
         {
             _ = ViewModel.DownloadAndOpenDocumentAsync(msg);
         }
@@ -507,9 +514,382 @@ public sealed partial class ConversationPage : Page
 
     private void SaveMediaAs_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is Message msg)
+        if (GetMessageFromSender(sender) is Message msg)
         {
             _ = ViewModel.SaveMediaAsAsync(msg);
+        }
+    }
+
+    private Message? GetMessageFromSender(object sender)
+    {
+        if ((sender as FrameworkElement)?.DataContext is Message msg)
+            return msg;
+        return _contextMenuTargetMessage;
+    }
+
+    private void MessageBubble_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        if (args.Handled) return;
+
+        if (sender is FrameworkElement fe && fe.DataContext is Message msg)
+        {
+            _contextMenuTargetMessage = msg;
+            MenuFlyout flyout;
+            if (msg.Content?.IsImage == true || msg.Content?.IsVideo == true)
+            {
+                flyout = GetOrCreateMediaContextMenu();
+            }
+            else if (msg.Content?.IsDocument == true)
+            {
+                flyout = GetOrCreateDocumentContextMenu();
+            }
+            else
+            {
+                flyout = GetOrCreateTextContextMenu();
+            }
+
+            args.Handled = true;
+            if (args.TryGetPosition(fe, out var pt))
+            {
+                flyout.ShowAt(fe, new FlyoutShowOptions { Position = pt });
+            }
+            else
+            {
+                flyout.ShowAt(fe);
+            }
+        }
+    }
+
+    private MenuFlyout GetOrCreateTextContextMenu()
+    {
+        if (_textContextMenu == null)
+        {
+            _textContextMenu = new MenuFlyout();
+
+            var replyItem = new MenuFlyoutItem { Text = "Reply", Icon = new FontIcon { Glyph = "\uE97A" } };
+            replyItem.Click += MessageReply_Click;
+            _textContextMenu.Items.Add(replyItem);
+
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uE72D" } };
+            forwardItem.Click += MessageForward_Click;
+            _textContextMenu.Items.Add(forwardItem);
+
+            var copyItem = new MenuFlyoutItem { Text = "Copy", Icon = new FontIcon { Glyph = "\uE8C8" } };
+            copyItem.Click += MessageCopy_Click;
+            _textContextMenu.Items.Add(copyItem);
+
+            var deleteItem = new MenuFlyoutItem { Text = "Delete", Icon = new FontIcon { Glyph = "\uE74D" } };
+            deleteItem.Click += MessageDelete_Click;
+            _textContextMenu.Items.Add(deleteItem);
+
+            var infoItem = new MenuFlyoutItem { Text = "Info", Icon = new FontIcon { Glyph = "\uE946" } };
+            infoItem.Click += MessageInfo_Click;
+            _textContextMenu.Items.Add(infoItem);
+        }
+        return _textContextMenu;
+    }
+
+    private MenuFlyout GetOrCreateMediaContextMenu()
+    {
+        if (_mediaContextMenu == null)
+        {
+            _mediaContextMenu = new MenuFlyout();
+
+            var replyItem = new MenuFlyoutItem { Text = "Reply", Icon = new FontIcon { Glyph = "\uE97A" } };
+            replyItem.Click += MessageReply_Click;
+            _mediaContextMenu.Items.Add(replyItem);
+
+            var openItem = new MenuFlyoutItem { Text = "Open", Icon = new FontIcon { Glyph = "\uE8E5" } };
+            openItem.Click += OpenMediaInApp_Click;
+            _mediaContextMenu.Items.Add(openItem);
+
+            var openDefaultItem = new MenuFlyoutItem { Text = "Open with default app", Icon = new FontIcon { Glyph = "\uE7AC" } };
+            openDefaultItem.Click += OpenMediaDefaultApp_Click;
+            _mediaContextMenu.Items.Add(openDefaultItem);
+
+            var saveAsItem = new MenuFlyoutItem { Text = "Save as", Icon = new FontIcon { Glyph = "\uE74E" } };
+            saveAsItem.Click += SaveMediaAs_Click;
+            _mediaContextMenu.Items.Add(saveAsItem);
+
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uE72D" } };
+            forwardItem.Click += MessageForward_Click;
+            _mediaContextMenu.Items.Add(forwardItem);
+
+            var copyItem = new MenuFlyoutItem { Text = "Copy", Icon = new FontIcon { Glyph = "\uE8C8" } };
+            copyItem.Click += MessageCopy_Click;
+            _mediaContextMenu.Items.Add(copyItem);
+
+            var deleteItem = new MenuFlyoutItem { Text = "Delete", Icon = new FontIcon { Glyph = "\uE74D" } };
+            deleteItem.Click += MessageDelete_Click;
+            _mediaContextMenu.Items.Add(deleteItem);
+
+            var infoItem = new MenuFlyoutItem { Text = "Info", Icon = new FontIcon { Glyph = "\uE946" } };
+            infoItem.Click += MessageInfo_Click;
+            _mediaContextMenu.Items.Add(infoItem);
+        }
+        return _mediaContextMenu;
+    }
+
+    private MenuFlyout GetOrCreateDocumentContextMenu()
+    {
+        if (_documentContextMenu == null)
+        {
+            _documentContextMenu = new MenuFlyout();
+
+            var replyItem = new MenuFlyoutItem { Text = "Reply", Icon = new FontIcon { Glyph = "\uE97A" } };
+            replyItem.Click += MessageReply_Click;
+            _documentContextMenu.Items.Add(replyItem);
+
+            var openDefaultItem = new MenuFlyoutItem { Text = "Open with default app", Icon = new FontIcon { Glyph = "\uE7AC" } };
+            openDefaultItem.Click += OpenDocumentDefaultApp_Click;
+            _documentContextMenu.Items.Add(openDefaultItem);
+
+            var saveAsItem = new MenuFlyoutItem { Text = "Save as", Icon = new FontIcon { Glyph = "\uE74E" } };
+            saveAsItem.Click += SaveMediaAs_Click;
+            _documentContextMenu.Items.Add(saveAsItem);
+
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uE72D" } };
+            forwardItem.Click += MessageForward_Click;
+            _documentContextMenu.Items.Add(forwardItem);
+
+            var copyItem = new MenuFlyoutItem { Text = "Copy", Icon = new FontIcon { Glyph = "\uE8C8" } };
+            copyItem.Click += MessageCopy_Click;
+            _documentContextMenu.Items.Add(copyItem);
+
+            var deleteItem = new MenuFlyoutItem { Text = "Delete", Icon = new FontIcon { Glyph = "\uE74D" } };
+            deleteItem.Click += MessageDelete_Click;
+            _documentContextMenu.Items.Add(deleteItem);
+
+            var infoItem = new MenuFlyoutItem { Text = "Info", Icon = new FontIcon { Glyph = "\uE946" } };
+            infoItem.Click += MessageInfo_Click;
+            _documentContextMenu.Items.Add(infoItem);
+        }
+        return _documentContextMenu;
+    }
+
+    private void MessageReply_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = GetMessageFromSender(sender);
+        if (msg == null) return;
+
+        ViewModel.SetReplyingTo(msg);
+        MessageInputBox?.Focus(FocusState.Programmatic);
+    }
+
+    private void MessageCopy_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = GetMessageFromSender(sender);
+        if (msg == null) return;
+
+        try
+        {
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+
+            string textToCopy = msg.Content?.DisplayCaptionOrText ?? msg.Content?.Text ?? string.Empty;
+
+            string? filePath = msg.Content?.LocalFilePath ?? msg.Content?.EffectiveImagePath;
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                try
+                {
+                    var fileTask = Windows.Storage.StorageFile.GetFileFromPathAsync(filePath).AsTask();
+                    fileTask.Wait(500);
+                    if (fileTask.IsCompletedSuccessfully && fileTask.Result != null)
+                    {
+                        package.SetStorageItems(new[] { fileTask.Result });
+                    }
+                }
+                catch { }
+            }
+
+            if (string.IsNullOrEmpty(textToCopy) && msg.Content != null)
+            {
+                if (msg.Content.IsImage) textToCopy = "Photo";
+                else if (msg.Content.IsVideo) textToCopy = "Video";
+                else if (msg.Content.IsAudio) textToCopy = "Audio";
+                else if (msg.Content.IsDocument) textToCopy = msg.Content.DisplayName ?? "Document";
+            }
+
+            package.SetText(textToCopy);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MessageCopy_Click error: {ex.Message}");
+        }
+    }
+
+    private async void MessageDelete_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = GetMessageFromSender(sender);
+        if (msg == null) return;
+
+        if (this.XamlRoot == null) return;
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = this.XamlRoot,
+            Title = "Delete message?",
+            Content = "Are you sure you want to delete this message?",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            await ViewModel.DeleteMessageAsync(msg);
+        }
+    }
+
+    private async void MessageInfo_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = GetMessageFromSender(sender);
+        if (msg == null) return;
+
+        if (this.XamlRoot == null) return;
+
+        var panel = new StackPanel { Spacing = 10, MinWidth = 280 };
+
+        void AddInfoRow(string label, string value)
+        {
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var lbl = new TextBlock
+            {
+                Text = label,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush,
+                FontSize = 13
+            };
+            Grid.SetColumn(lbl, 0);
+
+            var val = new TextBlock
+            {
+                Text = value,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            };
+            Grid.SetColumn(val, 1);
+
+            row.Children.Add(lbl);
+            row.Children.Add(val);
+            panel.Children.Add(row);
+        }
+
+        string typeStr = msg.Content?.Type.ToString() ?? "Text";
+        AddInfoRow("Type", typeStr);
+
+        string senderStr = msg.IsOutgoing ? "You" : (!string.IsNullOrWhiteSpace(msg.SenderName) ? msg.SenderName : "Contact");
+        AddInfoRow("From", senderStr);
+
+        if (msg.Timestamp != DateTimeOffset.MinValue && msg.Timestamp != DateTimeOffset.UnixEpoch)
+        {
+            AddInfoRow("Date", msg.Timestamp.ToLocalTime().ToString("f"));
+        }
+
+        if (msg.IsOutgoing)
+        {
+            AddInfoRow("Status", msg.Status.ToString());
+        }
+
+        if (msg.IsEdited)
+        {
+            AddInfoRow("Edited", "Yes");
+        }
+
+        if (msg.Content?.IsMedia == true || msg.Content?.IsDocument == true)
+        {
+            if (!string.IsNullOrEmpty(msg.Content.DisplayName))
+                AddInfoRow("File", msg.Content.DisplayName);
+            if (!string.IsNullOrEmpty(msg.Content.FormattedSizeAndType))
+                AddInfoRow("Size / Type", msg.Content.FormattedSizeAndType);
+            if (!string.IsNullOrEmpty(msg.Content.FormattedDuration))
+                AddInfoRow("Duration", msg.Content.FormattedDuration);
+        }
+
+        if (msg.Reactions != null && msg.Reactions.Count > 0)
+        {
+            var reactionsSummary = string.Join("  ", msg.Reactions.Select(r => $"{r.Emoji} {(r.IsFromMe ? "You" : (!string.IsNullOrWhiteSpace(r.SenderName) ? r.SenderName : "User"))}"));
+            AddInfoRow("Reactions", reactionsSummary);
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = this.XamlRoot,
+            Title = "Message info",
+            Content = panel,
+            CloseButtonText = "Close",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    private async void MessageForward_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = GetMessageFromSender(sender);
+        if (msg == null) return;
+
+        if (this.XamlRoot == null) return;
+
+        var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
+        var availableChats = chatListVm?.Chats?.ToList() ?? new List<Chat>();
+
+        if (availableChats.Count == 0)
+        {
+            var noChatsDialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = "Forward message",
+                Content = "No conversations available to forward this message to.",
+                CloseButtonText = "Close"
+            };
+            await noChatsDialog.ShowAsync();
+            return;
+        }
+
+        var listView = new ListView
+        {
+            ItemsSource = availableChats,
+            SelectionMode = ListViewSelectionMode.Single,
+            MaxHeight = 320,
+            Width = 320,
+            DisplayMemberPath = "Title"
+        };
+        if (availableChats.Count > 0)
+        {
+            listView.SelectedIndex = 0;
+        }
+
+        var stack = new StackPanel { Spacing = 10 };
+        var prompt = new TextBlock
+        {
+            Text = "Select a conversation to forward to:",
+            FontSize = 13,
+            Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush
+        };
+        stack.Children.Add(prompt);
+        stack.Children.Add(listView);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = this.XamlRoot,
+            Title = "Forward message",
+            Content = stack,
+            PrimaryButtonText = "Forward",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && listView.SelectedItem is Chat targetChat)
+        {
+            await ViewModel.ForwardMessageAsync(msg, targetChat);
         }
     }
 
