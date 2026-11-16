@@ -143,7 +143,7 @@ public class StringToImageSourceConverter : IValueConverter
                         base64 = url.Substring(commaIdx + 1).Trim();
                     }
                 }
-                else if (url.Length > 100 && !url.Contains('/') && !url.Contains('\\') && !url.Contains(':'))
+                else if (url.Length > 50 && !url.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("ms-appx", StringComparison.OrdinalIgnoreCase) && !url.Contains(':') && !System.IO.File.Exists(url))
                 {
                     base64 = url.Trim();
                 }
@@ -166,54 +166,15 @@ public class StringToImageSourceConverter : IValueConverter
                     {
                         try
                         {
-                            var decodeTask = Task.Run<(byte[]? smooth, int targetW, int targetH)>(async () =>
+                            var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                            using (var stream = ras.AsStreamForWrite())
                             {
-                                using var memStream = new System.IO.MemoryStream(bytes);
-                                using var ras = memStream.AsRandomAccessStream();
-                                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
-                                var w = (int)decoder.PixelWidth;
-                                var h = (int)decoder.PixelHeight;
-
-                                if (w > 0 && h > 0)
-                                {
-                                    var pixelProvider = await decoder.GetPixelDataAsync(
-                                        Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-                                        Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
-                                        new Windows.Graphics.Imaging.BitmapTransform(),
-                                        Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
-                                        Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
-                                    var px = pixelProvider.DetachPixelData();
-                                    int targetW = Math.Clamp(w * 8, 256, 384);
-                                    int targetH = Math.Clamp(h * 8, 256, 384);
-                                    var smooth = BilinearScaleAndBlur(px, w, h, targetW, targetH, 16);
-                                    return (smooth, targetW, targetH);
-                                }
-                                return (null, 0, 0);
-                            });
-
-                            if (decodeTask.Wait(800) && decodeTask.Result.smooth != null && decodeTask.Result.targetW > 0 && decodeTask.Result.targetH > 0)
-                            {
-                                var wb = new WriteableBitmap(decodeTask.Result.targetW, decodeTask.Result.targetH);
-                                using (var pixelStream = wb.PixelBuffer.AsStream())
-                                {
-                                    pixelStream.Write(decodeTask.Result.smooth, 0, decodeTask.Result.smooth.Length);
-                                }
-                                wb.Invalidate();
-                                _blurCache[url] = wb;
-                                return wb;
+                                stream.Write(bytes, 0, bytes.Length);
+                                stream.Flush();
                             }
-                        }
-                        catch
-                        {
-                            // Fallback to standard BitmapImage if decoding or WIC is unavailable
-                        }
-
-                        try
-                        {
-                            var ms = new System.IO.MemoryStream(bytes);
+                            ras.Seek(0);
                             var bitmap = new BitmapImage();
-                            ms.Position = 0;
-                            bitmap.SetSource(ms.AsRandomAccessStream());
+                            bitmap.SetSource(ras);
                             _blurCache[url] = bitmap;
                             return bitmap;
                         }
@@ -285,114 +246,6 @@ public class StringToImageSourceConverter : IValueConverter
             }
         }
         return null;
-    }
-
-    private static byte[] BilinearScaleAndBlur(byte[] src, int srcW, int srcH, int dstW, int dstH, int blurRadius)
-    {
-        var scaled = new byte[dstW * dstH * 4];
-        float xRatio = (float)(srcW - 1) / Math.Max(1, dstW - 1);
-        float yRatio = (float)(srcH - 1) / Math.Max(1, dstH - 1);
-
-        for (int y = 0; y < dstH; y++)
-        {
-            float srcY = y * yRatio;
-            int yLow = (int)srcY;
-            int yHigh = Math.Min(srcH - 1, yLow + 1);
-            float yWeight = srcY - yLow;
-
-            int dstRowStart = y * dstW * 4;
-            int srcRowLow = yLow * srcW * 4;
-            int srcRowHigh = yHigh * srcW * 4;
-
-            for (int x = 0; x < dstW; x++)
-            {
-                float srcX = x * xRatio;
-                int xLow = (int)srcX;
-                int xHigh = Math.Min(srcW - 1, xLow + 1);
-                float xWeight = srcX - xLow;
-
-                int idxTL = srcRowLow + (xLow * 4);
-                int idxTR = srcRowLow + (xHigh * 4);
-                int idxBL = srcRowHigh + (xLow * 4);
-                int idxBR = srcRowHigh + (xHigh * 4);
-
-                int dstIdx = dstRowStart + (x * 4);
-                for (int c = 0; c < 4; c++)
-                {
-                    float top = src[idxTL + c] * (1f - xWeight) + src[idxTR + c] * xWeight;
-                    float bottom = src[idxBL + c] * (1f - xWeight) + src[idxBR + c] * xWeight;
-                    scaled[dstIdx + c] = (byte)(top * (1f - yWeight) + bottom * yWeight);
-                }
-            }
-        }
-
-        ApplyBoxBlur(scaled, dstW, dstH, blurRadius);
-        return scaled;
-    }
-
-    private static void ApplyBoxBlur(byte[] pixels, int w, int h, int r)
-    {
-        if (w <= 1 || h <= 1 || r <= 0) return;
-        byte[] temp = new byte[pixels.Length];
-        for (int pass = 0; pass < 3; pass++)
-        {
-            BoxBlurHorizontal(pixels, temp, w, h, r);
-            BoxBlurVertical(temp, pixels, w, h, r);
-        }
-    }
-
-    private static void BoxBlurHorizontal(byte[] src, byte[] dst, int w, int h, int r)
-    {
-        for (int y = 0; y < h; y++)
-        {
-            int rowStart = y * w * 4;
-            for (int x = 0; x < w; x++)
-            {
-                int bSum = 0, gSum = 0, rSum = 0, count = 0;
-                int xMin = Math.Max(0, x - r);
-                int xMax = Math.Min(w - 1, x + r);
-                for (int kx = xMin; kx <= xMax; kx++)
-                {
-                    int idx = rowStart + (kx * 4);
-                    bSum += src[idx];
-                    gSum += src[idx + 1];
-                    rSum += src[idx + 2];
-                    count++;
-                }
-                int dstIdx = rowStart + (x * 4);
-                dst[dstIdx] = (byte)(bSum / count);
-                dst[dstIdx + 1] = (byte)(gSum / count);
-                dst[dstIdx + 2] = (byte)(rSum / count);
-                dst[dstIdx + 3] = src[dstIdx + 3];
-            }
-        }
-    }
-
-    private static void BoxBlurVertical(byte[] src, byte[] dst, int w, int h, int r)
-    {
-        for (int x = 0; x < w; x++)
-        {
-            int colOffset = x * 4;
-            for (int y = 0; y < h; y++)
-            {
-                int bSum = 0, gSum = 0, rSum = 0, count = 0;
-                int yMin = Math.Max(0, y - r);
-                int yMax = Math.Min(h - 1, y + r);
-                for (int ky = yMin; ky <= yMax; ky++)
-                {
-                    int idx = (ky * w * 4) + colOffset;
-                    bSum += src[idx];
-                    gSum += src[idx + 1];
-                    rSum += src[idx + 2];
-                    count++;
-                }
-                int dstIdx = (y * w * 4) + colOffset;
-                dst[dstIdx] = (byte)(bSum / count);
-                dst[dstIdx + 1] = (byte)(gSum / count);
-                dst[dstIdx + 2] = (byte)(rSum / count);
-                dst[dstIdx + 3] = src[dstIdx + 3];
-            }
-        }
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

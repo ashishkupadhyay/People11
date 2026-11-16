@@ -249,6 +249,8 @@
                                                             <!-- Image element (when EffectiveImagePath has value) -->
                                                             <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                                                    Stretch="UniformToFill"
+                                                                   MinWidth="240"
+                                                                   MinHeight="180"
                                                                    MaxHeight="260"
                                                                    HorizontalAlignment="Center"
                                                                    Tapped="MediaBubble_Tapped"
@@ -263,6 +265,13 @@
                                                                 <FontIcon Glyph="&#xEB9F;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                             </Border>
+
+                                                            <!-- Dark scrim overlay over thumbnail preview when not yet downloaded -->
+                                                            <Border Width="240" Height="180"
+                                                                    Background="#33000000"
+                                                                    CornerRadius="6"
+                                                                    IsHitTestVisible="False"
+                                                                    Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                                                             <!-- Overlay: Download Button (visible when !IsDownloaded && !IsDownloading) -->
                                                             <Button Click="DownloadMedia_Click"
@@ -364,6 +373,8 @@
                                                         <!-- Image element (thumbnail/poster) -->
                                                         <Image Source="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
                                                                Stretch="UniformToFill"
+                                                               MinWidth="240"
+                                                               MinHeight="180"
                                                                MaxHeight="260"
                                                                HorizontalAlignment="Center"
                                                                Visibility="{x:Bind Content.EffectiveImagePath, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
@@ -376,6 +387,13 @@
                                                             <FontIcon Glyph="&#xE714;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
+
+                                                        <!-- Dark scrim overlay over thumbnail preview when not yet downloaded -->
+                                                        <Border Width="240" Height="180"
+                                                                Background="#33000000"
+                                                                CornerRadius="6"
+                                                                IsHitTestVisible="False"
+                                                                Visibility="{x:Bind Content.ShowDownloadIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                                                         <!-- Overlay: Play Button (visible when IsDownloaded) -->
                                                         <Border Background="#60000000"
@@ -805,7 +823,7 @@
                                                     <!-- Revoked Message Placeholder (WhatsApp deleted message) -->
                                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,1,0,1"
                                                                 Visibility="{x:Bind IsRevoked, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                        <FontIcon Glyph="&#xE8EE;" FontSize="14"
+                                                        <FontIcon Glyph="&#xF140;" FontSize="14"
                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
                                                                   VerticalAlignment="Center" />
                                                         <TextBlock Text="{x:Bind RevokedDisplayText, Mode=OneWay}"

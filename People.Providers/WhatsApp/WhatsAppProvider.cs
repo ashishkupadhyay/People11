@@ -80,6 +80,7 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     // Outbox queue for offline message persistence and background dispatching
     private readonly ConcurrentQueue<Message> _outboxQueue = new();
+    private readonly ConcurrentDictionary<string, int> _outboxRetryCounts = new();
     private readonly SemaphoreSlim _outboxLock = new(1, 1);
     private System.Threading.Timer? _outboxTimer;
 
@@ -1356,6 +1357,17 @@ public class WhatsAppProvider : IWhatsAppProvider
             var pending = await _messageRepository.GetPendingOutgoingMessagesAsync(PlatformId);
             foreach (var msg in pending)
             {
+                if (msg.Status == MessageStatus.Sent || msg.Status == MessageStatus.Read)
+                    continue;
+
+                // If pending message is older than 2 hours, mark as Failed instead of retrying endlessly on boot
+                if (DateTimeOffset.UtcNow - msg.Timestamp > TimeSpan.FromHours(2))
+                {
+                    msg.Status = MessageStatus.Failed;
+                    await _messageRepository.SaveAsync(msg);
+                    continue;
+                }
+
                 if (!_outboxQueue.Any(m => m.Id == msg.Id))
                 {
                     _outboxQueue.Enqueue(msg);
@@ -1371,6 +1383,10 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     private void EnqueueOutbox(Message msg)
     {
+        if (msg.Status == MessageStatus.Sent || msg.Status == MessageStatus.Read)
+        {
+            return;
+        }
         if (!_outboxQueue.Any(m => m.Id == msg.Id))
         {
             _outboxQueue.Enqueue(msg);
@@ -1400,10 +1416,33 @@ public class WhatsAppProvider : IWhatsAppProvider
                     break;
                 }
 
-                _logger?.LogInformation("Dispatching queued message {Id} to {ChatId}", msg.Id, msg.ChatId);
+                // If already sent or read, dequeue and skip
+                if (msg.Status == MessageStatus.Sent || msg.Status == MessageStatus.Read)
+                {
+                    _outboxQueue.TryDequeue(out _);
+                    _outboxRetryCounts.TryRemove(msg.Id, out _);
+                    continue;
+                }
+
+                int retries = _outboxRetryCounts.AddOrUpdate(msg.Id, 1, (_, count) => count + 1);
+                if (retries > 3)
+                {
+                    _logger?.LogWarning("Outbox message {Id} exceeded maximum retry attempts (3). Marking as Failed.", msg.Id);
+                    _outboxQueue.TryDequeue(out _);
+                    _outboxRetryCounts.TryRemove(msg.Id, out _);
+                    msg.Status = MessageStatus.Failed;
+                    if (_messageRepository != null)
+                    {
+                        try { await _messageRepository.SaveAsync(msg); } catch { }
+                    }
+                    continue;
+                }
+
+                _logger?.LogInformation("Dispatching queued message {Id} to {ChatId} (attempt {Attempt})", msg.Id, msg.ChatId, retries);
                 if (msg.Content.Type != MessageContentType.Text)
                 {
                     _outboxQueue.TryDequeue(out _);
+                    _outboxRetryCounts.TryRemove(msg.Id, out _);
                     msg.Status = MessageStatus.Sent;
                     if (_messageRepository != null)
                     {
@@ -1430,6 +1469,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     if (!string.IsNullOrEmpty(realId))
                     {
                         _outboxQueue.TryDequeue(out _);
+                        _outboxRetryCounts.TryRemove(msg.Id, out _);
 
                         var oldId = msg.Id;
                         msg.Id = realId;
@@ -1466,7 +1506,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
 
-                _logger?.LogInformation("Outbox send did not succeed for message {Id}. Will retry when connection stabilizes.", msg.Id);
+                _logger?.LogInformation("Outbox send did not succeed for message {Id} on attempt {Attempt}.", msg.Id, retries);
                 break;
             }
         }
