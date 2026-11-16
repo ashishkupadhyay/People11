@@ -726,20 +726,43 @@ public partial class ConversationViewModel : ViewModelBase
                     {
                         existing.Status = e.Message.Status;
                     }
-                    if (e.Message.Content != null && existing.Content != null)
+                    if (e.Message.IsRevoked)
                     {
-                        if (e.Message.IsEdited)
-                        {
-                            existing.Content.Text = e.Message.Content.Text;
-                            existing.Content.Caption = e.Message.Content.Caption;
-                            existing.IsEdited = true;
-                        }
-                        if (!string.IsNullOrEmpty(e.Message.Content.LocalFilePath))
-                            existing.Content.LocalFilePath = e.Message.Content.LocalFilePath;
-                        if (!string.IsNullOrEmpty(e.Message.Content.ThumbnailUrl))
-                            existing.Content.ThumbnailUrl = e.Message.Content.ThumbnailUrl;
+                        existing.IsRevoked = true;
+                        existing.Content.IsRevoked = true;
+                        existing.Content.Type = MessageContentType.Text;
+                        existing.Content.Text = e.Message.Content?.Text ?? (existing.IsOutgoing ? "You deleted this message" : "This message was deleted");
+                        existing.Content.Caption = null;
+                        existing.Content.LocalFilePath = null;
+                        existing.Content.ThumbnailUrl = null;
+                        existing.Content.FileName = null;
+                        existing.Content.FileSize = null;
+                        existing.Content.MediaUrl = null;
+                        existing.QuotedText = null;
+                        existing.QuotedSender = null;
+                        existing.QuotedMessageId = null;
+                        existing.QuotedParticipant = null;
+                        existing.Reactions = new List<MessageReaction>();
+                        existing.IsEdited = false;
+                        existing.NotifyReactionPropertiesChanged();
                     }
-                    existing.Reactions = new List<MessageReaction>(e.Message.Reactions);
+                    else
+                    {
+                        if (e.Message.Content != null && existing.Content != null)
+                        {
+                            if (e.Message.IsEdited)
+                            {
+                                existing.Content.Text = e.Message.Content.Text;
+                                existing.Content.Caption = e.Message.Content.Caption;
+                                existing.IsEdited = true;
+                            }
+                            if (!string.IsNullOrEmpty(e.Message.Content.LocalFilePath))
+                                existing.Content.LocalFilePath = e.Message.Content.LocalFilePath;
+                            if (!string.IsNullOrEmpty(e.Message.Content.ThumbnailUrl))
+                                existing.Content.ThumbnailUrl = e.Message.Content.ThumbnailUrl;
+                        }
+                        existing.Reactions = new List<MessageReaction>(e.Message.Reactions);
+                    }
                 }
                 else
                 {
@@ -1835,43 +1858,102 @@ public partial class ConversationViewModel : ViewModelBase
     {
         if (msg == null) return;
 
-        Messages.Remove(msg);
-        RecalculateDateSeparators();
-        UpdateChatDateString();
-
-        if (CurrentChat != null && CurrentChat.LastMessage?.Id == msg.Id)
+        if (forEveryone)
         {
-            CurrentChat.LastMessage = Messages.LastOrDefault();
-            CurrentChat.LastMessageTime = CurrentChat.LastMessage?.Timestamp ?? DateTimeOffset.MinValue;
-            var chatRepo = App.Current.Services.GetService<IChatRepository>();
-            if (chatRepo != null)
+            // "Delete for everyone": retain the bubble in-place as a revoked message
+            msg.IsRevoked = true;
+            msg.Content.IsRevoked = true;
+            msg.Content.Type = MessageContentType.Text;
+            msg.Content.Text = msg.IsOutgoing ? "You deleted this message" : "This message was deleted";
+            msg.Content.Caption = null;
+            msg.Content.MediaUrl = null;
+            msg.Content.LocalFilePath = null;
+            msg.Content.ThumbnailUrl = null;
+            msg.Content.FileName = null;
+            msg.Content.FileSize = null;
+            msg.QuotedText = null;
+            msg.QuotedSender = null;
+            msg.QuotedMessageId = null;
+            msg.QuotedParticipant = null;
+            msg.Reactions = new List<MessageReaction>();
+            msg.IsEdited = false;
+            msg.NotifyReactionPropertiesChanged();
+
+            if (CurrentChat != null && CurrentChat.LastMessage?.Id == msg.Id)
+            {
+                CurrentChat.LastMessage = msg;
+                var chatRepo = App.Current.Services.GetService<IChatRepository>();
+                if (chatRepo != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try { await chatRepo.SaveAsync(CurrentChat); } catch { }
+                    });
+                }
+            }
+
+            var messageRepo = App.Current.Services.GetService<IMessageRepository>();
+            if (messageRepo != null)
             {
                 _ = Task.Run(async () =>
                 {
-                    try { await chatRepo.SaveAsync(CurrentChat); } catch { }
+                    try { await messageRepo.SaveAsync(msg); } catch { }
+                });
+            }
+
+            if (_provider != null && CurrentChat != null && !string.IsNullOrEmpty(msg.Id))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _provider.DeleteMessageAsync(CurrentChat.Id, msg.Id, true);
+                    }
+                    catch { }
                 });
             }
         }
-
-        var messageRepo = App.Current.Services.GetService<IMessageRepository>();
-        if (messageRepo != null)
+        else
         {
-            _ = Task.Run(async () =>
-            {
-                try { await messageRepo.DeleteAsync(msg.Id); } catch { }
-            });
-        }
+            // "Delete for me": remove from local view and local SQLite storage
+            Messages.Remove(msg);
+            RecalculateDateSeparators();
+            UpdateChatDateString();
 
-        if (_provider != null && CurrentChat != null && !string.IsNullOrEmpty(msg.Id))
-        {
-            _ = Task.Run(async () =>
+            if (CurrentChat != null && CurrentChat.LastMessage?.Id == msg.Id)
             {
-                try
+                CurrentChat.LastMessage = Messages.LastOrDefault();
+                CurrentChat.LastMessageTime = CurrentChat.LastMessage?.Timestamp ?? DateTimeOffset.MinValue;
+                var chatRepo = App.Current.Services.GetService<IChatRepository>();
+                if (chatRepo != null)
                 {
-                    await _provider.DeleteMessageAsync(CurrentChat.Id, msg.Id, forEveryone);
+                    _ = Task.Run(async () =>
+                    {
+                        try { await chatRepo.SaveAsync(CurrentChat); } catch { }
+                    });
                 }
-                catch { }
-            });
+            }
+
+            var messageRepo = App.Current.Services.GetService<IMessageRepository>();
+            if (messageRepo != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await messageRepo.DeleteAsync(msg.Id); } catch { }
+                });
+            }
+
+            if (_provider != null && CurrentChat != null && !string.IsNullOrEmpty(msg.Id))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _provider.DeleteMessageAsync(CurrentChat.Id, msg.Id, false);
+                    }
+                    catch { }
+                });
+            }
         }
     }
 

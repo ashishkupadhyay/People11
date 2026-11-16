@@ -37,6 +37,7 @@ public sealed partial class ConversationPage : Page
     private MenuFlyout? _textContextMenu;
     private MenuFlyout? _mediaContextMenu;
     private MenuFlyout? _documentContextMenu;
+    private MenuFlyout? _revokedContextMenu;
     private Message? _contextMenuTargetMessage;
 
     private static readonly SvgImageSource _lightDoodleSource = new(new Uri("ms-appx:///Assets/Background/whatsapp_doodle_light.svg"));
@@ -536,7 +537,11 @@ public sealed partial class ConversationPage : Page
         {
             _contextMenuTargetMessage = msg;
             MenuFlyout flyout;
-            if (msg.Content?.IsImage == true || msg.Content?.IsVideo == true)
+            if (msg.IsRevoked)
+            {
+                flyout = GetOrCreateRevokedContextMenu();
+            }
+            else if (msg.Content?.IsImage == true || msg.Content?.IsVideo == true)
             {
                 flyout = GetOrCreateMediaContextMenu();
             }
@@ -559,6 +564,23 @@ public sealed partial class ConversationPage : Page
                 flyout.ShowAt(fe);
             }
         }
+    }
+
+    private MenuFlyout GetOrCreateRevokedContextMenu()
+    {
+        if (_revokedContextMenu == null)
+        {
+            _revokedContextMenu = new MenuFlyout();
+
+            var deleteItem = new MenuFlyoutItem { Text = "Delete", Icon = new FontIcon { Glyph = "\uE74D" } };
+            deleteItem.Click += MessageDelete_Click;
+            _revokedContextMenu.Items.Add(deleteItem);
+
+            var infoItem = new MenuFlyoutItem { Text = "Info", Icon = new FontIcon { Glyph = "\uE946" } };
+            infoItem.Click += MessageInfo_Click;
+            _revokedContextMenu.Items.Add(infoItem);
+        }
+        return _revokedContextMenu;
     }
 
     private MenuFlyout GetOrCreateTextContextMenu()
@@ -733,6 +755,12 @@ public sealed partial class ConversationPage : Page
     {
         dialog.CornerRadius = new CornerRadius(12);
         dialog.BorderThickness = new Thickness(1);
+        dialog.RequestedTheme = this.ActualTheme;
+
+        // Apply active platform accent (or system accent fallback) to dialog's scoped resources
+        var themeService = App.Current.Services.GetService<People.Core.Interfaces.IThemeService>();
+        var platformId = ViewModel?.CurrentChat?.PlatformId ?? "WhatsApp";
+        themeService?.ApplyAccentToResourceDictionary(dialog.Resources, platformId);
 
         bool isDark = this.ActualTheme == ElementTheme.Dark || (this.ActualTheme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
         if (Application.Current.Resources.TryGetValue("AcrylicInAppFillColorDefaultBrush", out var acrylicObj) && acrylicObj is Brush acrylicBrush)
@@ -763,8 +791,9 @@ public sealed partial class ConversationPage : Page
         if (this.XamlRoot == null) return;
 
         // WhatsApp Delete Eligibility:
-        // "Delete for everyone" is allowed for outgoing messages within 60 hours (~2.5 days) that are not sending/failed.
-        bool canDeleteForEveryone = msg.IsOutgoing &&
+        // "Delete for everyone" is allowed for non-revoked outgoing messages within 60 hours (~2.5 days) that are not sending/failed.
+        bool canDeleteForEveryone = !msg.IsRevoked &&
+                                    msg.IsOutgoing &&
                                     msg.Status != MessageStatus.Sending &&
                                     msg.Status != MessageStatus.Failed &&
                                     (DateTimeOffset.UtcNow - msg.Timestamp).TotalHours <= 60.0;
@@ -774,7 +803,7 @@ public sealed partial class ConversationPage : Page
             XamlRoot = this.XamlRoot,
             Title = "Delete message?",
             CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close
+            DefaultButton = ContentDialogButton.Primary
         };
         ApplyDialogTransparency(dialog);
 
@@ -863,6 +892,11 @@ public sealed partial class ConversationPage : Page
         if (msg.IsEdited)
         {
             AddInfoRow("Edited", "Yes");
+        }
+
+        if (msg.IsRevoked)
+        {
+            AddInfoRow("Status", "Deleted");
         }
 
         if (msg.Content?.IsMedia == true || msg.Content?.IsDocument == true)

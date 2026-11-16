@@ -204,9 +204,8 @@ public class ThemeService : IThemeService
     {
         System.Diagnostics.Debug.WriteLine($"[ThemeService] ApplyCurrentAccent invoked. ActivePlatform: {_activePlatform}, CurrentTheme: {_currentTheme}");
 
-        // 1. Keep system accent independent
-        System.Diagnostics.Debug.WriteLine("[ThemeService] Applying Windows system accent fallback to system resources");
-        SetSystemAccentColor();
+        // 1. Ensure system accent palette is cached
+        _systemAccentPalette ??= ReadSystemAccentPalette();
 
         // 2. Resolve active app accent
         AccentPalette? appPalette = null;
@@ -219,12 +218,13 @@ public class ThemeService : IThemeService
             System.Diagnostics.Debug.WriteLine($"[ThemeService] Brand palette available: {appPalette != null}");
         }
 
-        // 3. Update app-specific brushes
-        appPalette ??= _systemAccentPalette;
-        if (appPalette != null)
+        // 3. Update theme dictionaries and app-specific brushes
+        var effectivePalette = appPalette ?? _systemAccentPalette ?? ReadSystemAccentPalette();
+        if (effectivePalette != null)
         {
-            System.Diagnostics.Debug.WriteLine($"[ThemeService] Setting AppAccentResources (Accent: {appPalette.Accent})");
-            SetAppAccentResources(appPalette);
+            System.Diagnostics.Debug.WriteLine($"[ThemeService] Setting AppAccentPalette & Resources (Accent: {effectivePalette.Accent})");
+            SetAppAccentPalette(effectivePalette);
+            SetAppAccentResources(effectivePalette);
         }
     }
 
@@ -422,6 +422,13 @@ public class ThemeService : IThemeService
         SetOrMutateBrush("AppAccentButtonHoverBrush", btnHover);
         SetOrMutateBrush("AppAccentButtonPressedBrush", btnPressed);
         SetOrMutateBrush("AppAccentButtonForegroundBrush", btnFg);
+
+        SetOrMutateBrush("AccentButtonBackground", btnBg);
+        SetOrMutateBrush("AccentButtonBackgroundPointerOver", btnHover);
+        SetOrMutateBrush("AccentButtonBackgroundPressed", btnPressed);
+        SetOrMutateBrush("AccentButtonForeground", btnFg);
+        SetOrMutateBrush("AccentButtonForegroundPointerOver", btnFg);
+        SetOrMutateBrush("AccentButtonForegroundPressed", btnFg);
 
         var chatListTsColor = isDark ? ColorHelper.FromArgb(255, 134, 150, 160) : ColorHelper.FromArgb(255, 102, 119, 129);
         SetOrMutateBrush("ChatListTimestampBrush", chatListTsColor);

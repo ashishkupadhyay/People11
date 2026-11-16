@@ -802,6 +802,19 @@
                                                         </Border.ContextFlyout>
                                                     </Border>
 
+                                                    <!-- Revoked Message Placeholder (WhatsApp deleted message) -->
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,1,0,1"
+                                                                Visibility="{x:Bind IsRevoked, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <FontIcon Glyph="&#xE8EE;" FontSize="14"
+                                                                  Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                                  VerticalAlignment="Center" />
+                                                        <TextBlock Text="{x:Bind RevokedDisplayText, Mode=OneWay}"
+                                                                   FontStyle="Italic"
+                                                                   FontSize="13.5"
+                                                                   Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+
                                                     <!-- Message Text / Caption with Clickable Links -->
                                                     <RichTextBlock helpers:LinkifyHelper.Text="{x:Bind Content.DisplayCaptionOrText, Mode=OneWay}"
                                                                    Visibility="{x:Bind Content.HasTextOrCaption, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -854,7 +867,7 @@
                                                                    Foreground="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource OutgoingSubtextColorConverter}}" />
 
                                                         <!-- Status Icon Container for Outgoing Messages -->
-                                                        <Grid Visibility="{x:Bind IsOutgoing, Mode=OneTime, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                        <Grid Visibility="{x:Bind ShowStatusIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                               VerticalAlignment="Center">
                                                             <!-- Sending: Clock icon -->
                                                             <FontIcon Glyph="&#xE916;" FontSize="9"

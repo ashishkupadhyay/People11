@@ -302,7 +302,23 @@ public class MessageContent : INotifyPropertyChanged
         }
     }
 
-    public bool HasTextOrCaption => !string.IsNullOrWhiteSpace(DisplayCaptionOrText);
+    public bool HasTextOrCaption => !IsRevoked && !string.IsNullOrWhiteSpace(DisplayCaptionOrText);
+
+    private bool _isRevoked;
+    [JsonPropertyName("isRevoked")]
+    public bool IsRevoked
+    {
+        get => _isRevoked || _text == "You deleted this message" || _text == "This message was deleted";
+        set
+        {
+            if (_isRevoked != value)
+            {
+                _isRevoked = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasTextOrCaption));
+            }
+        }
+    }
 
     [JsonIgnore]
     public double CaptionMaxWidth => (IsImage || IsVideo) ? 304 : double.PositiveInfinity;

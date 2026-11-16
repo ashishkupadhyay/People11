@@ -515,8 +515,27 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
 
-                // Filter out empty protocol / stub messages (unless it's an alert/notice with text or real media)
-                if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(text))
+                bool isRevoked = (root.TryGetProperty("isRevoked", out var revProp) && revProp.GetBoolean())
+                    || mediaType == "revoked"
+                    || text == "You deleted this message"
+                    || text == "This message was deleted";
+
+                if (isRevoked)
+                {
+                    contentType = MessageContentType.Text;
+                    bool isOutMsg = root.TryGetProperty("isOutgoing", out var isOutBool) && isOutBool.GetBoolean();
+                    text = isOutMsg ? "You deleted this message" : "This message was deleted";
+                    caption = null;
+                    mediaUrl = null;
+                    fileName = null;
+                    fileSize = null;
+                    mimeType = null;
+                    thumbB64 = null;
+                    duration = null;
+                }
+
+                // Filter out empty protocol / stub messages (unless it's an alert/notice with text or real media or revoked)
+                if (!isRevoked && contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(text))
                 {
                     return;
                 }
@@ -1009,8 +1028,13 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     private static Message? ConvertDtoToMessage(NativeMessageDto dto, string fallbackChatId)
     {
-        var contentType = ParseContentType(dto.MediaType);
-        if (contentType == MessageContentType.Text && !string.IsNullOrEmpty(dto.Text))
+        bool isRevoked = dto.IsRevoked
+            || dto.MediaType == "revoked"
+            || dto.Text == "You deleted this message"
+            || dto.Text == "This message was deleted";
+
+        var contentType = isRevoked ? MessageContentType.Text : ParseContentType(dto.MediaType);
+        if (!isRevoked && contentType == MessageContentType.Text && !string.IsNullOrEmpty(dto.Text))
         {
             if (dto.Text == "📷 Photo" || dto.Text.StartsWith("📷 Photo:"))
             {
@@ -1032,14 +1056,18 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        // Filter empty protocol messages
-        if (contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
+        // Filter empty protocol messages (unless revoked)
+        if (!isRevoked && contentType == MessageContentType.Text && string.IsNullOrWhiteSpace(dto.Text))
         {
             return null;
         }
 
         var localFilePath = dto.MediaUrl;
         var isDownloaded = !string.IsNullOrEmpty(localFilePath) && File.Exists(localFilePath);
+
+        var msgText = isRevoked
+            ? (dto.IsOutgoing ? "You deleted this message" : "This message was deleted")
+            : ((contentType == MessageContentType.Text) ? (dto.Text ?? string.Empty) : string.Empty);
 
         return new Message
         {
@@ -1051,25 +1079,26 @@ public class WhatsAppProvider : IWhatsAppProvider
             IsOutgoing = dto.IsOutgoing,
             Content = new MessageContent
             {
-                Text = (contentType == MessageContentType.Text) ? (dto.Text ?? string.Empty) : string.Empty,
+                Text = msgText,
                 Type = contentType,
-                MediaUrl = dto.MediaUrl,
-                LocalFilePath = isDownloaded ? localFilePath : null,
-                FileName = dto.FileName,
-                FileSize = dto.FileSize,
-                MimeType = dto.MimeType,
-                ThumbnailUrl = dto.ThumbnailBase64,
-                Caption = dto.Caption,
-                DurationSeconds = dto.DurationSeconds
+                IsRevoked = isRevoked,
+                MediaUrl = isRevoked ? null : dto.MediaUrl,
+                LocalFilePath = isRevoked ? null : (isDownloaded ? localFilePath : null),
+                FileName = isRevoked ? null : dto.FileName,
+                FileSize = isRevoked ? null : dto.FileSize,
+                MimeType = isRevoked ? null : dto.MimeType,
+                ThumbnailUrl = isRevoked ? null : dto.ThumbnailBase64,
+                Caption = isRevoked ? null : dto.Caption,
+                DurationSeconds = isRevoked ? null : dto.DurationSeconds
             },
             Timestamp = dto.Timestamp > 0
                 ? DateTimeOffset.FromUnixTimeSeconds(dto.Timestamp)
                 : DateTimeOffset.UnixEpoch,
             Status = (MessageStatus)dto.Status,
-            IsEdited = dto.IsEdited,
-            QuotedText = dto.QuotedText,
-            QuotedSender = dto.QuotedSender,
-            Reactions = dto.ReactionDetails?.ToList() ?? dto.Reactions?.Select(e => new MessageReaction { Emoji = e, SenderId = "peer", SenderName = null, IsFromMe = false }).ToList() ?? new()
+            IsEdited = !isRevoked && dto.IsEdited,
+            QuotedText = isRevoked ? null : dto.QuotedText,
+            QuotedSender = isRevoked ? null : dto.QuotedSender,
+            Reactions = isRevoked ? new() : (dto.ReactionDetails?.ToList() ?? dto.Reactions?.Select(e => new MessageReaction { Emoji = e, SenderId = "peer", SenderName = null, IsFromMe = false }).ToList() ?? new())
         };
     }
 
@@ -1803,7 +1832,26 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             if (_messageRepository != null)
             {
-                try { await _messageRepository.DeleteAsync(messageId); } catch { }
+                try
+                {
+                    if (forEveryone)
+                    {
+                        var existing = await _messageRepository.GetByIdAsync(messageId);
+                        if (existing != null)
+                        {
+                            existing.IsRevoked = true;
+                            existing.Content.IsRevoked = true;
+                            existing.Content.Type = MessageContentType.Text;
+                            existing.Content.Text = existing.IsOutgoing ? "You deleted this message" : "This message was deleted";
+                            await _messageRepository.SaveAsync(existing);
+                        }
+                    }
+                    else
+                    {
+                        await _messageRepository.DeleteAsync(messageId);
+                    }
+                }
+                catch { }
             }
             return true;
         }
@@ -1815,7 +1863,31 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var res = await Task.Run(() => WhatsAppNative.wa_revoke_message(_clientPtr, cleanId, messageId), ct);
                 if (_messageRepository != null)
                 {
-                    try { await _messageRepository.DeleteAsync(messageId); } catch { }
+                    try
+                    {
+                        var existing = await _messageRepository.GetByIdAsync(messageId);
+                        if (existing != null)
+                        {
+                            existing.IsRevoked = true;
+                            existing.Content.IsRevoked = true;
+                            existing.Content.Type = MessageContentType.Text;
+                            existing.Content.Text = existing.IsOutgoing ? "You deleted this message" : "This message was deleted";
+                            existing.Content.Caption = null;
+                            existing.Content.LocalFilePath = null;
+                            existing.Content.ThumbnailUrl = null;
+                            existing.Content.FileName = null;
+                            existing.Content.FileSize = null;
+                            existing.Content.MediaUrl = null;
+                            existing.QuotedText = null;
+                            existing.QuotedSender = null;
+                            existing.QuotedMessageId = null;
+                            existing.QuotedParticipant = null;
+                            existing.Reactions = new List<MessageReaction>();
+                            existing.IsEdited = false;
+                            await _messageRepository.SaveAsync(existing);
+                        }
+                    }
+                    catch { }
                 }
                 return res == 0;
             }
@@ -2141,5 +2213,6 @@ public class WhatsAppProvider : IWhatsAppProvider
         public string? Caption { get; set; }
         public int? DurationSeconds { get; set; }
         public bool IsEdited { get; set; }
+        public bool IsRevoked { get; set; }
     }
 }

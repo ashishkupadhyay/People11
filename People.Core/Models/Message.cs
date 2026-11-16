@@ -106,9 +106,39 @@ public class Message : INotifyPropertyChanged
                 _content = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsSystemNotice));
+                OnPropertyChanged(nameof(IsRevoked));
+                OnPropertyChanged(nameof(RevokedDisplayText));
+                OnPropertyChanged(nameof(ShowStatusIcon));
+                OnPropertyChanged(nameof(CanReact));
             }
         }
     }
+
+    [NotMapped]
+    public bool IsRevoked
+    {
+        get => Content?.IsRevoked ?? false;
+        set
+        {
+            if (Content != null && Content.IsRevoked != value)
+            {
+                Content.IsRevoked = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RevokedDisplayText));
+                OnPropertyChanged(nameof(ShowStatusIcon));
+                OnPropertyChanged(nameof(CanReact));
+            }
+        }
+    }
+
+    [NotMapped]
+    public string RevokedDisplayText => IsOutgoing ? "You deleted this message" : "This message was deleted";
+
+    [NotMapped]
+    public bool ShowStatusIcon => IsOutgoing && !IsRevoked;
+
+    [NotMapped]
+    public bool CanReact => !IsRevoked;
 
     // Reply / Quote information
     public string? QuotedText { get; set; }
