@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -570,7 +571,7 @@ public sealed partial class ConversationPage : Page
             replyItem.Click += MessageReply_Click;
             _textContextMenu.Items.Add(replyItem);
 
-            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uE72D" } };
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE39" } };
             forwardItem.Click += MessageForward_Click;
             _textContextMenu.Items.Add(forwardItem);
 
@@ -599,7 +600,7 @@ public sealed partial class ConversationPage : Page
             replyItem.Click += MessageReply_Click;
             _mediaContextMenu.Items.Add(replyItem);
 
-            var openItem = new MenuFlyoutItem { Text = "Open", Icon = new FontIcon { Glyph = "\uE8E5" } };
+            var openItem = new MenuFlyoutItem { Text = "Open", Icon = new FontIcon { Glyph = "\uE93A" } };
             openItem.Click += OpenMediaInApp_Click;
             _mediaContextMenu.Items.Add(openItem);
 
@@ -611,9 +612,13 @@ public sealed partial class ConversationPage : Page
             saveAsItem.Click += SaveMediaAs_Click;
             _mediaContextMenu.Items.Add(saveAsItem);
 
-            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uE72D" } };
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE39" } };
             forwardItem.Click += MessageForward_Click;
             _mediaContextMenu.Items.Add(forwardItem);
+
+            var shareItem = new MenuFlyoutItem { Text = "Share", Icon = new FontIcon { Glyph = "\uE72D" } };
+            shareItem.Click += MessageShare_Click;
+            _mediaContextMenu.Items.Add(shareItem);
 
             var copyItem = new MenuFlyoutItem { Text = "Copy", Icon = new FontIcon { Glyph = "\uE8C8" } };
             copyItem.Click += MessageCopy_Click;
@@ -648,9 +653,13 @@ public sealed partial class ConversationPage : Page
             saveAsItem.Click += SaveMediaAs_Click;
             _documentContextMenu.Items.Add(saveAsItem);
 
-            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uE72D" } };
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE39" } };
             forwardItem.Click += MessageForward_Click;
             _documentContextMenu.Items.Add(forwardItem);
+
+            var shareItem = new MenuFlyoutItem { Text = "Share", Icon = new FontIcon { Glyph = "\uE72D" } };
+            shareItem.Click += MessageShare_Click;
+            _documentContextMenu.Items.Add(shareItem);
 
             var copyItem = new MenuFlyoutItem { Text = "Copy", Icon = new FontIcon { Glyph = "\uE8C8" } };
             copyItem.Click += MessageCopy_Click;
@@ -890,6 +899,111 @@ public sealed partial class ConversationPage : Page
         if (result == ContentDialogResult.Primary && listView.SelectedItem is Chat targetChat)
         {
             await ViewModel.ForwardMessageAsync(msg, targetChat);
+        }
+    }
+
+    [ComImport]
+    [Guid("3A3DCD6C-3EAB-43DC-BCDE-45671CE800C8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IDataTransferManagerInterop
+    {
+        IntPtr GetForWindow([In] IntPtr appWindow, [In] ref Guid riid);
+        void ShowShareUIForWindow(IntPtr appWindow);
+    }
+
+    private static readonly Guid _dtm_iid = new Guid(0xa5caee9b, 0x8708, 0x49d1, 0x8d, 0x36, 0x67, 0xd2, 0x5a, 0x8d, 0xa0, 0x0c);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetActiveWindow();
+
+    private static Windows.ApplicationModel.DataTransfer.DataTransferManager? _dataTransferManager;
+    private static IntPtr _lastDataTransferManagerHwnd = IntPtr.Zero;
+    private static Message? _currentSharingMessage;
+
+    private void EnsureDataTransferManager(IntPtr hWnd)
+    {
+        if (_dataTransferManager == null || _lastDataTransferManagerHwnd != hWnd)
+        {
+            var interop = Windows.ApplicationModel.DataTransfer.DataTransferManager.As<IDataTransferManagerInterop>();
+            IntPtr result = interop.GetForWindow(hWnd, _dtm_iid);
+            _dataTransferManager = WinRT.MarshalInterface<Windows.ApplicationModel.DataTransfer.DataTransferManager>.FromAbi(result);
+            _lastDataTransferManagerHwnd = hWnd;
+            _dataTransferManager.DataRequested += DataTransferManager_DataRequested;
+        }
+    }
+
+    private async void DataTransferManager_DataRequested(Windows.ApplicationModel.DataTransfer.DataTransferManager sender, Windows.ApplicationModel.DataTransfer.DataRequestedEventArgs args)
+    {
+        var deferral = args.Request.GetDeferral();
+        try
+        {
+            var msg = _currentSharingMessage;
+            if (msg == null) return;
+
+            string title = !string.IsNullOrWhiteSpace(msg.Content?.DisplayName)
+                ? msg.Content.DisplayName
+                : (msg.Content?.IsImage == true ? "Photo" : (msg.Content?.IsVideo == true ? "Video" : (msg.Content?.IsDocument == true ? "Document" : "Shared message")));
+
+            args.Request.Data.Properties.Title = title;
+            args.Request.Data.Properties.Description = "Shared from People";
+
+            string? filePath = msg.Content?.LocalFilePath ?? msg.Content?.EffectiveImagePath;
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                try
+                {
+                    var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(filePath);
+                    args.Request.Data.SetStorageItems(new[] { storageFile });
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to load StorageFile for share: {ex.Message}");
+                }
+            }
+
+            string? text = msg.Content?.DisplayCaptionOrText;
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                args.Request.Data.SetText(text);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"DataRequested error: {ex.Message}");
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    private void MessageShare_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = GetMessageFromSender(sender);
+        if (msg == null) return;
+
+        IntPtr hWnd = IntPtr.Zero;
+        if (App.Current.MainWindow != null)
+        {
+            hWnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+        }
+        if (hWnd == IntPtr.Zero)
+        {
+            hWnd = GetActiveWindow();
+        }
+        if (hWnd == IntPtr.Zero) return;
+
+        _currentSharingMessage = msg;
+        EnsureDataTransferManager(hWnd);
+
+        try
+        {
+            var interop = Windows.ApplicationModel.DataTransfer.DataTransferManager.As<IDataTransferManagerInterop>();
+            interop.ShowShareUIForWindow(hWnd);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ShowShareUIForWindow failed: {ex.Message}");
         }
     }
 

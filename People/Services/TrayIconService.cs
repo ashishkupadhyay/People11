@@ -101,8 +101,7 @@ public class TrayIconService : ITrayIconService
     private void ApplyTaskbarIconAsset()
     {
         if (_taskbarIcon == null) return;
-        var isLightTaskbar = IsSystemUsesLightTheme();
-        var iconFileName = isLightTaskbar ? "TrayIcon_Dark.ico" : "TrayIcon_White.ico";
+        var iconFileName = "TrayIcon_Color.ico";
         var iconPath = GetIconFilePath(iconFileName);
 
         if (File.Exists(iconPath))
@@ -116,10 +115,9 @@ public class TrayIconService : ITrayIconService
         }
 
         // Fallback to BitmapImage / PNG
-        var pngFileName = isLightTaskbar ? "TrayIcon_Dark.png" : "TrayIcon_White.png";
         try
         {
-            _taskbarIcon.IconSource = new BitmapImage(new Uri($"ms-appx:///Assets/Icons/TrayIcons/{pngFileName}"));
+            _taskbarIcon.IconSource = new BitmapImage(new Uri("ms-appx:///Assets/Icons/TrayIcons/TrayIcon_Color.png"));
         }
         catch { }
     }

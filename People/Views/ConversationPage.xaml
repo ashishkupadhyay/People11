@@ -312,7 +312,7 @@
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Open" Click="OpenMediaInApp_Click">
                                                                     <MenuFlyoutItem.Icon>
-                                                                        <FontIcon Glyph="&#xE8E5;" />
+                                                                        <FontIcon Glyph="&#xE93A;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
@@ -326,6 +326,11 @@
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Forward" Click="MessageForward_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xEE39;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Share" Click="MessageShare_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE72D;" />
                                                                     </MenuFlyoutItem.Icon>
@@ -444,7 +449,7 @@
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Open" Click="OpenMediaInApp_Click">
                                                                     <MenuFlyoutItem.Icon>
-                                                                        <FontIcon Glyph="&#xE8E5;" />
+                                                                        <FontIcon Glyph="&#xE93A;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Open with default app" Click="OpenMediaDefaultApp_Click">
@@ -458,6 +463,11 @@
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Forward" Click="MessageForward_Click">
+                                                                    <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xEE39;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Share" Click="MessageShare_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE72D;" />
                                                                     </MenuFlyoutItem.Icon>
@@ -613,6 +623,11 @@
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Forward" Click="MessageForward_Click">
                                                                     <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xEE39;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Share" Click="MessageShare_Click">
+                                                                    <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE72D;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
@@ -760,6 +775,11 @@
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Forward" Click="MessageForward_Click">
                                                                     <MenuFlyoutItem.Icon>
+                                                                        <FontIcon Glyph="&#xEE39;" />
+                                                                    </MenuFlyoutItem.Icon>
+                                                                </MenuFlyoutItem>
+                                                                <MenuFlyoutItem Text="Share" Click="MessageShare_Click">
+                                                                    <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE72D;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
@@ -799,7 +819,7 @@
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Forward" Click="MessageForward_Click">
                                                                     <MenuFlyoutItem.Icon>
-                                                                        <FontIcon Glyph="&#xE72D;" />
+                                                                        <FontIcon Glyph="&#xEE39;" />
                                                                     </MenuFlyoutItem.Icon>
                                                                 </MenuFlyoutItem>
                                                                 <MenuFlyoutItem Text="Copy" Click="MessageCopy_Click">
