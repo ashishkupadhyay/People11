@@ -571,7 +571,7 @@ public sealed partial class ConversationPage : Page
             replyItem.Click += MessageReply_Click;
             _textContextMenu.Items.Add(replyItem);
 
-            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE39" } };
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE35" } };
             forwardItem.Click += MessageForward_Click;
             _textContextMenu.Items.Add(forwardItem);
 
@@ -612,7 +612,7 @@ public sealed partial class ConversationPage : Page
             saveAsItem.Click += SaveMediaAs_Click;
             _mediaContextMenu.Items.Add(saveAsItem);
 
-            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE39" } };
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE35" } };
             forwardItem.Click += MessageForward_Click;
             _mediaContextMenu.Items.Add(forwardItem);
 
@@ -653,7 +653,7 @@ public sealed partial class ConversationPage : Page
             saveAsItem.Click += SaveMediaAs_Click;
             _documentContextMenu.Items.Add(saveAsItem);
 
-            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE39" } };
+            var forwardItem = new MenuFlyoutItem { Text = "Forward", Icon = new FontIcon { Glyph = "\uEE35" } };
             forwardItem.Click += MessageForward_Click;
             _documentContextMenu.Items.Add(forwardItem);
 
@@ -847,52 +847,243 @@ public sealed partial class ConversationPage : Page
         if (this.XamlRoot == null) return;
 
         var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
-        var availableChats = chatListVm?.Chats?.ToList() ?? new List<Chat>();
+        var targetChats = new List<Chat>();
+        var seenChatIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (availableChats.Count == 0)
+        // 1. Gather all active conversations
+        if (chatListVm?.Chats != null)
+        {
+            foreach (var chat in chatListVm.Chats)
+            {
+                if (chat != null && !string.IsNullOrEmpty(chat.Id) && seenChatIds.Add(chat.Id))
+                {
+                    targetChats.Add(chat);
+                }
+            }
+        }
+
+        // 2. Also gather contacts without an active conversation
+        if (chatListVm?.FilteredContacts != null)
+        {
+            foreach (var contact in chatListVm.FilteredContacts)
+            {
+                if (contact != null && !string.IsNullOrEmpty(contact.Id) && !seenChatIds.Contains(contact.Id))
+                {
+                    var chat = chatListVm.GetOrCreateChatForContact(contact);
+                    if (chat != null && seenChatIds.Add(chat.Id))
+                    {
+                        targetChats.Add(chat);
+                    }
+                }
+            }
+        }
+
+        if (targetChats.Count == 0)
         {
             var noChatsDialog = new ContentDialog
             {
                 XamlRoot = this.XamlRoot,
                 Title = "Forward message",
-                Content = "No conversations available to forward this message to.",
+                Content = "No conversations or contacts available to forward this message to.",
                 CloseButtonText = "Close"
             };
             await noChatsDialog.ShowAsync();
             return;
         }
 
+        var filteredChats = new System.Collections.ObjectModel.ObservableCollection<Chat>(targetChats);
+
+        // Dialog content layout
+        var contentStack = new StackPanel { Spacing = 12, Width = 360 };
+
+        // Search Box for contacts / chats
+        var searchBox = new AutoSuggestBox
+        {
+            PlaceholderText = "Search contacts or chats...",
+            QueryIcon = new SymbolIcon(Symbol.Find),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        // ListView for target selection
         var listView = new ListView
         {
-            ItemsSource = availableChats,
+            ItemsSource = filteredChats,
             SelectionMode = ListViewSelectionMode.Single,
             MaxHeight = 320,
-            Width = 320,
-            DisplayMemberPath = "Title"
+            MinHeight = 180,
+            Width = 360,
+            IsItemClickEnabled = true
         };
-        if (availableChats.Count > 0)
-        {
-            listView.SelectedIndex = 0;
-        }
 
-        var stack = new StackPanel { Spacing = 10 };
-        var prompt = new TextBlock
+        // Rich Fluent item template with PersonPicture, Title, and Subtitle
+        try
         {
-            Text = "Select a conversation to forward to:",
-            FontSize = 13,
-            Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush
+            var template = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(@"
+<DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation""
+              xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"">
+    <Grid Padding=""4,6"" ColumnSpacing=""12"">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width=""Auto"" />
+            <ColumnDefinition Width=""*"" />
+        </Grid.ColumnDefinitions>
+        <PersonPicture Grid.Column=""0"" Width=""38"" Height=""38"" VerticalAlignment=""Center""
+                       DisplayName=""{Binding Title}"" />
+        <StackPanel Grid.Column=""1"" VerticalAlignment=""Center"" Spacing=""2"">
+            <TextBlock Text=""{Binding Title}"" FontWeight=""SemiBold"" FontSize=""14"" TextTrimming=""CharacterEllipsis"" />
+            <TextBlock Text=""{Binding LastMessagePreview}"" FontSize=""12"" Foreground=""{ThemeResource TextFillColorSecondaryBrush}"" TextTrimming=""CharacterEllipsis"" />
+        </StackPanel>
+    </Grid>
+</DataTemplate>");
+            listView.ItemTemplate = template;
+        }
+        catch { }
+
+        listView.ContainerContentChanging += (lv, args) =>
+        {
+            if (args.Item is Chat c && args.ItemContainer?.ContentTemplateRoot is Grid grid)
+            {
+                if (grid.Children.Count > 0 && grid.Children[0] is PersonPicture pp)
+                {
+                    pp.DisplayName = c.Title;
+                    if (!string.IsNullOrEmpty(c.PictureUrl))
+                    {
+                        try
+                        {
+                            pp.ProfilePicture = new BitmapImage(new Uri(c.PictureUrl));
+                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        pp.ProfilePicture = null;
+                    }
+                }
+
+                if (grid.Children.Count > 1 && grid.Children[1] is StackPanel sp && sp.Children.Count > 1 && sp.Children[1] is TextBlock subText)
+                {
+                    subText.Text = !string.IsNullOrWhiteSpace(c.LastMessagePreview)
+                        ? c.LastMessagePreview
+                        : c.PlatformId;
+                }
+            }
         };
-        stack.Children.Add(prompt);
-        stack.Children.Add(listView);
+
+        var emptyText = new TextBlock
+        {
+            Text = "No contacts or chats found",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Brush,
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 40, 0, 40)
+        };
+
+        var listContainer = new Grid();
+        listContainer.Children.Add(listView);
+        listContainer.Children.Add(emptyText);
+
+        contentStack.Children.Add(searchBox);
+        contentStack.Children.Add(listContainer);
 
         var dialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
             Title = "Forward message",
-            Content = stack,
+            Content = contentStack,
             PrimaryButtonText = "Forward",
             CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Primary
+            DefaultButton = ContentDialogButton.Primary,
+            CornerRadius = new CornerRadius(12),
+            BorderThickness = new Thickness(1)
+        };
+
+        // Transparency effect: In-app acrylic background with subtle translucent smoke layer
+        bool isDark = this.ActualTheme == ElementTheme.Dark || (this.ActualTheme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        if (Application.Current.Resources.TryGetValue("AcrylicInAppFillColorDefaultBrush", out var acrylicObj) && acrylicObj is Brush acrylicBrush)
+        {
+            dialog.Background = acrylicBrush;
+        }
+        else
+        {
+            dialog.Background = new AcrylicBrush
+            {
+                TintColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32) : Microsoft.UI.ColorHelper.FromArgb(255, 243, 243, 243),
+                TintOpacity = 0.75,
+                FallbackColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32) : Microsoft.UI.ColorHelper.FromArgb(255, 243, 243, 243)
+            };
+        }
+
+        if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var borderObj) && borderObj is Brush borderBrush)
+        {
+            dialog.BorderBrush = borderBrush;
+        }
+
+        if (filteredChats.Count > 0)
+        {
+            listView.SelectedIndex = 0;
+            dialog.IsPrimaryButtonEnabled = true;
+        }
+        else
+        {
+            dialog.IsPrimaryButtonEnabled = false;
+        }
+
+        // Real-time search filtering
+        searchBox.TextChanged += (s, args) =>
+        {
+            var query = searchBox.Text.Trim();
+            filteredChats.Clear();
+            IEnumerable<Chat> matches = targetChats;
+            if (!string.IsNullOrEmpty(query))
+            {
+                matches = targetChats.Where(c =>
+                    (c.Title != null && c.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.LastMessagePreview != null && c.LastMessagePreview.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.PlatformId != null && c.PlatformId.Contains(query, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            foreach (var m in matches)
+            {
+                filteredChats.Add(m);
+            }
+
+            if (filteredChats.Count > 0)
+            {
+                listView.SelectedIndex = 0;
+                emptyText.Visibility = Visibility.Collapsed;
+                dialog.IsPrimaryButtonEnabled = true;
+            }
+            else
+            {
+                emptyText.Visibility = Visibility.Visible;
+                dialog.IsPrimaryButtonEnabled = false;
+            }
+        };
+
+        // Selection handling
+        listView.SelectionChanged += (s, args) =>
+        {
+            dialog.IsPrimaryButtonEnabled = listView.SelectedItem is Chat;
+        };
+
+        // Click to select
+        listView.ItemClick += (s, args) =>
+        {
+            if (args.ClickedItem is Chat selected)
+            {
+                listView.SelectedItem = selected;
+                dialog.IsPrimaryButtonEnabled = true;
+            }
+        };
+
+        // Double-tap shortcut to forward immediately
+        listView.DoubleTapped += (s, args) =>
+        {
+            if (listView.SelectedItem is Chat target)
+            {
+                dialog.Hide();
+                _ = ViewModel.ForwardMessageAsync(msg, target);
+            }
         };
 
         var result = await dialog.ShowAsync();
@@ -952,7 +1143,22 @@ public sealed partial class ConversationPage : Page
             {
                 try
                 {
-                    var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(filePath);
+                    // Copy to user Temp directory so all external share targets have unrestricted read access across sandbox boundaries
+                    string shareFilePath = filePath;
+                    try
+                    {
+                        var tempDir = Path.Combine(Path.GetTempPath(), "People", "Share");
+                        Directory.CreateDirectory(tempDir);
+                        var tempPath = Path.Combine(tempDir, Path.GetFileName(filePath));
+                        if (!File.Exists(tempPath) || new FileInfo(tempPath).Length != new FileInfo(filePath).Length)
+                        {
+                            File.Copy(filePath, tempPath, true);
+                        }
+                        shareFilePath = tempPath;
+                    }
+                    catch { }
+
+                    var storageFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(shareFilePath);
                     args.Request.Data.SetStorageItems(new[] { storageFile });
                 }
                 catch (Exception ex)
@@ -977,10 +1183,21 @@ public sealed partial class ConversationPage : Page
         }
     }
 
-    private void MessageShare_Click(object sender, RoutedEventArgs e)
+    private async void MessageShare_Click(object sender, RoutedEventArgs e)
     {
         var msg = GetMessageFromSender(sender);
         if (msg == null) return;
+
+        // If the message contains media or document that is not downloaded, download it first!
+        if (msg.Content != null && (msg.Content.IsImage || msg.Content.IsVideo || msg.Content.IsAudio || msg.Content.IsDocument))
+        {
+            var downloadedPath = await ViewModel.EnsureMediaDownloadedAsync(msg);
+            if (string.IsNullOrEmpty(downloadedPath) || !File.Exists(downloadedPath))
+            {
+                // Download was not completed or failed; avoid showing empty share sheet
+                return;
+            }
+        }
 
         IntPtr hWnd = IntPtr.Zero;
         if (App.Current.MainWindow != null)

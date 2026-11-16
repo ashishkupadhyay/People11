@@ -1375,6 +1375,38 @@ public partial class ConversationViewModel : ViewModelBase
         msg.Content.DownloadProgress = 0.0;
     }
 
+    public async Task<string?> EnsureMediaDownloadedAsync(Message? msg)
+    {
+        if (msg?.Content == null) return null;
+
+        if (!string.IsNullOrEmpty(msg.Content.LocalFilePath) && File.Exists(msg.Content.LocalFilePath))
+        {
+            return msg.Content.LocalFilePath;
+        }
+
+        if (!msg.Content.IsDownloading)
+        {
+            await DownloadMediaAsync(msg);
+        }
+
+        int waitedMs = 0;
+        while (msg.Content.IsDownloading && waitedMs < 60000)
+        {
+            await Task.Delay(100);
+            waitedMs += 100;
+        }
+
+        // Allow UI dispatcher to finish setting LocalFilePath
+        await Task.Delay(50);
+
+        if (!string.IsNullOrEmpty(msg.Content.LocalFilePath) && File.Exists(msg.Content.LocalFilePath))
+        {
+            return msg.Content.LocalFilePath;
+        }
+
+        return null;
+    }
+
     [RelayCommand]
     public void CancelDocumentDownload(Message? msg) => CancelDownload(msg);
 
@@ -1817,6 +1849,15 @@ public partial class ConversationViewModel : ViewModelBase
     public async Task ForwardMessageAsync(Message sourceMsg, Chat targetChat)
     {
         if (sourceMsg == null || targetChat == null) return;
+
+        if (sourceMsg.Content != null && (sourceMsg.Content.IsImage || sourceMsg.Content.IsVideo || sourceMsg.Content.IsAudio || sourceMsg.Content.IsDocument))
+        {
+            var downloadedPath = await EnsureMediaDownloadedAsync(sourceMsg);
+            if (!string.IsNullOrEmpty(downloadedPath))
+            {
+                sourceMsg.Content.LocalFilePath = downloadedPath;
+            }
+        }
 
         var content = new MessageContent
         {
