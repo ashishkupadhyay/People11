@@ -23,4 +23,5 @@ public interface IMessagingProvider : IDisposable
     Task MarkAsReadAsync(string chatId, string messageId, CancellationToken ct = default);
     Task<string?> DownloadMediaAsync(string chatId, string messageId, string? fileName = null, CancellationToken ct = default);
     Task<bool> SendReactionAsync(string chatId, string messageId, string emoji, CancellationToken ct = default);
+    Task<bool> DeleteMessageAsync(string chatId, string messageId, bool forEveryone = false, CancellationToken ct = default);
 }

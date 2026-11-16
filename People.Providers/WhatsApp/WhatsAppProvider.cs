@@ -1386,7 +1386,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 IntPtr realIdPtr = IntPtr.Zero;
                 try
                 {
-                    realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, msg.ChatId, msg.Content.Text));
+                    realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, msg.ChatId, msg.Content.Text, msg.Content.QuotedMessageId ?? msg.QuotedMessageId, msg.Content.QuotedText ?? msg.QuotedText, msg.Content.QuotedParticipant ?? msg.QuotedParticipant ?? msg.Content.QuotedSender ?? msg.QuotedSender));
                 }
                 catch (Exception ex)
                 {
@@ -1476,7 +1476,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 try
                 {
-                    var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text), ct);
+                    var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text, content.QuotedMessageId, content.QuotedText, content.QuotedParticipant ?? content.QuotedSender), ct);
                     if (realIdPtr != IntPtr.Zero)
                     {
                         var realId = Marshal.PtrToStringUTF8(realIdPtr);
@@ -1783,6 +1783,76 @@ public class WhatsAppProvider : IWhatsAppProvider
         return res == 1;
     }
 
+    public async Task<bool> DeleteMessageAsync(string chatId, string messageId, bool forEveryone = false, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(chatId) || string.IsNullOrWhiteSpace(messageId))
+            return false;
+
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+
+        if (IsTestingMode || cleanId.StartsWith("sample_wa_"))
+        {
+            if (_messageRepository != null)
+            {
+                try { await _messageRepository.DeleteAsync(messageId); } catch { }
+            }
+            return true;
+        }
+
+        if (_clientPtr == IntPtr.Zero || !IsClientReady)
+        {
+            if (_messageRepository != null)
+            {
+                try { await _messageRepository.DeleteAsync(messageId); } catch { }
+            }
+            return true;
+        }
+
+        try
+        {
+            if (forEveryone)
+            {
+                var res = await Task.Run(() => WhatsAppNative.wa_revoke_message(_clientPtr, cleanId, messageId), ct);
+                if (_messageRepository != null)
+                {
+                    try { await _messageRepository.DeleteAsync(messageId); } catch { }
+                }
+                return res == 0;
+            }
+            else
+            {
+                bool fromMe = true;
+                if (_messageRepository != null)
+                {
+                    try
+                    {
+                        var existing = await _messageRepository.GetByIdAsync(messageId);
+                        if (existing != null)
+                        {
+                            fromMe = existing.IsOutgoing;
+                        }
+                    }
+                    catch { }
+                }
+                var res = await Task.Run(() => WhatsAppNative.wa_delete_message_for_me(_clientPtr, cleanId, messageId, fromMe, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()), ct);
+                if (_messageRepository != null)
+                {
+                    try { await _messageRepository.DeleteAsync(messageId); } catch { }
+                }
+                return res == 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "DeleteMessageAsync failed for {MessageId}", messageId);
+            if (_messageRepository != null)
+            {
+                try { await _messageRepository.DeleteAsync(messageId); } catch { }
+            }
+            return false;
+        }
+    }
+
     internal static void LogDiagnostic(string message)
     {
         try
@@ -1965,7 +2035,8 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             try
             {
-                var ptr = WhatsAppNative.wa_download_media(_clientPtr, chatId, messageId, targetPath);
+                var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+                var ptr = WhatsAppNative.wa_download_media(_clientPtr, cleanChatId, messageId, targetPath);
                 if (ptr == IntPtr.Zero)
                 {
                     _logger?.LogWarning("wa_download_media returned null for {MessageId}", messageId);

@@ -129,6 +129,16 @@ public class MessageRepository : IMessageRepository
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN IsEdited INTEGER NOT NULL DEFAULT 0;");
             }
             catch { }
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN QuotedMessageId TEXT NULL;");
+            }
+            catch { }
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN QuotedParticipant TEXT NULL;");
+            }
+            catch { }
 
             var candidates = await context.Messages
                 .Where(m => m.Content != null)
@@ -188,6 +198,8 @@ public class MessageRepository : IMessageRepository
             existing.Timestamp = message.Timestamp;
             existing.QuotedText = message.QuotedText;
             existing.QuotedSender = message.QuotedSender;
+            existing.QuotedMessageId = message.QuotedMessageId;
+            existing.QuotedParticipant = message.QuotedParticipant;
             existing.Reactions = message.Reactions;
             context.Entry(existing).State = EntityState.Modified;
         }
@@ -218,6 +230,8 @@ public class MessageRepository : IMessageRepository
                 existing.Timestamp = message.Timestamp;
                 existing.QuotedText = message.QuotedText;
                 existing.QuotedSender = message.QuotedSender;
+                existing.QuotedMessageId = message.QuotedMessageId;
+                existing.QuotedParticipant = message.QuotedParticipant;
                 existing.Reactions = message.Reactions;
                 context.Entry(existing).State = EntityState.Modified;
             }

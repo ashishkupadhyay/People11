@@ -64,7 +64,13 @@ public static unsafe partial class WhatsAppNative
     public static partial int wa_is_self_chat(IntPtr clientPtr, string chatId);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
-    public static partial IntPtr wa_send_message(IntPtr clientPtr, string chatId, string text);
+    public static partial IntPtr wa_send_message(IntPtr clientPtr, string chatId, string text, string? quotedId, string? quotedText, string? quotedSender);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_revoke_message(IntPtr clientPtr, string chatId, string messageId);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int wa_delete_message_for_me(IntPtr clientPtr, string chatId, string messageId, [MarshalAs(UnmanagedType.Bool)] bool fromMe, long timestampMs);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr wa_download_media(IntPtr clientPtr, string chatId, string messageId, string outputPath);

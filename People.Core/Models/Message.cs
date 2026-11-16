@@ -113,6 +113,8 @@ public class Message : INotifyPropertyChanged
     // Reply / Quote information
     public string? QuotedText { get; set; }
     public string? QuotedSender { get; set; }
+    public string? QuotedMessageId { get; set; }
+    public string? QuotedParticipant { get; set; }
 
     // Reactions
     private List<MessageReaction> _reactions = new();

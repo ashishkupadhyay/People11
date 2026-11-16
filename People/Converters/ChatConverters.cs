@@ -134,22 +134,39 @@ public class StringToImageSourceConverter : IValueConverter
         {
             try
             {
+                string? base64 = null;
                 if (url.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+                {
+                    var commaIdx = url.IndexOf(',');
+                    if (commaIdx >= 0)
+                    {
+                        base64 = url.Substring(commaIdx + 1).Trim();
+                    }
+                }
+                else if (url.Length > 100 && !url.Contains('/') && !url.Contains('\\') && !url.Contains(':'))
+                {
+                    base64 = url.Trim();
+                }
+
+                if (!string.IsNullOrEmpty(base64))
                 {
                     if (_blurCache.TryGetValue(url, out var cached))
                     {
                         return cached;
                     }
 
-                    var commaIdx = url.IndexOf(',');
-                    if (commaIdx >= 0)
+                    byte[]? bytes = null;
+                    try
                     {
-                        var base64 = url.Substring(commaIdx + 1);
-                        var bytes = System.Convert.FromBase64String(base64);
+                        bytes = System.Convert.FromBase64String(base64);
+                    }
+                    catch { }
 
+                    if (bytes != null && bytes.Length > 0)
+                    {
                         try
                         {
-                            var decodeResult = Task.Run<(byte[]? smooth, int targetW, int targetH)>(async () =>
+                            var decodeTask = Task.Run<(byte[]? smooth, int targetW, int targetH)>(async () =>
                             {
                                 using var memStream = new System.IO.MemoryStream(bytes);
                                 using var ras = memStream.AsRandomAccessStream();
@@ -172,14 +189,14 @@ public class StringToImageSourceConverter : IValueConverter
                                     return (smooth, targetW, targetH);
                                 }
                                 return (null, 0, 0);
-                            }).GetAwaiter().GetResult();
+                            });
 
-                            if (decodeResult.smooth != null && decodeResult.targetW > 0 && decodeResult.targetH > 0)
+                            if (decodeTask.Wait(800) && decodeTask.Result.smooth != null && decodeTask.Result.targetW > 0 && decodeTask.Result.targetH > 0)
                             {
-                                var wb = new WriteableBitmap(decodeResult.targetW, decodeResult.targetH);
+                                var wb = new WriteableBitmap(decodeTask.Result.targetW, decodeTask.Result.targetH);
                                 using (var pixelStream = wb.PixelBuffer.AsStream())
                                 {
-                                    pixelStream.Write(decodeResult.smooth, 0, decodeResult.smooth.Length);
+                                    pixelStream.Write(decodeTask.Result.smooth, 0, decodeTask.Result.smooth.Length);
                                 }
                                 wb.Invalidate();
                                 _blurCache[url] = wb;
@@ -191,12 +208,16 @@ public class StringToImageSourceConverter : IValueConverter
                             // Fallback to standard BitmapImage if decoding or WIC is unavailable
                         }
 
-                        var ms = new System.IO.MemoryStream(bytes);
-                        var bitmap = new BitmapImage();
-                        ms.Position = 0;
-                        bitmap.SetSource(ms.AsRandomAccessStream());
-                        _blurCache[url] = bitmap;
-                        return bitmap;
+                        try
+                        {
+                            var ms = new System.IO.MemoryStream(bytes);
+                            var bitmap = new BitmapImage();
+                            ms.Position = 0;
+                            bitmap.SetSource(ms.AsRandomAccessStream());
+                            _blurCache[url] = bitmap;
+                            return bitmap;
+                        }
+                        catch { }
                     }
                 }
 

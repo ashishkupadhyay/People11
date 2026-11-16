@@ -494,9 +494,19 @@ public partial class ConversationViewModel : ViewModelBase
         var replyTarget = ReplyingToMessage;
         string? quotedText = replyTarget != null ? ReplyPreviewText : null;
         string? quotedSender = replyTarget != null ? ReplySenderName : null;
+        string? quotedMessageId = replyTarget?.Id;
+        string? quotedParticipant = replyTarget?.SenderId;
         ReplyingToMessage = null;
 
-        var content = new MessageContent { Text = text, Type = MessageContentType.Text };
+        var content = new MessageContent
+        {
+            Text = text,
+            Type = MessageContentType.Text,
+            QuotedMessageId = quotedMessageId,
+            QuotedParticipant = quotedParticipant,
+            QuotedText = quotedText,
+            QuotedSender = quotedSender
+        };
         var pendingId = "pending_" + Guid.NewGuid().ToString("N");
         var pendingMsg = new Message
         {
@@ -509,7 +519,9 @@ public partial class ConversationViewModel : ViewModelBase
             SenderId = "me",
             IsOutgoing = true,
             QuotedText = quotedText,
-            QuotedSender = quotedSender
+            QuotedSender = quotedSender,
+            QuotedMessageId = quotedMessageId,
+            QuotedParticipant = quotedParticipant
         };
 
         // 1. Instantly display in conversation history with timer icon
@@ -1816,6 +1828,11 @@ public partial class ConversationViewModel : ViewModelBase
     [RelayCommand]
     public async Task DeleteMessageAsync(Message? msg)
     {
+        await DeleteMessageAsync(msg, false);
+    }
+
+    public async Task DeleteMessageAsync(Message? msg, bool forEveryone)
+    {
         if (msg == null) return;
 
         Messages.Remove(msg);
@@ -1842,6 +1859,18 @@ public partial class ConversationViewModel : ViewModelBase
             _ = Task.Run(async () =>
             {
                 try { await messageRepo.DeleteAsync(msg.Id); } catch { }
+            });
+        }
+
+        if (_provider != null && CurrentChat != null && !string.IsNullOrEmpty(msg.Id))
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _provider.DeleteMessageAsync(CurrentChat.Id, msg.Id, forEveryone);
+                }
+                catch { }
             });
         }
     }

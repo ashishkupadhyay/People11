@@ -69,6 +69,12 @@ public class MessageContent : INotifyPropertyChanged
     public string? MimeType { get; set; }
     public byte[]? ThumbnailData { get; set; }
 
+    // Quoted reply metadata
+    public string? QuotedMessageId { get; set; }
+    public string? QuotedParticipant { get; set; }
+    public string? QuotedText { get; set; }
+    public string? QuotedSender { get; set; }
+
     // Media properties
     private string? _fileName;
     public string? FileName

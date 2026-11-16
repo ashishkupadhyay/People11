@@ -729,6 +729,32 @@ public sealed partial class ConversationPage : Page
         }
     }
 
+    private void ApplyDialogTransparency(ContentDialog dialog)
+    {
+        dialog.CornerRadius = new CornerRadius(12);
+        dialog.BorderThickness = new Thickness(1);
+
+        bool isDark = this.ActualTheme == ElementTheme.Dark || (this.ActualTheme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        if (Application.Current.Resources.TryGetValue("AcrylicInAppFillColorDefaultBrush", out var acrylicObj) && acrylicObj is Brush acrylicBrush)
+        {
+            dialog.Background = acrylicBrush;
+        }
+        else
+        {
+            dialog.Background = new AcrylicBrush
+            {
+                TintColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32) : Microsoft.UI.ColorHelper.FromArgb(255, 243, 243, 243),
+                TintOpacity = 0.75,
+                FallbackColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32) : Microsoft.UI.ColorHelper.FromArgb(255, 243, 243, 243)
+            };
+        }
+
+        if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var borderObj) && borderObj is Brush borderBrush)
+        {
+            dialog.BorderBrush = borderBrush;
+        }
+    }
+
     private async void MessageDelete_Click(object sender, RoutedEventArgs e)
     {
         var msg = GetMessageFromSender(sender);
@@ -736,20 +762,48 @@ public sealed partial class ConversationPage : Page
 
         if (this.XamlRoot == null) return;
 
+        // WhatsApp Delete Eligibility:
+        // "Delete for everyone" is allowed for outgoing messages within 60 hours (~2.5 days) that are not sending/failed.
+        bool canDeleteForEveryone = msg.IsOutgoing &&
+                                    msg.Status != MessageStatus.Sending &&
+                                    msg.Status != MessageStatus.Failed &&
+                                    (DateTimeOffset.UtcNow - msg.Timestamp).TotalHours <= 60.0;
+
         var dialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
             Title = "Delete message?",
-            Content = "Are you sure you want to delete this message?",
-            PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close
         };
+        ApplyDialogTransparency(dialog);
 
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
+        if (canDeleteForEveryone)
         {
-            await ViewModel.DeleteMessageAsync(msg);
+            dialog.Content = "Are you sure you want to delete this message? You can delete it for everyone or just for yourself.";
+            dialog.PrimaryButtonText = "Delete for everyone";
+            dialog.SecondaryButtonText = "Delete for me";
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.DeleteMessageAsync(msg, forEveryone: true);
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                await ViewModel.DeleteMessageAsync(msg, forEveryone: false);
+            }
+        }
+        else
+        {
+            dialog.Content = "Are you sure you want to delete this message from your chat history?";
+            dialog.PrimaryButtonText = "Delete for me";
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await ViewModel.DeleteMessageAsync(msg, forEveryone: false);
+            }
         }
     }
 
@@ -835,6 +889,7 @@ public sealed partial class ConversationPage : Page
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Close
         };
+        ApplyDialogTransparency(dialog);
 
         await dialog.ShowAsync();
     }
@@ -887,6 +942,7 @@ public sealed partial class ConversationPage : Page
                 Content = "No conversations or contacts available to forward this message to.",
                 CloseButtonText = "Close"
             };
+            ApplyDialogTransparency(noChatsDialog);
             await noChatsDialog.ShowAsync();
             return;
         }
@@ -899,7 +955,7 @@ public sealed partial class ConversationPage : Page
         // Search Box for contacts / chats
         var searchBox = new AutoSuggestBox
         {
-            PlaceholderText = "Search contacts or chats...",
+            PlaceholderText = "Search contacts...",
             QueryIcon = new SymbolIcon(Symbol.Find),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
@@ -915,7 +971,7 @@ public sealed partial class ConversationPage : Page
             IsItemClickEnabled = true
         };
 
-        // Rich Fluent item template with PersonPicture, Title, and Subtitle
+        // Plain and simple contact list: avatar and title only
         try
         {
             var template = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(@"
@@ -928,10 +984,7 @@ public sealed partial class ConversationPage : Page
         </Grid.ColumnDefinitions>
         <PersonPicture Grid.Column=""0"" Width=""38"" Height=""38"" VerticalAlignment=""Center""
                        DisplayName=""{Binding Title}"" />
-        <StackPanel Grid.Column=""1"" VerticalAlignment=""Center"" Spacing=""2"">
-            <TextBlock Text=""{Binding Title}"" FontWeight=""SemiBold"" FontSize=""14"" TextTrimming=""CharacterEllipsis"" />
-            <TextBlock Text=""{Binding LastMessagePreview}"" FontSize=""12"" Foreground=""{ThemeResource TextFillColorSecondaryBrush}"" TextTrimming=""CharacterEllipsis"" />
-        </StackPanel>
+        <TextBlock Grid.Column=""1"" Text=""{Binding Title}"" FontWeight=""Medium"" FontSize=""14"" VerticalAlignment=""Center"" TextTrimming=""CharacterEllipsis"" />
     </Grid>
 </DataTemplate>");
             listView.ItemTemplate = template;
@@ -958,19 +1011,12 @@ public sealed partial class ConversationPage : Page
                         pp.ProfilePicture = null;
                     }
                 }
-
-                if (grid.Children.Count > 1 && grid.Children[1] is StackPanel sp && sp.Children.Count > 1 && sp.Children[1] is TextBlock subText)
-                {
-                    subText.Text = !string.IsNullOrWhiteSpace(c.LastMessagePreview)
-                        ? c.LastMessagePreview
-                        : c.PlatformId;
-                }
             }
         };
 
         var emptyText = new TextBlock
         {
-            Text = "No contacts or chats found",
+            Text = "No contacts found",
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Brush,
@@ -992,31 +1038,9 @@ public sealed partial class ConversationPage : Page
             Content = contentStack,
             PrimaryButtonText = "Forward",
             CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
-            CornerRadius = new CornerRadius(12),
-            BorderThickness = new Thickness(1)
+            DefaultButton = ContentDialogButton.Primary
         };
-
-        // Transparency effect: In-app acrylic background with subtle translucent smoke layer
-        bool isDark = this.ActualTheme == ElementTheme.Dark || (this.ActualTheme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
-        if (Application.Current.Resources.TryGetValue("AcrylicInAppFillColorDefaultBrush", out var acrylicObj) && acrylicObj is Brush acrylicBrush)
-        {
-            dialog.Background = acrylicBrush;
-        }
-        else
-        {
-            dialog.Background = new AcrylicBrush
-            {
-                TintColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32) : Microsoft.UI.ColorHelper.FromArgb(255, 243, 243, 243),
-                TintOpacity = 0.75,
-                FallbackColor = isDark ? Microsoft.UI.ColorHelper.FromArgb(255, 32, 32, 32) : Microsoft.UI.ColorHelper.FromArgb(255, 243, 243, 243)
-            };
-        }
-
-        if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var borderObj) && borderObj is Brush borderBrush)
-        {
-            dialog.BorderBrush = borderBrush;
-        }
+        ApplyDialogTransparency(dialog);
 
         if (filteredChats.Count > 0)
         {
@@ -1037,9 +1061,7 @@ public sealed partial class ConversationPage : Page
             if (!string.IsNullOrEmpty(query))
             {
                 matches = targetChats.Where(c =>
-                    (c.Title != null && c.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.LastMessagePreview != null && c.LastMessagePreview.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.PlatformId != null && c.PlatformId.Contains(query, StringComparison.OrdinalIgnoreCase)));
+                    c.Title != null && c.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
             }
 
             foreach (var m in matches)
@@ -1129,7 +1151,22 @@ public sealed partial class ConversationPage : Page
         try
         {
             var msg = _currentSharingMessage;
-            if (msg == null) return;
+            if (msg == null)
+            {
+                args.Request.FailWithDisplayText("No content to share.");
+                return;
+            }
+
+            string? filePath = msg.Content?.LocalFilePath ?? msg.Content?.EffectiveImagePath;
+            string? text = msg.Content?.DisplayCaptionOrText;
+            bool hasFile = !string.IsNullOrEmpty(filePath) && File.Exists(filePath);
+            bool hasText = !string.IsNullOrWhiteSpace(text);
+
+            if (!hasFile && !hasText)
+            {
+                args.Request.FailWithDisplayText("This media file is not downloaded yet. Please download it first to share.");
+                return;
+            }
 
             string title = !string.IsNullOrWhiteSpace(msg.Content?.DisplayName)
                 ? msg.Content.DisplayName
@@ -1138,21 +1175,20 @@ public sealed partial class ConversationPage : Page
             args.Request.Data.Properties.Title = title;
             args.Request.Data.Properties.Description = "Shared from People";
 
-            string? filePath = msg.Content?.LocalFilePath ?? msg.Content?.EffectiveImagePath;
-            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            if (hasFile)
             {
                 try
                 {
                     // Copy to user Temp directory so all external share targets have unrestricted read access across sandbox boundaries
-                    string shareFilePath = filePath;
+                    string shareFilePath = filePath!;
                     try
                     {
                         var tempDir = Path.Combine(Path.GetTempPath(), "People", "Share");
                         Directory.CreateDirectory(tempDir);
-                        var tempPath = Path.Combine(tempDir, Path.GetFileName(filePath));
-                        if (!File.Exists(tempPath) || new FileInfo(tempPath).Length != new FileInfo(filePath).Length)
+                        var tempPath = Path.Combine(tempDir, Path.GetFileName(filePath!));
+                        if (!File.Exists(tempPath) || new FileInfo(tempPath).Length != new FileInfo(filePath!).Length)
                         {
-                            File.Copy(filePath, tempPath, true);
+                            File.Copy(filePath!, tempPath, true);
                         }
                         shareFilePath = tempPath;
                     }
@@ -1167,8 +1203,7 @@ public sealed partial class ConversationPage : Page
                 }
             }
 
-            string? text = msg.Content?.DisplayCaptionOrText;
-            if (!string.IsNullOrWhiteSpace(text))
+            if (hasText && !string.IsNullOrWhiteSpace(text))
             {
                 args.Request.Data.SetText(text);
             }
