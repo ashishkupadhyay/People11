@@ -81,6 +81,7 @@ public class WhatsAppProvider : IWhatsAppProvider
     // Outbox queue for offline message persistence and background dispatching
     private readonly ConcurrentQueue<Message> _outboxQueue = new();
     private readonly ConcurrentDictionary<string, int> _outboxRetryCounts = new();
+    private readonly ConcurrentDictionary<string, List<Message>> _memoryMessageCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _outboxLock = new(1, 1);
     private System.Threading.Timer? _outboxTimer;
 
@@ -640,6 +641,18 @@ public class WhatsAppProvider : IWhatsAppProvider
                     });
                 }
 
+                var cleanChat = msg.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? msg.ChatId[3..] : msg.ChatId;
+                if (_activeInstance._memoryMessageCache.TryGetValue(cleanChat, out var cachedList))
+                {
+                    lock (cachedList)
+                    {
+                        if (!cachedList.Any(m => m.Id == msg.Id))
+                        {
+                            cachedList.Add(msg);
+                        }
+                    }
+                }
+
                 _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
             }
             catch (Exception ex)
@@ -831,10 +844,15 @@ public class WhatsAppProvider : IWhatsAppProvider
             return Array.Empty<Message>();
         }
 
+        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        if (_memoryMessageCache.TryGetValue(cleanChatId, out var memList) && memList.Count > 0)
+        {
+            return memList.TakeLast(limit).ToList();
+        }
+
         var resultList = new List<Message>(ReadMessagesFromNative(_clientPtr, chatId, 0, limit));
 
         // Merge pending outbox messages
-        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
         var bareUser = cleanChatId.Split('@')[0].Split(':')[0];
         foreach (var p in _outboxQueue)
         {
@@ -851,7 +869,9 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        return resultList.OrderBy(m => m.Timestamp).ToList();
+        var finalResult = resultList.OrderBy(m => m.Timestamp).ToList();
+        _memoryMessageCache[cleanChatId] = finalResult;
+        return finalResult;
     }
 
     private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)

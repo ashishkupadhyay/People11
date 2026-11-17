@@ -199,6 +199,7 @@ public partial class ConversationViewModel : ViewModelBase
         if (syncMemoryCached != null && syncMemoryCached.Count > 0)
         {
             // Instantly populate messages from memory cache - ZERO DELAY, NO SPINNER!
+            IsLoading = true;
             Messages.Clear();
             foreach (var m in syncMemoryCached)
             {
@@ -859,9 +860,10 @@ public partial class ConversationViewModel : ViewModelBase
             return;
         }
 
+        HeaderTitle = CurrentChat.Title ?? string.Empty;
+
         if (CurrentChat.IsGroup)
         {
-            HeaderTitle = CurrentChat.Title ?? string.Empty;
             HeaderSubtitle = null;
             SenderPushName = null;
             return;

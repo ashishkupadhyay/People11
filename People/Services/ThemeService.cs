@@ -179,7 +179,12 @@ public class ThemeService : IThemeService
 
     public void SetActivePlatform(string? platformId)
     {
-        _activePlatform = NormalizePlatform(platformId);
+        var norm = NormalizePlatform(platformId);
+        if (string.Equals(_activePlatform, norm, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        _activePlatform = norm;
         ApplyCurrentAccent();
     }
 
@@ -451,25 +456,39 @@ public class ThemeService : IThemeService
         SetOrMutateBrush("QuotedOutgoingSenderBrush", quotedOutSender);
         SetOrMutateBrush("QuotedOutgoingTextBrush", quotedOutText);
 
-        SetOrMutateBrush("TextControlBorderBrushFocused", effectiveAccent);
-        SetOrMutateBrush("TextControlFocusBorderBrush", effectiveAccent);
         SetOrMutateBrush("TextControlSelectionHighlightColor", effectiveAccent);
 
-        if (isAppResources && targetDict.TryGetValue("AppAccentElevationBorderFocusedBrush", out var borderRes) && borderRes is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count > 0)
+        var strokeColor = isDark
+            ? ColorHelper.FromArgb(0x12, 0xFF, 0xFF, 0xFF) // ControlStrokeColorDefault (Dark)
+            : ColorHelper.FromArgb(0x0F, 0x00, 0x00, 0x00); // ControlStrokeColorDefault (Light)
+
+        targetDict["TextControlBorderThemeThicknessFocused"] = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 2);
+
+        void SetOrMutateElevationBorderFocusedBrush(string key)
         {
-            lgb.GradientStops[0].Color = effectiveAccent;
-        }
-        else
-        {
-            var newLgb = new Microsoft.UI.Xaml.Media.LinearGradientBrush
+            if (targetDict.TryGetValue(key, out var res) && res is Microsoft.UI.Xaml.Media.LinearGradientBrush lgb && lgb.GradientStops.Count >= 2)
             {
-                StartPoint = new Windows.Foundation.Point(0, 0),
-                EndPoint = new Windows.Foundation.Point(0, 1)
-            };
-            newLgb.GradientStops.Add(new Microsoft.UI.Xaml.Media.GradientStop { Color = effectiveAccent, Offset = 0.0 });
-            newLgb.GradientStops.Add(new Microsoft.UI.Xaml.Media.GradientStop { Color = isDark ? ColorHelper.FromArgb(255, 30, 30, 30) : ColorHelper.FromArgb(255, 230, 230, 230), Offset = 1.0 });
-            targetDict["AppAccentElevationBorderFocusedBrush"] = newLgb;
+                lgb.GradientStops[0].Color = effectiveAccent;
+                lgb.GradientStops[1].Color = strokeColor;
+            }
+            else
+            {
+                var newLgb = new Microsoft.UI.Xaml.Media.LinearGradientBrush
+                {
+                    MappingMode = Microsoft.UI.Xaml.Media.BrushMappingMode.Absolute,
+                    StartPoint = new Windows.Foundation.Point(0, 0),
+                    EndPoint = new Windows.Foundation.Point(0, 2),
+                    RelativeTransform = new Microsoft.UI.Xaml.Media.ScaleTransform { ScaleY = -1, CenterY = 0.5 }
+                };
+                newLgb.GradientStops.Add(new Microsoft.UI.Xaml.Media.GradientStop { Offset = 1.0, Color = effectiveAccent });
+                newLgb.GradientStops.Add(new Microsoft.UI.Xaml.Media.GradientStop { Offset = 1.0, Color = strokeColor });
+                targetDict[key] = newLgb;
+            }
         }
+
+        SetOrMutateElevationBorderFocusedBrush("TextControlElevationBorderFocusedBrush");
+        SetOrMutateElevationBorderFocusedBrush("TextControlBorderBrushFocused");
+        SetOrMutateElevationBorderFocusedBrush("AppAccentElevationBorderFocusedBrush");
 
         string[] brushKeysToUpdate = {
             "AccentFillColorDefaultBrush",

@@ -120,6 +120,8 @@ public partial class ChatListViewModel : ViewModelBase
     private volatile bool _needsReloadChats;
     private DateTimeOffset _lastChatUpdateLoadTime = DateTimeOffset.MinValue;
     private readonly object _chatUpdateLock = new();
+    private System.Threading.Timer? _syncWatchdogTimer;
+    private DateTimeOffset _initialSyncStartTime = DateTimeOffset.MinValue;
 
     public event EventHandler? RequestCloseDetail;
 
@@ -416,6 +418,59 @@ public partial class ChatListViewModel : ViewModelBase
         }
     }
 
+    private void StartSyncWatchdog()
+    {
+        _initialSyncStartTime = DateTimeOffset.UtcNow;
+        _syncWatchdogTimer?.Dispose();
+        _syncWatchdogTimer = new System.Threading.Timer(OnSyncWatchdogTick, null, 3500, 1500);
+    }
+
+    private void ResetSyncWatchdog()
+    {
+        if (IsInitialSyncing)
+        {
+            _syncWatchdogTimer?.Change(3500, 1500);
+        }
+    }
+
+    private void OnSyncWatchdogTick(object? state)
+    {
+        if (!IsInitialSyncing)
+        {
+            _syncWatchdogTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            return;
+        }
+
+        var elapsedSec = (DateTimeOffset.UtcNow - _initialSyncStartTime).TotalSeconds;
+        var cached = (_provider as IWhatsAppProvider)?.GetCachedChats();
+        bool hasChats = (cached != null && cached.Count > 0) || Chats.Count > 0;
+
+        // Dismiss if we have cached chats and chunks have paused, or if hard timeout (15s) elapsed
+        if (hasChats || elapsedSec >= 15)
+        {
+            CompleteInitialSync();
+        }
+    }
+
+    private void CompleteInitialSync()
+    {
+        _dispatcherService.Enqueue(async () =>
+        {
+            if (!IsInitialSyncing) return;
+            _syncWatchdogTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            InitialSyncProgress = 100;
+            InitialSyncText = "Finishing sync...";
+            IsInitialSyncing = false;
+            IsSyncing = false;
+            RequestDrillInToMain?.Invoke(this, EventArgs.Empty);
+            lock (_failedPictureJids)
+            {
+                _failedPictureJids.Clear();
+            }
+            await LoadChatsAsync();
+        });
+    }
+
     private void OnSyncProgressChanged(object? sender, int progress)
     {
         _dispatcherService.Enqueue(async () =>
@@ -423,18 +478,10 @@ public partial class ChatListViewModel : ViewModelBase
             SyncProgress = progress;
             if (IsInitialSyncing)
             {
+                ResetSyncWatchdog();
                 if (progress >= 100)
                 {
-                    InitialSyncProgress = 100;
-                    InitialSyncText = "Finishing sync...";
-                    IsInitialSyncing = false;
-                    IsSyncing = false;
-                    RequestDrillInToMain?.Invoke(this, EventArgs.Empty);
-                    lock (_failedPictureJids)
-                    {
-                        _failedPictureJids.Clear();
-                    }
-                    await LoadChatsAsync();
+                    CompleteInitialSync();
                 }
                 else
                 {
@@ -453,6 +500,7 @@ public partial class ChatListViewModel : ViewModelBase
                 else if (Chats.Count == 0)
                 {
                     IsInitialSyncing = true;
+                    StartSyncWatchdog();
                     InitialSyncProgress = Math.Max(0, progress);
                     InitialSyncText = "Downloading your recent messages";
                 }
@@ -470,6 +518,12 @@ public partial class ChatListViewModel : ViewModelBase
     {
         if (IsInitialSyncing)
         {
+            ResetSyncWatchdog();
+            var cached = (_provider as IWhatsAppProvider)?.GetCachedChats();
+            if (cached != null && cached.Count > 0)
+            {
+                CompleteInitialSync();
+            }
             return;
         }
 
@@ -600,6 +654,7 @@ public partial class ChatListViewModel : ViewModelBase
                     IsInitialSyncing = true;
                     InitialSyncProgress = 0;
                     InitialSyncText = "Downloading your recent messages";
+                    StartSyncWatchdog();
                     RequestDrillInToSync?.Invoke(this, EventArgs.Empty);
                 }
                 HasError = false;

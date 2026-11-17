@@ -269,7 +269,7 @@
                                                             </Border>
 
                                                             <!-- Dark scrim overlay over thumbnail preview when not yet downloaded -->
-                                                            <Border Width="240" Height="180"
+                                                            <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                                     Background="#33000000"
                                                                     CornerRadius="6"
                                                                     IsHitTestVisible="False"
@@ -391,7 +391,7 @@
                                                         </Border>
 
                                                         <!-- Dark scrim overlay over thumbnail preview when not yet downloaded -->
-                                                        <Border Width="240" Height="180"
+                                                        <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                                 Background="#33000000"
                                                                 CornerRadius="6"
                                                                 IsHitTestVisible="False"

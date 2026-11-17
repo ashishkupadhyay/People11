@@ -188,7 +188,7 @@ public sealed partial class ChatListPage : Page
     
     private void UpdateEmptyStateAnimation(string? platformId)
     {
-        if (EmptyStatePlayer == null) return;
+        if (EmptyStatePlayer == null || PlaceholderGrid?.Visibility != Microsoft.UI.Xaml.Visibility.Visible) return;
         
         // Use App.Current.RequestedTheme as baseline, or the element theme if overridden
         bool isDark = App.Current.RequestedTheme == Microsoft.UI.Xaml.ApplicationTheme.Dark;
@@ -391,17 +391,28 @@ public sealed partial class ChatListPage : Page
     public void OpenChatInDetail(People.Core.Models.Chat chat)
     {
         if (chat == null) return;
-        if (DetailFrame.Content is ConversationPage convPage && convPage.ViewModel.CurrentChat?.Id == chat.Id)
-        {
-            return;
-        }
 
         DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         DetailFrame.IsHitTestVisible = true;
+
+        // If ConversationPage is already instantiated in the DetailFrame, reuse it instantly without destroying/re-parsing XAML
+        if (DetailFrame.Content is ConversationPage existingConvPage)
+        {
+            if (existingConvPage.ViewModel.CurrentChat?.Id == chat.Id)
+            {
+                return;
+            }
+            existingConvPage.ViewModel.LoadChat(chat);
+            UpdateAdaptiveLayout(this.ActualWidth);
+            ConversationOpened?.Invoke(this, chat);
+            return;
+        }
+
+        // First-time navigation: use SuppressNavigationTransitionInfo for instantaneous 0-16ms first-frame rendering
         DetailFrame.Navigate(
             typeof(ConversationPage),
             chat,
-            new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo { Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight });
+            new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
 
         ConversationOpened?.Invoke(this, chat);
     }

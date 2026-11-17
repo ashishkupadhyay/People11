@@ -51,13 +51,27 @@
             <SolidColorBrush x:Key="QuotedOutgoingSenderBrush" Color="#004578" />
             <SolidColorBrush x:Key="QuotedOutgoingTextBrush" Color="#383838" />
 
+            <!-- Fluent Design Text Control Focus Styling (Bottom 2px accent line only, 0px on top/left/right) -->
+            <Thickness x:Key="TextControlBorderThemeThicknessFocused">0,0,0,2</Thickness>
+
+            <LinearGradientBrush x:Key="TextControlElevationBorderFocusedBrush" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,2">
+                <LinearGradientBrush.RelativeTransform>
+                    <ScaleTransform ScaleY="-1" CenterY="0.5" />
+                </LinearGradientBrush.RelativeTransform>
+                <LinearGradientBrush.GradientStops>
+                    <GradientStop Offset="1.0" Color="{ThemeResource SystemAccentColor}" />
+                    <GradientStop Offset="1.0" Color="{ThemeResource ControlStrokeColorDefault}" />
+                </LinearGradientBrush.GradientStops>
+            </LinearGradientBrush>
+
+            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="TextControlElevationBorderFocusedBrush" />
+
             <LinearGradientBrush x:Key="AppAccentElevationBorderFocusedBrush" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,2">
                 <LinearGradientBrush.RelativeTransform>
                     <ScaleTransform ScaleY="-1" CenterY="0.5" />
                 </LinearGradientBrush.RelativeTransform>
                 <LinearGradientBrush.GradientStops>
                     <GradientStop Offset="1.0" Color="{ThemeResource SystemAccentColor}" />
-                    <!-- Wait, what if ControlStrokeColorDefault is not resolved at this level? We use ThemeResource. -->
                     <GradientStop Offset="1.0" Color="{ThemeResource ControlStrokeColorDefault}" />
                 </LinearGradientBrush.GradientStops>
             </LinearGradientBrush>

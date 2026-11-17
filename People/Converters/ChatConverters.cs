@@ -164,19 +164,12 @@ public class StringToImageSourceConverter : IValueConverter
 
                     if (bytes != null && bytes.Length > 0)
                     {
-                        try
+                        var blurred = DecodeAndBlurThumbnail(bytes);
+                        if (blurred != null)
                         {
-                            var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                            var stream = ras.AsStreamForWrite();
-                            stream.Write(bytes, 0, bytes.Length);
-                            stream.Flush();
-                            ras.Seek(0);
-                            var bitmap = new BitmapImage();
-                            bitmap.SetSource(ras);
-                            _blurCache[url] = bitmap;
-                            return bitmap;
+                            _blurCache[url] = blurred;
+                            return blurred;
                         }
-                        catch { }
                     }
                 }
 
@@ -244,6 +237,257 @@ public class StringToImageSourceConverter : IValueConverter
             }
         }
         return null;
+    }
+
+    private static ImageSource? DecodeAndBlurThumbnail(byte[] bytes)
+    {
+        try
+        {
+            var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            using (var stream = ras.AsStreamForWrite())
+            {
+                stream.Write(bytes, 0, bytes.Length);
+                stream.Flush();
+            }
+            ras.Seek(0);
+
+            // Decode and upscale using Cubic interpolation in BitmapDecoder
+            var (pixels, width, height) = System.Threading.Tasks.Task.Run(async () =>
+            {
+                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
+                int srcW = (int)decoder.PixelWidth;
+                int srcH = (int)decoder.PixelHeight;
+
+                int targetW = Math.Max(128, srcW * 4);
+                int targetH = Math.Max(96, srcH * 4);
+
+                var transform = new Windows.Graphics.Imaging.BitmapTransform
+                {
+                    ScaledWidth = (uint)targetW,
+                    ScaledHeight = (uint)targetH,
+                    InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Cubic
+                };
+
+                var pixelProvider = await decoder.GetPixelDataAsync(
+                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+                    transform,
+                    Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
+                    Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
+
+                return (pixelProvider.DetachPixelData(), targetW, targetH);
+            }).GetAwaiter().GetResult();
+
+            if (pixels == null || width <= 0 || height <= 0)
+            {
+                return null;
+            }
+
+            // Apply 3-pass fast box blur (Gaussian approximation) with radius 12
+            ApplyFastStackBlur(pixels, width, height, 12);
+
+            var wb = new WriteableBitmap(width, height);
+            using (var pixelStream = wb.PixelBuffer.AsStream())
+            {
+                pixelStream.Write(pixels, 0, pixels.Length);
+            }
+            wb.Invalidate();
+            return wb;
+        }
+        catch
+        {
+            try
+            {
+                var fallbackRas = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                using (var stream = fallbackRas.AsStreamForWrite())
+                {
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush();
+                }
+                fallbackRas.Seek(0);
+                var fallbackBitmap = new BitmapImage();
+                fallbackBitmap.DecodePixelWidth = 320;
+                fallbackBitmap.DecodePixelType = DecodePixelType.Logical;
+                fallbackBitmap.SetSource(fallbackRas);
+                return fallbackBitmap;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    private static void ApplyFastStackBlur(byte[] pixels, int w, int h, int radius)
+    {
+        if (radius < 1 || w <= 0 || h <= 0) return;
+        byte[] temp = new byte[pixels.Length];
+        
+        // 3 passes of horizontal + vertical box blur = Gaussian approximation
+        for (int pass = 0; pass < 3; pass++)
+        {
+            BoxBlurHorizontal(pixels, temp, w, h, radius);
+            BoxBlurVertical(temp, pixels, w, h, radius);
+        }
+    }
+
+    private static void BoxBlurHorizontal(byte[] src, byte[] dst, int w, int h, int r)
+    {
+        float iarr = 1f / (r + r + 1);
+        for (int y = 0; y < h; y++)
+        {
+            int ti = y * w * 4;
+            int li = ti;
+            int ri = ti + r * 4;
+            int fv_b = src[ti], fv_g = src[ti + 1], fv_r = src[ti + 2], fv_a = src[ti + 3];
+            int lv_b = src[ti + (w - 1) * 4], lv_g = src[ti + (w - 1) * 4 + 1], lv_r = src[ti + (w - 1) * 4 + 2], lv_a = src[ti + (w - 1) * 4 + 3];
+
+            int val_b = (r + 1) * fv_b;
+            int val_g = (r + 1) * fv_g;
+            int val_r = (r + 1) * fv_r;
+            int val_a = (r + 1) * fv_a;
+
+            for (int j = 0; j < r; j++)
+            {
+                int idx = ti + Math.Min(j, w - 1) * 4;
+                val_b += src[idx];
+                val_g += src[idx + 1];
+                val_r += src[idx + 2];
+                val_a += src[idx + 3];
+            }
+
+            for (int j = 0; j <= r; j++)
+            {
+                int r_idx = ti + Math.Min(ri / 4 - y * w, w - 1) * 4;
+                val_b += src[r_idx] - fv_b;
+                val_g += src[r_idx + 1] - fv_g;
+                val_r += src[r_idx + 2] - fv_r;
+                val_a += src[r_idx + 3] - fv_a;
+
+                dst[ti] = (byte)(val_b * iarr + 0.5f);
+                dst[ti + 1] = (byte)(val_g * iarr + 0.5f);
+                dst[ti + 2] = (byte)(val_r * iarr + 0.5f);
+                dst[ti + 3] = (byte)(val_a * iarr + 0.5f);
+
+                ri += 4;
+                ti += 4;
+            }
+
+            for (int j = r + 1; j < w - r; j++)
+            {
+                int r_idx = ti + r * 4;
+                int l_idx = ti - (r + 1) * 4;
+
+                val_b += src[r_idx] - src[l_idx];
+                val_g += src[r_idx + 1] - src[l_idx + 1];
+                val_r += src[r_idx + 2] - src[l_idx + 2];
+                val_a += src[r_idx + 3] - src[l_idx + 3];
+
+                dst[ti] = (byte)(val_b * iarr + 0.5f);
+                dst[ti + 1] = (byte)(val_g * iarr + 0.5f);
+                dst[ti + 2] = (byte)(val_r * iarr + 0.5f);
+                dst[ti + 3] = (byte)(val_a * iarr + 0.5f);
+
+                ti += 4;
+            }
+
+            for (int j = w - r; j < w; j++)
+            {
+                int l_idx = ti - (r + 1) * 4;
+
+                val_b += lv_b - src[l_idx];
+                val_g += lv_g - src[l_idx + 1];
+                val_r += lv_r - src[l_idx + 2];
+                val_a += lv_a - src[l_idx + 3];
+
+                dst[ti] = (byte)(val_b * iarr + 0.5f);
+                dst[ti + 1] = (byte)(val_g * iarr + 0.5f);
+                dst[ti + 2] = (byte)(val_r * iarr + 0.5f);
+                dst[ti + 3] = (byte)(val_a * iarr + 0.5f);
+
+                ti += 4;
+            }
+        }
+    }
+
+    private static void BoxBlurVertical(byte[] src, byte[] dst, int w, int h, int r)
+    {
+        float iarr = 1f / (r + r + 1);
+        int stride = w * 4;
+        for (int x = 0; x < w; x++)
+        {
+            int ti = x * 4;
+            int li = ti;
+            int ri = ti + r * stride;
+
+            int fv_b = src[ti], fv_g = src[ti + 1], fv_r = src[ti + 2], fv_a = src[ti + 3];
+            int lv_b = src[ti + (h - 1) * stride], lv_g = src[ti + (h - 1) * stride + 1], lv_r = src[ti + (h - 1) * stride + 2], lv_a = src[ti + (h - 1) * stride + 3];
+
+            int val_b = (r + 1) * fv_b;
+            int val_g = (r + 1) * fv_g;
+            int val_r = (r + 1) * fv_r;
+            int val_a = (r + 1) * fv_a;
+
+            for (int j = 0; j < r; j++)
+            {
+                int idx = ti + Math.Min(j, h - 1) * stride;
+                val_b += src[idx];
+                val_g += src[idx + 1];
+                val_r += src[idx + 2];
+                val_a += src[idx + 3];
+            }
+
+            for (int j = 0; j <= r; j++)
+            {
+                int r_idx = ti + Math.Min(j + r, h - 1) * stride;
+                val_b += src[r_idx] - fv_b;
+                val_g += src[r_idx + 1] - fv_g;
+                val_r += src[r_idx + 2] - fv_r;
+                val_a += src[r_idx + 3] - fv_a;
+
+                dst[ti] = (byte)(val_b * iarr + 0.5f);
+                dst[ti + 1] = (byte)(val_g * iarr + 0.5f);
+                dst[ti + 2] = (byte)(val_r * iarr + 0.5f);
+                dst[ti + 3] = (byte)(val_a * iarr + 0.5f);
+
+                ti += stride;
+            }
+
+            for (int j = r + 1; j < h - r; j++)
+            {
+                int r_idx = ti + r * stride;
+                int l_idx = ti - (r + 1) * stride;
+
+                val_b += src[r_idx] - src[l_idx];
+                val_g += src[r_idx + 1] - src[l_idx + 1];
+                val_r += src[r_idx + 2] - src[l_idx + 2];
+                val_a += src[r_idx + 3] - src[l_idx + 3];
+
+                dst[ti] = (byte)(val_b * iarr + 0.5f);
+                dst[ti + 1] = (byte)(val_g * iarr + 0.5f);
+                dst[ti + 2] = (byte)(val_r * iarr + 0.5f);
+                dst[ti + 3] = (byte)(val_a * iarr + 0.5f);
+
+                ti += stride;
+            }
+
+            for (int j = h - r; j < h; j++)
+            {
+                int l_idx = ti - (r + 1) * stride;
+
+                val_b += lv_b - src[l_idx];
+                val_g += lv_g - src[l_idx + 1];
+                val_r += lv_r - src[l_idx + 2];
+                val_a += lv_a - src[l_idx + 3];
+
+                dst[ti] = (byte)(val_b * iarr + 0.5f);
+                dst[ti + 1] = (byte)(val_g * iarr + 0.5f);
+                dst[ti + 2] = (byte)(val_r * iarr + 0.5f);
+                dst[ti + 3] = (byte)(val_a * iarr + 0.5f);
+
+                ti += stride;
+            }
+        }
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

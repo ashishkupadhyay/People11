@@ -45,6 +45,7 @@ public sealed partial class ConversationPage : Page
 
     public ConversationPage()
     {
+        this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         ViewModel = App.Current.Services.GetRequiredService<ConversationViewModel>();
         InitializeComponent();
 
@@ -1688,9 +1689,11 @@ public sealed partial class ConversationPage : Page
         if (targetDict.TryGetValue("TextControlBorderBrushFocused", out var focusBrush) && focusBrush is Microsoft.UI.Xaml.Media.Brush b)
         {
             Resources["TextControlBorderBrushFocused"] = b;
+            Resources["TextControlBorderThemeThicknessFocused"] = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 2);
             if (MessageInputBox != null)
             {
                 MessageInputBox.Resources["TextControlBorderBrushFocused"] = b;
+                MessageInputBox.Resources["TextControlBorderThemeThicknessFocused"] = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 2);
             }
         }
     }
