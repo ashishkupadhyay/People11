@@ -422,14 +422,14 @@ public partial class ChatListViewModel : ViewModelBase
     {
         _initialSyncStartTime = DateTimeOffset.UtcNow;
         _syncWatchdogTimer?.Dispose();
-        _syncWatchdogTimer = new System.Threading.Timer(OnSyncWatchdogTick, null, 3500, 1500);
+        _syncWatchdogTimer = new System.Threading.Timer(OnSyncWatchdogTick, null, 8000, 2000);
     }
 
     private void ResetSyncWatchdog()
     {
         if (IsInitialSyncing)
         {
-            _syncWatchdogTimer?.Change(3500, 1500);
+            _syncWatchdogTimer?.Change(6000, 2000);
         }
     }
 
@@ -445,8 +445,8 @@ public partial class ChatListViewModel : ViewModelBase
         var cached = (_provider as IWhatsAppProvider)?.GetCachedChats();
         bool hasChats = (cached != null && cached.Count > 0) || Chats.Count > 0;
 
-        // Dismiss if we have cached chats and chunks have paused, or if hard timeout (15s) elapsed
-        if (hasChats || elapsedSec >= 15)
+        // Dismiss if chunks have completed/paused for at least 6s of complete silence and we have cached chats, or if hard timeout (45s) elapsed
+        if ((hasChats && elapsedSec >= 6) || elapsedSec >= 45)
         {
             CompleteInitialSync();
         }
@@ -460,14 +460,18 @@ public partial class ChatListViewModel : ViewModelBase
             _syncWatchdogTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             InitialSyncProgress = 100;
             InitialSyncText = "Finishing sync...";
-            IsInitialSyncing = false;
-            IsSyncing = false;
-            RequestDrillInToMain?.Invoke(this, EventArgs.Empty);
+
+            // Ensure chats and recent messages are fully loaded into the collection before dismissing overlay
+            await LoadChatsAsync();
+
             lock (_failedPictureJids)
             {
                 _failedPictureJids.Clear();
             }
-            await LoadChatsAsync();
+
+            IsInitialSyncing = false;
+            IsSyncing = false;
+            RequestDrillInToMain?.Invoke(this, EventArgs.Empty);
         });
     }
 
@@ -522,7 +526,13 @@ public partial class ChatListViewModel : ViewModelBase
             var cached = (_provider as IWhatsAppProvider)?.GetCachedChats();
             if (cached != null && cached.Count > 0)
             {
-                CompleteInitialSync();
+                _dispatcherService.Enqueue(() =>
+                {
+                    if (IsInitialSyncing)
+                    {
+                        InitialSyncText = $"Downloading your recent messages ({cached.Count} chats)...";
+                    }
+                });
             }
             return;
         }
@@ -557,6 +567,7 @@ public partial class ChatListViewModel : ViewModelBase
     {
         if (IsInitialSyncing)
         {
+            ResetSyncWatchdog();
             return;
         }
 

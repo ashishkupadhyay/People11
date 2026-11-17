@@ -252,7 +252,7 @@
         </Grid>
 
         <!-- Pane 3: Detail View -->
-        <Frame x:Name="DetailFrame" Grid.Column="1" Background="Transparent" CornerRadius="{ThemeResource OverlayCornerRadius}"
+        <Frame x:Name="DetailFrame" Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="{ThemeResource OverlayCornerRadius}"
                IsHitTestVisible="False" Visibility="Collapsed"
                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
             <Frame.ContentTransitions>

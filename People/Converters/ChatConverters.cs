@@ -243,29 +243,31 @@ public class StringToImageSourceConverter : IValueConverter
     {
         try
         {
-            var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            using (var stream = ras.AsStreamForWrite())
-            {
-                stream.Write(bytes, 0, bytes.Length);
-                stream.Flush();
-            }
-            ras.Seek(0);
-
-            // Decode and upscale using Cubic interpolation in BitmapDecoder
+            // Perform decoding, 4x linear upscale, and 3-pass Gaussian/box blur inside Task.Run
             var (pixels, width, height) = System.Threading.Tasks.Task.Run(async () =>
             {
+                var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                var stream = ras.AsStreamForWrite();
+                await stream.WriteAsync(bytes, 0, bytes.Length);
+                await stream.FlushAsync();
+                ras.Seek(0);
+
                 var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
                 int srcW = (int)decoder.PixelWidth;
                 int srcH = (int)decoder.PixelHeight;
 
-                int targetW = Math.Max(128, srcW * 4);
-                int targetH = Math.Max(96, srcH * 4);
+                if (srcW <= 0 || srcH <= 0) return (null, 0, 0);
+
+                // WhatsApp thumbnails are typically tiny (~32x32).
+                // Upscale to at least 160x120 using Linear interpolation to avoid nearest-neighbor blockiness:
+                int targetW = Math.Max(160, srcW * 4);
+                int targetH = Math.Max(120, srcH * 4);
 
                 var transform = new Windows.Graphics.Imaging.BitmapTransform
                 {
                     ScaledWidth = (uint)targetW,
                     ScaledHeight = (uint)targetH,
-                    InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Cubic
+                    InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Linear
                 };
 
                 var pixelProvider = await decoder.GetPixelDataAsync(
@@ -275,46 +277,47 @@ public class StringToImageSourceConverter : IValueConverter
                     Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
                     Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
 
-                return (pixelProvider.DetachPixelData(), targetW, targetH);
+                byte[] px = pixelProvider.DetachPixelData();
+                if (px != null && px.Length > 0)
+                {
+                    // Apply fast 3-pass box blur with radius 10 to give a smooth, frosted Fluent look
+                    ApplyFastStackBlur(px, targetW, targetH, 10);
+                }
+                return (px, targetW, targetH);
             }).GetAwaiter().GetResult();
 
-            if (pixels == null || width <= 0 || height <= 0)
+            if (pixels != null && width > 0 && height > 0)
             {
-                return null;
+                var wb = new WriteableBitmap(width, height);
+                using (var pixelStream = wb.PixelBuffer.AsStream())
+                {
+                    pixelStream.Write(pixels, 0, pixels.Length);
+                }
+                wb.Invalidate();
+                return wb;
             }
-
-            // Apply 3-pass fast box blur (Gaussian approximation) with radius 12
-            ApplyFastStackBlur(pixels, width, height, 12);
-
-            var wb = new WriteableBitmap(width, height);
-            using (var pixelStream = wb.PixelBuffer.AsStream())
-            {
-                pixelStream.Write(pixels, 0, pixels.Length);
-            }
-            wb.Invalidate();
-            return wb;
         }
         catch
         {
-            try
-            {
-                var fallbackRas = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                using (var stream = fallbackRas.AsStreamForWrite())
-                {
-                    stream.Write(bytes, 0, bytes.Length);
-                    stream.Flush();
-                }
-                fallbackRas.Seek(0);
-                var fallbackBitmap = new BitmapImage();
-                fallbackBitmap.DecodePixelWidth = 320;
-                fallbackBitmap.DecodePixelType = DecodePixelType.Logical;
-                fallbackBitmap.SetSource(fallbackRas);
-                return fallbackBitmap;
-            }
-            catch
-            {
-                return null;
-            }
+            // Fall through to fallback
+        }
+
+        try
+        {
+            var fallbackRas = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            var stream = fallbackRas.AsStreamForWrite();
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush();
+            fallbackRas.Seek(0);
+            var fallbackBitmap = new BitmapImage();
+            fallbackBitmap.DecodePixelWidth = 320;
+            fallbackBitmap.DecodePixelType = DecodePixelType.Logical;
+            fallbackBitmap.SetSource(fallbackRas);
+            return fallbackBitmap;
+        }
+        catch
+        {
+            return null;
         }
     }
 
