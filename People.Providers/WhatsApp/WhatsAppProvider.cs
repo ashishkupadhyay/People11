@@ -826,7 +826,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             return WhatsAppTestData.GetTestingMessages(chatId);
         }
 
-        if (_clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
+        if (string.IsNullOrEmpty(chatId))
         {
             return Array.Empty<Message>();
         }
@@ -972,21 +972,20 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        // 2b. If both native cache and SQLite had 0 messages and client is connected, try on-demand history fetch
+        // 2b. If both native cache and SQLite had 0 messages and client is connected, try on-demand history fetch in background
         if (resultList.Count == 0 && _clientPtr != IntPtr.Zero && HasInternetAccess())
         {
-            try
+            _ = Task.Run(async () =>
             {
-                var fetched = await GetOlderMessagesAsync(chatId, limit, DateTimeOffset.UtcNow, null, false, ct);
-                if (fetched.Count > 0)
+                try
                 {
-                    resultList.AddRange(fetched);
+                    await GetOlderMessagesAsync(chatId, limit, DateTimeOffset.UtcNow, null, false, CancellationToken.None);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "On-demand fetch for empty chat {ChatId} returned no messages", chatId);
-            }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "Background on-demand fetch for empty chat {ChatId} returned no messages", chatId);
+                }
+            });
         }
 
         // 3. Always merge pending outgoing messages (Status == Sending) from in-memory outbox
@@ -1105,7 +1104,7 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     private IReadOnlyList<Message> ReadMessagesFromNative(IntPtr clientPtr, string chatId, long beforeTs, int limit)
     {
-        if (clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId)) return Array.Empty<Message>();
+        if (string.IsNullOrEmpty(chatId)) return Array.Empty<Message>();
 
         var ptr = WhatsAppNative.wa_get_messages_paginated(clientPtr, chatId, beforeTs, limit);
         if (ptr == IntPtr.Zero) return Array.Empty<Message>();

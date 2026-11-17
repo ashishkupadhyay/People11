@@ -118,6 +118,8 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly Dictionary<string, string> _contactNamesById = new(StringComparer.OrdinalIgnoreCase);
     private int _isLoadingChats;
     private volatile bool _needsReloadChats;
+    private DateTimeOffset _lastChatUpdateLoadTime = DateTimeOffset.MinValue;
+    private readonly object _chatUpdateLock = new();
 
     public event EventHandler? RequestCloseDetail;
 
@@ -466,6 +468,21 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
+        if (IsInitialSyncing)
+        {
+            return;
+        }
+
+        lock (_chatUpdateLock)
+        {
+            var now = DateTimeOffset.UtcNow;
+            if ((now - _lastChatUpdateLoadTime).TotalMilliseconds < 1500)
+            {
+                return;
+            }
+            _lastChatUpdateLoadTime = now;
+        }
+
         _ = LoadChatsAsync();
     }
 
@@ -484,6 +501,11 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
+        if (IsInitialSyncing)
+        {
+            return;
+        }
+
         _dispatcherService.Enqueue(() =>
         {
             var msg = e.Message;
@@ -548,6 +570,15 @@ public partial class ChatListViewModel : ViewModelBase
             }
             else
             {
+                lock (_chatUpdateLock)
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    if ((now - _lastChatUpdateLoadTime).TotalMilliseconds < 1500)
+                    {
+                        return;
+                    }
+                    _lastChatUpdateLoadTime = now;
+                }
                 _ = LoadChatsAsync();
             }
         });
@@ -557,6 +588,7 @@ public partial class ChatListViewModel : ViewModelBase
     {
         if (e.State == ConnectionState.Connected)
         {
+            bool wasInSetup = IsQrLinkVisible || ShowQrCode || IsWelcomeVisible;
             _dispatcherService.Enqueue(() =>
             {
                 IsConnecting = false;
@@ -576,7 +608,10 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 _failedPictureJids.Clear();
             }
-            _ = LoadChatsAsync();
+            if (!wasInSetup && !IsInitialSyncing)
+            {
+                _ = LoadChatsAsync();
+            }
         }
         else if (e.State == ConnectionState.Error)
         {

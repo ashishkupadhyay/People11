@@ -182,11 +182,58 @@ public partial class ConversationViewModel : ViewModelBase
         ReplyingToMessage = null;
         UpdateDoodleWallpaperVisibility();
         
-        // Immediately clear previous chat messages and show loader
-        Messages.Clear();
-        IsLoading = true;
+        // --- INSTANT CACHE FAST PATH (Synchronous UI Thread Execution) ---
+        IReadOnlyList<Message>? syncMemoryCached = null;
+        if (_provider is IWhatsAppProvider waFastProvider)
+        {
+            try
+            {
+                syncMemoryCached = waFastProvider.GetCachedMessages(chat.Id, 30);
+            }
+            catch { }
+        }
 
         int unreadCount = chat.UnreadCount;
+        bool initialLoadedFired = false;
+
+        if (syncMemoryCached != null && syncMemoryCached.Count > 0)
+        {
+            // Instantly populate messages from memory cache - ZERO DELAY, NO SPINNER!
+            Messages.Clear();
+            foreach (var m in syncMemoryCached)
+            {
+                Messages.Add(m);
+            }
+
+            if (unreadCount > 0 && Messages.Count > 0)
+            {
+                int unreadIndex = Math.Max(0, Messages.Count - unreadCount);
+                Messages[unreadIndex].ShowUnreadSeparator = true;
+                Messages[unreadIndex].UnreadSeparatorText = $"{unreadCount} unread message" + (unreadCount > 1 ? "s" : "");
+            }
+            RecalculateDateSeparators();
+            UpdateChatDateString();
+            UpdateSenderPushName();
+            IsLoading = false;
+            initialLoadedFired = true;
+            InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+        }
+        else if (chat.LastMessage != null)
+        {
+            // Fast preview using existing LastMessage from chat list item
+            Messages.Clear();
+            Messages.Add(chat.LastMessage);
+            RecalculateDateSeparators();
+            UpdateChatDateString();
+            UpdateSenderPushName();
+            IsLoading = false;
+        }
+        else
+        {
+            Messages.Clear();
+            IsLoading = true;
+        }
+
         if (unreadCount > 0)
         {
             chat.UnreadCount = 0;
@@ -249,30 +296,12 @@ public partial class ConversationViewModel : ViewModelBase
             }, token);
         }
 
-        bool initialLoadedFired = false;
-
         _ = Task.Run(async () =>
         {
             if (token.IsCancellationRequested) return;
 
-            IReadOnlyList<Message>? initialMsgs = null;
-
-            // Fast path 1: Instant in-memory messages from native bridge cache (executed off UI thread)
-            if (_provider is IWhatsAppProvider waFastProvider)
-            {
-                try
-                {
-                    var memoryCached = waFastProvider.GetCachedMessages(chat.Id, 30);
-                    if (memoryCached != null && memoryCached.Count > 0)
-                    {
-                        initialMsgs = memoryCached;
-                    }
-                }
-                catch { }
-            }
-
             // Fast path 2: Load cached messages from SQLite if in-memory cache was empty
-            if (initialMsgs == null || initialMsgs.Count == 0)
+            if (syncMemoryCached == null || syncMemoryCached.Count == 0)
             {
                 var messageRepo = App.Current.Services.GetService<IMessageRepository>();
                 if (messageRepo != null)
@@ -282,39 +311,37 @@ public partial class ConversationViewModel : ViewModelBase
                         var dbCached = await messageRepo.GetByChatIdAsync(chat.Id, 0, 30);
                         if (dbCached != null && dbCached.Count > 0)
                         {
-                            initialMsgs = dbCached.OrderBy(m => m.Timestamp).ToList();
+                            var orderedDb = dbCached.OrderBy(m => m.Timestamp).ToList();
+                            _dispatcherService.Enqueue(() =>
+                            {
+                                if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
+
+                                Messages.Clear();
+                                foreach (var m in orderedDb)
+                                {
+                                    Messages.Add(m);
+                                }
+
+                                if (unreadCount > 0 && Messages.Count > 0)
+                                {
+                                    int unreadIndex = Math.Max(0, Messages.Count - unreadCount);
+                                    Messages[unreadIndex].ShowUnreadSeparator = true;
+                                    Messages[unreadIndex].UnreadSeparatorText = $"{unreadCount} unread message" + (unreadCount > 1 ? "s" : "");
+                                }
+                                RecalculateDateSeparators();
+                                UpdateChatDateString();
+                                UpdateSenderPushName();
+                                IsLoading = false;
+                                if (!initialLoadedFired)
+                                {
+                                    initialLoadedFired = true;
+                                    InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+                                }
+                            });
                         }
                     }
                     catch { }
                 }
-            }
-
-            // If we found cached messages, display them immediately on UI thread
-            if (initialMsgs != null && initialMsgs.Count > 0)
-            {
-                _dispatcherService.Enqueue(() =>
-                {
-                    if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
-
-                    Messages.Clear();
-                    foreach (var m in initialMsgs)
-                    {
-                        Messages.Add(m);
-                    }
-
-                    if (unreadCount > 0 && Messages.Count > 0)
-                    {
-                        int unreadIndex = Math.Max(0, Messages.Count - unreadCount);
-                        Messages[unreadIndex].ShowUnreadSeparator = true;
-                        Messages[unreadIndex].UnreadSeparatorText = $"{unreadCount} unread message" + (unreadCount > 1 ? "s" : "");
-                    }
-                    RecalculateDateSeparators();
-                    UpdateChatDateString();
-                    UpdateSenderPushName();
-                    IsLoading = false;
-                    initialLoadedFired = true;
-                    InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
-                });
             }
 
             // Step 3: Fetch fresh messages from provider (network/bridge sync)

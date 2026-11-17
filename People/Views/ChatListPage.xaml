@@ -447,7 +447,7 @@
                                                Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
                                                     Visibility="{x:Bind ViewModel.HasQrCodeBytes, Mode=OneWay, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
-                                            <ProgressRing IsActive="True" Width="44" Height="44" />
+                                            <ProgressRing IsActive="True" Width="44" Height="44" Foreground="{ThemeResource AppAccentBrush}" />
                                             <TextBlock Text="Generating QR code..."
                                                        Style="{ThemeResource CaptionTextBlockStyle}"
                                                        Foreground="#666666" HorizontalAlignment="Center" />

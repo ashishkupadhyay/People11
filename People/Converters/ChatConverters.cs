@@ -167,11 +167,9 @@ public class StringToImageSourceConverter : IValueConverter
                         try
                         {
                             var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                            using (var stream = ras.AsStreamForWrite())
-                            {
-                                stream.Write(bytes, 0, bytes.Length);
-                                stream.Flush();
-                            }
+                            var stream = ras.AsStreamForWrite();
+                            stream.Write(bytes, 0, bytes.Length);
+                            stream.Flush();
                             ras.Seek(0);
                             var bitmap = new BitmapImage();
                             bitmap.SetSource(ras);
