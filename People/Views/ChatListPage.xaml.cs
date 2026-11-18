@@ -145,7 +145,15 @@ public sealed partial class ChatListPage : Page
             {
                 convPage.ApplyFlyoutTheming(FlyoutWindow.CurrentFlyoutResources);
             }
-            PlayDetailSlideInAnimation(convPage);
+
+            // Keep only the root blank Page in BackStack so closing detail always returns to the chat list in one step
+            for (int i = DetailFrame.BackStack.Count - 1; i >= 0; i--)
+            {
+                if (DetailFrame.BackStack[i].SourcePageType == typeof(ConversationPage))
+                {
+                    DetailFrame.BackStack.RemoveAt(i);
+                }
+            }
         }
         
         // If we navigated back to the blank page, clear the backstack so we don't build it up
@@ -396,111 +404,26 @@ public sealed partial class ChatListPage : Page
     {
         if (chat == null) return;
 
-        DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-        DetailFrame.IsHitTestVisible = true;
-
-        // If ConversationPage is already instantiated in the DetailFrame, reuse it instantly without destroying/re-parsing XAML
-        if (DetailFrame.Content is ConversationPage existingConvPage)
+        if (DetailFrame.Content is ConversationPage existingConvPage &&
+            existingConvPage.ViewModel.CurrentChat?.Id == chat.Id)
         {
-            if (existingConvPage.ViewModel.CurrentChat?.Id == chat.Id)
-            {
-                return;
-            }
-            existingConvPage.ViewModel.LoadChat(chat);
-            UpdateAdaptiveLayout(this.ActualWidth);
-            ConversationOpened?.Invoke(this, chat);
-            PlayDetailSlideInAnimation(existingConvPage);
+            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            DetailFrame.IsHitTestVisible = true;
             return;
         }
 
-        // First-time navigation: use SuppressNavigationTransitionInfo for instantaneous 0-16ms first-frame rendering
+        DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        DetailFrame.IsHitTestVisible = true;
+
         DetailFrame.Navigate(
             typeof(ConversationPage),
             chat,
-            new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+            new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo
+            {
+                Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight
+            });
 
         ConversationOpened?.Invoke(this, chat);
-    }
-
-    private void PlayDetailSlideInAnimation(Microsoft.UI.Xaml.UIElement? target)
-    {
-        if (target == null) return;
-
-        try
-        {
-            var compositor = Microsoft.UI.Xaml.Media.CompositionTarget.GetCompositorForCurrentThread();
-            if (compositor == null) return;
-
-            const int durationMs = 240;
-            float startX = (float)(this.ActualWidth < 640
-                ? (this.ActualWidth > 0 ? Math.Min(this.ActualWidth, 420) : 340)
-                : 48);
-
-            var slideAnim = compositor.CreateVector3KeyFrameAnimation();
-            slideAnim.Duration = TimeSpan.FromMilliseconds(durationMs);
-            slideAnim.Target = "Translation";
-
-            var easing = compositor.CreateCubicBezierEasingFunction(
-                new System.Numerics.Vector2(0.1f, 0.9f),
-                new System.Numerics.Vector2(0.2f, 1.0f));
-
-            slideAnim.InsertKeyFrame(0.0f, new System.Numerics.Vector3(startX, 0f, 0f));
-            slideAnim.InsertKeyFrame(1.0f, System.Numerics.Vector3.Zero, easing);
-
-            var fadeAnim = compositor.CreateScalarKeyFrameAnimation();
-            fadeAnim.Duration = TimeSpan.FromMilliseconds(Math.Min(durationMs, 180));
-            fadeAnim.Target = "Opacity";
-            fadeAnim.InsertKeyFrame(0.0f, 0.0f);
-            fadeAnim.InsertKeyFrame(1.0f, 1.0f);
-
-            var group = compositor.CreateAnimationGroup();
-            group.Add(slideAnim);
-            group.Add(fadeAnim);
-
-            target.StartAnimation(group);
-        }
-        catch { }
-    }
-
-    private void PlayDetailSlideOutAnimation(Microsoft.UI.Xaml.UIElement target, Action onCompleted)
-    {
-        try
-        {
-            var compositor = Microsoft.UI.Xaml.Media.CompositionTarget.GetCompositorForCurrentThread();
-            if (compositor == null)
-            {
-                onCompleted();
-                return;
-            }
-
-            float endX = (float)(this.ActualWidth > 0 ? Math.Min(this.ActualWidth, 420) : 340);
-
-            var slideAnim = compositor.CreateVector3KeyFrameAnimation();
-            slideAnim.Duration = TimeSpan.FromMilliseconds(190);
-            slideAnim.Target = "Translation";
-            var easing = compositor.CreateCubicBezierEasingFunction(new System.Numerics.Vector2(0.7f, 0.0f), new System.Numerics.Vector2(1.0f, 0.5f));
-            slideAnim.InsertKeyFrame(1.0f, new System.Numerics.Vector3(endX, 0f, 0f), easing);
-
-            var fadeAnim = compositor.CreateScalarKeyFrameAnimation();
-            fadeAnim.Duration = TimeSpan.FromMilliseconds(170);
-            fadeAnim.Target = "Opacity";
-            fadeAnim.InsertKeyFrame(1.0f, 0.0f);
-
-            var batch = compositor.CreateScopedBatch(Microsoft.UI.Composition.CompositionBatchTypes.Animation);
-            target.StartAnimation(slideAnim);
-            target.StartAnimation(fadeAnim);
-            batch.Completed += (s, e) =>
-            {
-                target.Translation = System.Numerics.Vector3.Zero;
-                target.Opacity = 1.0;
-                onCompleted();
-            };
-            batch.End();
-        }
-        catch
-        {
-            onCompleted();
-        }
     }
 
     public People.Core.Models.Chat? GetActiveConversation()
@@ -540,25 +463,20 @@ public sealed partial class ChatListPage : Page
     public void CloseDetail()
     {
         if (ChatsListView != null) ChatsListView.SelectedItem = null;
-
-        if (this.ActualWidth < 640 && DetailFrame.Content is ConversationPage convPage)
+        if (DetailFrame.CanGoBack)
         {
-            PlayDetailSlideOutAnimation(convPage, () =>
-            {
-                DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                DetailFrame.IsHitTestVisible = false;
-                UpdateAdaptiveLayout(this.ActualWidth);
-                UpdateAccentColor();
-                ConversationClosed?.Invoke(this, EventArgs.Empty);
-            });
-            return;
+            DetailFrame.GoBack();
         }
-
-        DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-        DetailFrame.IsHitTestVisible = false;
-        UpdateAdaptiveLayout(this.ActualWidth);
-        UpdateAccentColor();
-        ConversationClosed?.Invoke(this, EventArgs.Empty);
+        else
+        {
+            DetailFrame.Navigate(
+                typeof(Page),
+                null,
+                new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo
+                {
+                    Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromLeft
+                });
+        }
     }
 
     private void OnboardingDoodleCanvas_SizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)
