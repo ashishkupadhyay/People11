@@ -520,7 +520,7 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnChatUpdated(object? sender, ChatUpdatedEventArgs e)
     {
-        if (IsInitialSyncing)
+        if (IsInitialSyncing && Chats.Count == 0)
         {
             ResetSyncWatchdog();
             var cached = (_provider as IWhatsAppProvider)?.GetCachedChats();
@@ -528,7 +528,7 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 _dispatcherService.Enqueue(() =>
                 {
-                    if (IsInitialSyncing)
+                    if (IsInitialSyncing && Chats.Count == 0)
                     {
                         InitialSyncText = $"Downloading your recent messages ({cached.Count} chats)...";
                     }
@@ -537,17 +537,7 @@ public partial class ChatListViewModel : ViewModelBase
             return;
         }
 
-        lock (_chatUpdateLock)
-        {
-            var now = DateTimeOffset.UtcNow;
-            if ((now - _lastChatUpdateLoadTime).TotalMilliseconds < 1500)
-            {
-                return;
-            }
-            _lastChatUpdateLoadTime = now;
-        }
-
-        _ = LoadChatsAsync();
+        ScheduleDebouncedLoadChats(300);
     }
 
     private void OnChatMarkedRead(object? sender, string chatId)
@@ -565,7 +555,7 @@ public partial class ChatListViewModel : ViewModelBase
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        if (IsInitialSyncing)
+        if (IsInitialSyncing && Chats.Count == 0)
         {
             ResetSyncWatchdog();
             return;
@@ -579,23 +569,7 @@ public partial class ChatListViewModel : ViewModelBase
                 return;
             }
 
-            var chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.ChatId));
-            if (chat == null && !string.IsNullOrEmpty(msg.SenderName) && msg.SenderName != "You")
-            {
-                chat = Chats.FirstOrDefault(c => !c.IsGroup && string.Equals(c.Title, msg.SenderName, StringComparison.OrdinalIgnoreCase));
-            }
-            if (chat == null && !string.IsNullOrEmpty(msg.SenderId) && msg.SenderId != "me")
-            {
-                chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.SenderId));
-            }
-            if (chat == null && msg.IsOutgoing)
-            {
-                var convVm = App.Current.Services.GetService<ConversationViewModel>();
-                if (convVm?.CurrentChat != null && !convVm.CurrentChat.IsGroup)
-                {
-                    chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, convVm.CurrentChat.Id));
-                }
-            }
+            var chat = FindChatForMessage(msg);
 
             if (chat != null)
             {
@@ -635,18 +609,81 @@ public partial class ChatListViewModel : ViewModelBase
             }
             else
             {
-                lock (_chatUpdateLock)
-                {
-                    var now = DateTimeOffset.UtcNow;
-                    if ((now - _lastChatUpdateLoadTime).TotalMilliseconds < 1500)
-                    {
-                        return;
-                    }
-                    _lastChatUpdateLoadTime = now;
-                }
-                _ = LoadChatsAsync();
+                // Chat not in list yet (new contact or unmapped chat) - reload chats promptly
+                ScheduleDebouncedLoadChats(100);
             }
         });
+    }
+
+    private Chat? FindChatForMessage(Message msg)
+    {
+        if (msg == null) return null;
+
+        // 1. Direct match on ChatId
+        var chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.ChatId));
+        if (chat != null) return chat;
+
+        // 2. Fast digit matching on phone number
+        var msgDigits = ExtractDigits(msg.ChatId);
+        if (msgDigits.Length >= 7)
+        {
+            chat = Chats.FirstOrDefault(c => !c.IsGroup && ExtractDigits(c.Id) == msgDigits);
+            if (chat != null) return chat;
+        }
+
+        // 3. SenderName match for 1-on-1 chats
+        if (!string.IsNullOrEmpty(msg.SenderName) && msg.SenderName != "You")
+        {
+            chat = Chats.FirstOrDefault(c => !c.IsGroup && string.Equals(c.Title, msg.SenderName, StringComparison.OrdinalIgnoreCase));
+            if (chat != null) return chat;
+        }
+
+        // 4. SenderId match
+        if (!string.IsNullOrEmpty(msg.SenderId) && msg.SenderId != "me")
+        {
+            chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, msg.SenderId));
+            if (chat != null) return chat;
+        }
+
+        // 5. Active conversation fallback for outgoing messages
+        if (msg.IsOutgoing)
+        {
+            var convVm = App.Current.Services.GetService<ConversationViewModel>();
+            if (convVm?.CurrentChat != null && !convVm.CurrentChat.IsGroup)
+            {
+                chat = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, convVm.CurrentChat.Id));
+            }
+        }
+
+        return chat;
+    }
+
+    private static string ExtractDigits(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        var userPart = text.Split('@')[0].Split(':')[0];
+        return new string(userPart.Where(char.IsDigit).ToArray());
+    }
+
+    private readonly object _chatUpdateDebounceLock = new();
+    private System.Threading.Timer? _chatUpdateDebounceTimer;
+
+    private void ScheduleDebouncedLoadChats(int delayMs = 300)
+    {
+        lock (_chatUpdateDebounceLock)
+        {
+            if (_chatUpdateDebounceTimer == null)
+            {
+                _chatUpdateDebounceTimer = new System.Threading.Timer(_ =>
+                {
+                    _ = LoadChatsAsync();
+                }, null, delayMs, Timeout.Infinite);
+            }
+            else
+            {
+                _chatUpdateDebounceTimer.Change(delayMs, Timeout.Infinite);
+            }
+        }
     }
 
     private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)

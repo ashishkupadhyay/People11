@@ -820,6 +820,30 @@ public class WhatsAppProvider : IWhatsAppProvider
         return ReadChatsFromNative(_clientPtr);
     }
 
+    public IReadOnlyList<Message> GetMemoryCachedMessages(string chatId, int limit = 30)
+    {
+        if (IsTestingMode || chatId.StartsWith("sample_wa_"))
+        {
+            return GetCachedMessages(chatId, limit);
+        }
+
+        if (string.IsNullOrEmpty(chatId))
+        {
+            return Array.Empty<Message>();
+        }
+
+        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        if (_memoryMessageCache.TryGetValue(cleanChatId, out var memList) && memList.Count > 0)
+        {
+            lock (memList)
+            {
+                return memList.TakeLast(limit).ToList();
+            }
+        }
+
+        return Array.Empty<Message>();
+    }
+
     public IReadOnlyList<Message> GetCachedMessages(string chatId, int limit = 30)
     {
         if (IsTestingMode || chatId.StartsWith("sample_wa_"))
@@ -847,7 +871,10 @@ public class WhatsAppProvider : IWhatsAppProvider
         var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
         if (_memoryMessageCache.TryGetValue(cleanChatId, out var memList) && memList.Count > 0)
         {
-            return memList.TakeLast(limit).ToList();
+            lock (memList)
+            {
+                return memList.TakeLast(limit).ToList();
+            }
         }
 
         var resultList = new List<Message>(ReadMessagesFromNative(_clientPtr, chatId, 0, limit));

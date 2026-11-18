@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
@@ -40,7 +41,7 @@ public partial class App : Application
         // Data Layer
         var dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "people.db");
         services.AddDbContextFactory<PeopleDbContext>(options =>
-            Microsoft.EntityFrameworkCore.SqliteDbContextOptionsBuilderExtensions.UseSqlite(options, $"Data Source={dbPath}"));
+            Microsoft.EntityFrameworkCore.SqliteDbContextOptionsBuilderExtensions.UseSqlite(options, $"Data Source={dbPath};Cache=Shared;Mode=ReadWriteCreate;"));
             
         services.AddSingleton<IChatRepository, ChatRepository>();
         services.AddSingleton<IMessageRepository, MessageRepository>();
@@ -107,8 +108,15 @@ public partial class App : Application
                     var dbFactory = Services.GetService<Microsoft.EntityFrameworkCore.IDbContextFactory<PeopleDbContext>>();
                     if (dbFactory != null)
                     {
-                        using var db = dbFactory.CreateDbContext();
-                        db.Database.EnsureCreated();
+                        using var db = await dbFactory.CreateDbContextAsync();
+                        await db.Database.EnsureCreatedAsync();
+                        try
+                        {
+                            await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+                            await db.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=5000;");
+                            await db.Database.ExecuteSqlRawAsync("PRAGMA synchronous=NORMAL;");
+                        }
+                        catch { }
                     }
                     var messageRepo = Services.GetService<People.Core.Interfaces.Repositories.IMessageRepository>();
                     if (messageRepo != null)

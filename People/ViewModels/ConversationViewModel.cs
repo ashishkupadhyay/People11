@@ -182,13 +182,18 @@ public partial class ConversationViewModel : ViewModelBase
         ReplyingToMessage = null;
         UpdateDoodleWallpaperVisibility();
         
-        // --- INSTANT CACHE FAST PATH (Synchronous UI Thread Execution) ---
+        // Immediate UI header title - 0ms delay, no P/Invoke blocking
+        HeaderTitle = CurrentChat.Title ?? string.Empty;
+        HeaderSubtitle = null;
+        SenderPushName = null;
+
+        // --- INSTANT CACHE FAST PATH (In-memory RAM cache only - 0ms UI Thread Execution) ---
         IReadOnlyList<Message>? syncMemoryCached = null;
         if (_provider is IWhatsAppProvider waFastProvider)
         {
             try
             {
-                syncMemoryCached = waFastProvider.GetCachedMessages(chat.Id, 30);
+                syncMemoryCached = waFastProvider.GetMemoryCachedMessages(chat.Id, 30);
             }
             catch { }
         }
@@ -214,7 +219,6 @@ public partial class ConversationViewModel : ViewModelBase
             }
             RecalculateDateSeparators();
             UpdateChatDateString();
-            UpdateSenderPushName();
             IsLoading = false;
             initialLoadedFired = true;
             InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
@@ -222,11 +226,11 @@ public partial class ConversationViewModel : ViewModelBase
         else if (chat.LastMessage != null)
         {
             // Fast preview using existing LastMessage from chat list item
+            IsLoading = true;
             Messages.Clear();
             Messages.Add(chat.LastMessage);
             RecalculateDateSeparators();
             UpdateChatDateString();
-            UpdateSenderPushName();
             IsLoading = false;
         }
         else
@@ -250,28 +254,34 @@ public partial class ConversationViewModel : ViewModelBase
 
         if (_provider is IWhatsAppProvider waMarkProvider)
         {
-            _ = waMarkProvider.MarkChatAsReadAsync(chat.Id);
+            _ = Task.Run(() => waMarkProvider.MarkChatAsReadAsync(chat.Id));
         }
 
         _consecutiveEmptyOlderLoads = 0;
         HasMoreOlderMessages = true;
         UpdateChatDateString();
-        UpdateSenderPushName();
 
-        if (_provider is IWhatsAppProvider waSubProvider && string.IsNullOrEmpty(SenderPushName) && !chat.IsGroup)
+        _ = Task.Run(async () =>
         {
-            waSubProvider.SubscribePresence(chat.Id);
-        }
+            if (token.IsCancellationRequested) return;
 
-        bool shouldFetchPic = false;
-        lock (_failedPictureJids)
-        {
-            shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl) && !_failedPictureJids.Contains(chat.Id);
-        }
+            // 1. Subscribe presence in background
+            if (_provider is IWhatsAppProvider waSubProvider && !chat.IsGroup)
+            {
+                try { waSubProvider.SubscribePresence(chat.Id); } catch { }
+            }
 
-        if (shouldFetchPic && _provider is IWhatsAppProvider waProvider)
-        {
-            _ = Task.Run(async () =>
+            // 2. Resolve push name & unsaved contact header details in background
+            ResolveHeaderDetailsInBackground(chat, token);
+
+            // 3. Profile picture fetch in background
+            bool shouldFetchPic = false;
+            lock (_failedPictureJids)
+            {
+                shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl) && !_failedPictureJids.Contains(chat.Id);
+            }
+
+            if (shouldFetchPic && _provider is IWhatsAppProvider waProvider)
             {
                 try
                 {
@@ -294,14 +304,9 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
                 }
-            }, token);
-        }
+            }
 
-        _ = Task.Run(async () =>
-        {
-            if (token.IsCancellationRequested) return;
-
-            // Fast path 2: Load cached messages from SQLite if in-memory cache was empty
+            // 4. Fast path 2: Load cached messages from SQLite if in-memory cache was empty
             if (syncMemoryCached == null || syncMemoryCached.Count == 0)
             {
                 var messageRepo = App.Current.Services.GetService<IMessageRepository>();
@@ -845,9 +850,170 @@ public partial class ConversationViewModel : ViewModelBase
         }
     }
 
+    public void ResolveHeaderDetailsInBackground(Chat? chat, CancellationToken token)
+    {
+        if (chat == null) return;
+        if (chat.IsGroup)
+        {
+            _dispatcherService.Enqueue(() =>
+            {
+                if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
+                HeaderTitle = chat.Title ?? string.Empty;
+                HeaderSubtitle = null;
+                SenderPushName = null;
+            });
+            return;
+        }
+
+        var waProvider = _provider as IWhatsAppProvider;
+        var chatId = chat.Id ?? string.Empty;
+        var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var userPart = cleanId.Split('@')[0].Split(':')[0];
+        var idDigits = new string(userPart.Where(char.IsDigit).ToArray());
+
+        // Resolve clean phone number
+        string? phone = null;
+        if (waProvider != null && !string.IsNullOrEmpty(chatId))
+        {
+            try { phone = waProvider.GetPhoneNumber(chatId); } catch { }
+        }
+        if (string.IsNullOrEmpty(phone) && idDigits.Length >= 5)
+        {
+            phone = $"+{idDigits}";
+        }
+
+        string rawTitle = chat.Title?.Trim() ?? string.Empty;
+
+        // Check whether this contact is saved in the user's address book
+        string? savedName = null;
+        if (waProvider != null && !string.IsNullOrEmpty(chatId))
+        {
+            try
+            {
+                savedName = waProvider.GetContactName(chatId);
+                if (string.IsNullOrEmpty(savedName) && idDigits.Length >= 5)
+                {
+                    savedName = waProvider.GetContactName(idDigits);
+                }
+            }
+            catch { }
+        }
+
+        bool isUnsaved;
+        if (!string.IsNullOrWhiteSpace(savedName))
+        {
+            isUnsaved = false;
+        }
+        else if (waProvider != null)
+        {
+            isUnsaved = true;
+        }
+        else
+        {
+            if (rawTitle.StartsWith('+') || rawTitle.StartsWith('~') || IsPhoneNumber(rawTitle))
+            {
+                isUnsaved = true;
+            }
+            else
+            {
+                int letterCount = rawTitle.Count(char.IsLetter);
+                int digitCount = rawTitle.Count(char.IsDigit);
+                var titleDigits = new string(rawTitle.Where(char.IsDigit).ToArray());
+
+                if ((letterCount == 0 && digitCount >= 5) || (!string.IsNullOrEmpty(idDigits) && titleDigits == idDigits))
+                {
+                    isUnsaved = true;
+                }
+                else
+                {
+                    isUnsaved = false;
+                    savedName = rawTitle;
+                }
+            }
+        }
+
+        string finalTitle;
+        string? finalSubtitle = null;
+
+        if (isUnsaved)
+        {
+            finalTitle = !string.IsNullOrEmpty(phone) ? FormatPhoneNumber(phone) : FormatPhoneNumber(rawTitle);
+
+            string? pushName = null;
+            if (waProvider != null && !string.IsNullOrEmpty(chatId))
+            {
+                try
+                {
+                    pushName = waProvider.GetPushName(chatId);
+                    if (string.IsNullOrEmpty(pushName) && idDigits.Length >= 5)
+                    {
+                        pushName = waProvider.GetPushName(idDigits);
+                        if (string.IsNullOrEmpty(pushName) && idDigits.Length == 12 && idDigits.StartsWith("91"))
+                        {
+                            pushName = waProvider.GetPushName(idDigits[2..]);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (string.IsNullOrEmpty(pushName) && rawTitle.StartsWith('~'))
+            {
+                pushName = rawTitle.TrimStart('~').Trim();
+            }
+
+            if (string.IsNullOrEmpty(pushName) && !IsPhoneNumber(rawTitle) && !rawTitle.StartsWith('+'))
+            {
+                if (rawTitle.Any(char.IsLetter)) pushName = rawTitle;
+            }
+
+            if (string.IsNullOrEmpty(pushName) && chat.LastMessage != null && !chat.LastMessage.IsOutgoing)
+            {
+                var sn = chat.LastMessage.SenderName;
+                if (!string.IsNullOrWhiteSpace(sn) && !IsPhoneNumber(sn))
+                {
+                    pushName = sn;
+                }
+            }
+
+            if (string.IsNullOrEmpty(pushName) && waProvider != null && !string.IsNullOrEmpty(chatId))
+            {
+                try { waProvider.SubscribePresence(chatId); } catch { }
+            }
+
+            if (!string.IsNullOrWhiteSpace(pushName))
+            {
+                var cleaned = pushName.Trim().TrimStart('~').Trim();
+                if (!string.IsNullOrEmpty(cleaned)
+                    && cleaned.Any(char.IsLetter)
+                    && !cleaned.StartsWith('+')
+                    && !cleaned.Contains(".."))
+                {
+                    finalSubtitle = $"~{cleaned}";
+                }
+            }
+        }
+        else
+        {
+            finalTitle = !string.IsNullOrWhiteSpace(savedName) ? savedName : rawTitle;
+            finalSubtitle = !string.IsNullOrEmpty(phone) ? FormatPhoneNumber(phone) : null;
+        }
+
+        _dispatcherService.Enqueue(() =>
+        {
+            if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
+            HeaderTitle = finalTitle;
+            HeaderSubtitle = finalSubtitle;
+            SenderPushName = finalSubtitle;
+        });
+    }
+
     public void UpdateSenderPushName()
     {
-        UpdateHeaderDetails();
+        if (CurrentChat != null)
+        {
+            _ = Task.Run(() => ResolveHeaderDetailsInBackground(CurrentChat, CancellationToken.None));
+        }
     }
 
     public void UpdateHeaderDetails()
