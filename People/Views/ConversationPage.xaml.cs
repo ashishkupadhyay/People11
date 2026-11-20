@@ -152,6 +152,13 @@ public sealed partial class ConversationPage : Page
 
         KeyDown += (s, e) =>
         {
+            if (WhiteBoardOverlay.Visibility == Visibility.Visible && e.Key == Windows.System.VirtualKey.Escape)
+            {
+                WhiteBoardOverlay.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+                return;
+            }
+
             if (ViewModel.IsMediaViewerOpen && e.Key == Windows.System.VirtualKey.Escape)
             {
                 ViewModel.CloseMediaViewer();
@@ -1432,6 +1439,27 @@ public sealed partial class ConversationPage : Page
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"AttachAudio_Click failed: {ex.Message}");
+        }
+    }
+
+    private void AttachWhiteBoard_Click(object sender, RoutedEventArgs e)
+    {
+        AttachFlyout?.Hide();
+        WhiteBoard.Reset();
+        WhiteBoardOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void WhiteBoard_CancelClicked(object sender, EventArgs e)
+    {
+        WhiteBoardOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private async void WhiteBoard_SendImageClicked(object sender, string imagePath)
+    {
+        WhiteBoardOverlay.Visibility = Visibility.Collapsed;
+        if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+        {
+            await ViewModel.SendMediaFileAsync(imagePath);
         }
     }
 
