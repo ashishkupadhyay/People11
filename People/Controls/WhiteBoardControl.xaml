@@ -4,31 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
     mc:Ignorable="d">
-
-    <UserControl.Resources>
-        <Style x:Key="WhiteBoardToolButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-        </Style>
-
-        <Style x:Key="WhiteBoardColorSwatchStyle" TargetType="Button">
-            <Setter Property="Width" Value="24" />
-            <Setter Property="Height" Value="24" />
-            <Setter Property="MinWidth" Value="24" />
-            <Setter Property="MinHeight" Value="24" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="2,0" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
-        </Style>
-    </UserControl.Resources>
 
     <Grid Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="16" RowSpacing="12">
         <Grid.RowDefinitions>
@@ -37,13 +13,13 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Top Header & Toolbar -->
+        <!-- Top Header & Native InkToolbar -->
         <Border Grid.Row="0"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="12,8">
+                Padding="12,6">
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -51,105 +27,24 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Left: Title & Tools -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,8,0" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xEE56;" FontSize="18" Foreground="{ThemeResource AppAccentBrush}" />
-                        <TextBlock Text="White Board" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <AppBarSeparator Margin="4,0" />
-
-                    <!-- Pen Tool -->
-                    <Button x:Name="PenButton"
-                            Style="{StaticResource WhiteBoardToolButtonStyle}"
-                            ToolTipService.ToolTip="Pen (Smooth solid line)"
-                            Click="ToolButton_Click" Tag="Pen">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xED63;" FontSize="16" />
-                            <TextBlock Text="Pen" FontSize="13" />
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Pencil Tool -->
-                    <Button x:Name="PencilButton"
-                            Style="{StaticResource WhiteBoardToolButtonStyle}"
-                            ToolTipService.ToolTip="Pencil (Fine sketch line)"
-                            Click="ToolButton_Click" Tag="Pencil">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE70F;" FontSize="16" />
-                            <TextBlock Text="Pencil" FontSize="13" />
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Highlighter Tool -->
-                    <Button x:Name="HighlighterButton"
-                            Style="{StaticResource WhiteBoardToolButtonStyle}"
-                            ToolTipService.ToolTip="Highlighter (Translucent broad stroke)"
-                            Click="ToolButton_Click" Tag="Highlighter">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE7E6;" FontSize="16" />
-                            <TextBlock Text="Highlighter" FontSize="13" />
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Eraser Tool -->
-                    <Button x:Name="EraserButton"
-                            Style="{StaticResource WhiteBoardToolButtonStyle}"
-                            ToolTipService.ToolTip="Eraser (Erase strokes)"
-                            Click="ToolButton_Click" Tag="Eraser">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE75C;" FontSize="16" />
-                            <TextBlock Text="Eraser" FontSize="13" />
-                        </StackPanel>
-                    </Button>
+                <!-- Left: Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="4,0,8,0">
+                    <FontIcon Glyph="&#xEE56;" FontSize="18" Foreground="{ThemeResource AppAccentBrush}" />
+                    <TextBlock Text="White Board" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- Center: Color Palette & Stroke Size -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <!-- Quick Colors -->
-                    <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FF000000" Click="ColorSwatch_Click" Tag="#FF000000" ToolTipService.ToolTip="Black" />
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FF1E88E5" Click="ColorSwatch_Click" Tag="#FF1E88E5" ToolTipService.ToolTip="Blue" />
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FF43A047" Click="ColorSwatch_Click" Tag="#FF43A047" ToolTipService.ToolTip="Green" />
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FFE53935" Click="ColorSwatch_Click" Tag="#FFE53935" ToolTipService.ToolTip="Red" />
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FFFB8C00" Click="ColorSwatch_Click" Tag="#FFFB8C00" ToolTipService.ToolTip="Orange" />
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FFFDD835" Click="ColorSwatch_Click" Tag="#FFFDD835" ToolTipService.ToolTip="Yellow" />
-                        <Button Style="{StaticResource WhiteBoardColorSwatchStyle}" Background="#FF8E24AA" Click="ColorSwatch_Click" Tag="#FF8E24AA" ToolTipService.ToolTip="Purple" />
-                    </StackPanel>
-
-                    <AppBarSeparator Margin="4,0" />
-
-                    <!-- Stroke Size Picker -->
-                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="Size" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                        <Slider x:Name="SizeSlider"
-                                Width="100"
-                                Minimum="1" Maximum="30" Value="4"
-                                StepFrequency="1"
-                                ToolTipService.ToolTip="Stroke Thickness"
-                                ValueChanged="SizeSlider_ValueChanged" />
-                        <TextBlock x:Name="SizeValueText" Text="4px" FontSize="12" Width="30" VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <AppBarSeparator Margin="4,0" />
-
-                    <!-- Undo & Redo -->
-                    <Button Width="36" Height="36" Padding="0" Background="Transparent" BorderThickness="0" CornerRadius="4"
-                            ToolTipService.ToolTip="Undo (Ctrl+Z)" Click="Undo_Click" x:Name="UndoButton">
-                        <FontIcon Glyph="&#xE7A7;" FontSize="15" />
-                    </Button>
-                    <Button Width="36" Height="36" Padding="0" Background="Transparent" BorderThickness="0" CornerRadius="4"
-                            ToolTipService.ToolTip="Redo (Ctrl+Y)" Click="Redo_Click" x:Name="RedoButton">
-                        <FontIcon Glyph="&#xE7A6;" FontSize="15" />
-                    </Button>
-
-                    <!-- Clear All -->
-                    <Button Width="36" Height="36" Padding="0" Background="Transparent" BorderThickness="0" CornerRadius="4"
-                            ToolTipService.ToolTip="Clear All Strokes" Click="ClearAll_Click">
-                        <FontIcon Glyph="&#xE74D;" FontSize="15" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
-                    </Button>
-                </StackPanel>
+                <!-- Center: Native WinUI 3 InkToolbar -->
+                <InkToolbar x:Name="MyInkToolbar"
+                            Grid.Column="1"
+                            TargetInkCanvas="{x:Bind MyInkCanvas}"
+                            InitialControls="None"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <InkToolbarBallpointPenButton x:Name="BallpointPenBtn" />
+                    <InkToolbarPencilButton />
+                    <InkToolbarHighlighterButton />
+                    <InkToolbarEraserButton IsClearAllVisible="True" />
+                </InkToolbar>
 
                 <!-- Right: Cancel & Send Buttons -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -169,21 +64,15 @@
             </Grid>
         </Border>
 
-        <!-- Main Drawing Canvas Card -->
+        <!-- Main Native InkCanvas Surface -->
         <Border Grid.Row="1"
                 Background="#FFFFFFFF"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8">
-            <canvas:CanvasControl x:Name="DrawingCanvas"
-                                  Draw="DrawingCanvas_Draw"
-                                  PointerPressed="DrawingCanvas_PointerPressed"
-                                  PointerMoved="DrawingCanvas_PointerMoved"
-                                  PointerReleased="DrawingCanvas_PointerReleased"
-                                  PointerCanceled="DrawingCanvas_PointerCanceled"
-                                  PointerCaptureLost="DrawingCanvas_PointerCaptureLost"
-                                  HorizontalAlignment="Stretch"
-                                  VerticalAlignment="Stretch" />
+            <InkCanvas x:Name="MyInkCanvas"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch" />
         </Border>
 
         <!-- Bottom Footer Helper Text -->

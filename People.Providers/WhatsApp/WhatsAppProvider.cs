@@ -83,7 +83,10 @@ public class WhatsAppProvider : IWhatsAppProvider
     private readonly ConcurrentDictionary<string, int> _outboxRetryCounts = new();
     private readonly ConcurrentDictionary<string, List<Message>> _memoryMessageCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _outboxLock = new(1, 1);
+    private readonly SemaphoreSlim _authLock = new(1, 1);
     private System.Threading.Timer? _outboxTimer;
+    private System.Threading.Timer? _watchdogTimer;
+    private DateTimeOffset _lastReconnectAttempt = DateTimeOffset.MinValue;
 
     public WhatsAppProvider(
         ILogger<WhatsAppProvider>? logger = null, 
@@ -106,6 +109,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         catch { }
 
         _outboxTimer = new System.Threading.Timer(OnOutboxTimerTick, null, 1500, 1500);
+        _watchdogTimer = new System.Threading.Timer(OnWatchdogTimerTick, null, 10000, 10000);
 
         InitializeClientAndCache();
     }
@@ -186,11 +190,10 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 if (IsAuthenticated)
                 {
-                    _logger?.LogInformation("WhatsApp is already authenticated. Connected immediately.");
-                    ConnectionState = ConnectionState.Connected;
+                    _logger?.LogInformation("WhatsApp is authenticated. Connecting backend socket...");
+                    ConnectionState = ConnectionState.Connecting;
                     OnConnectionStateChanged(ConnectionState);
                     _ = LoadPendingOutboxMessagesAsync();
-                    _ = ProcessOutboxQueueAsync();
 
                     // Run authentication in background to connect socket & sync
                     _ = Task.Run(async () =>
@@ -242,6 +245,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             throw new InvalidOperationException("Client backend is not connected.");
         }
 
+        await _authLock.WaitAsync(ct);
         try
         {
             var dbPath = GetSessionDbPath();
@@ -264,6 +268,10 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             _logger?.LogError(ex, "Exception during WhatsApp authentication.");
             throw;
+        }
+        finally
+        {
+            _authLock.Release();
         }
     }
 
@@ -1395,6 +1403,69 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
     }
 
+    private async void OnWatchdogTimerTick(object? state)
+    {
+        if (IsTestingMode) return;
+        if (!IsAuthenticated) return;
+        if (_clientPtr == IntPtr.Zero) return;
+        if (!HasInternetAccess()) return;
+
+        bool isReady = IsClientReady;
+        if (!isReady)
+        {
+            if (ConnectionState == ConnectionState.Connected)
+            {
+                _logger?.LogWarning("Watchdog detected WhatsApp connection dropped. State set to Connecting.");
+                ConnectionState = ConnectionState.Connecting;
+                OnConnectionStateChanged(ConnectionState);
+            }
+
+            if ((DateTimeOffset.UtcNow - _lastReconnectAttempt).TotalSeconds < 10)
+            {
+                return;
+            }
+
+            if (await _authLock.WaitAsync(0))
+            {
+                try
+                {
+                    _lastReconnectAttempt = DateTimeOffset.UtcNow;
+                    _logger?.LogInformation("Watchdog auto-reconnecting to WhatsApp backend socket...");
+                    var dbPath = GetSessionDbPath();
+                    await Task.Run(() =>
+                    {
+                        unsafe
+                        {
+                            WhatsAppNative.wa_authenticate_qr(
+                                _clientPtr,
+                                dbPath,
+                                &OnNativeQrReceived,
+                                &OnNativeAuthSuccess,
+                                &OnNativeError);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Watchdog auto-reconnect failed.");
+                }
+                finally
+                {
+                    _authLock.Release();
+                }
+            }
+        }
+        else
+        {
+            if (ConnectionState != ConnectionState.Connected)
+            {
+                ConnectionState = ConnectionState.Connected;
+                OnConnectionStateChanged(ConnectionState);
+                _ = ProcessOutboxQueueAsync();
+            }
+        }
+    }
+
     public async Task LoadPendingOutboxMessagesAsync()
     {
         if (_messageRepository == null) return;
@@ -1485,26 +1556,41 @@ public class WhatsAppProvider : IWhatsAppProvider
                 }
 
                 _logger?.LogInformation("Dispatching queued message {Id} to {ChatId} (attempt {Attempt})", msg.Id, msg.ChatId, retries);
-                if (msg.Content.Type != MessageContentType.Text)
-                {
-                    _outboxQueue.TryDequeue(out _);
-                    _outboxRetryCounts.TryRemove(msg.Id, out _);
-                    msg.Status = MessageStatus.Sent;
-                    if (_messageRepository != null)
-                    {
-                        try { await _messageRepository.SaveAsync(msg); } catch { }
-                    }
-                    continue;
-                }
 
                 IntPtr realIdPtr = IntPtr.Zero;
                 try
                 {
-                    realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, msg.ChatId, msg.Content.Text, msg.Content.QuotedMessageId ?? msg.QuotedMessageId, msg.Content.QuotedText ?? msg.QuotedText, msg.Content.QuotedParticipant ?? msg.QuotedParticipant ?? msg.Content.QuotedSender ?? msg.QuotedSender));
+                    if (msg.Content.Type == MessageContentType.Text)
+                    {
+                        realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(
+                            _clientPtr,
+                            msg.ChatId,
+                            msg.Content.Text,
+                            msg.Content.QuotedMessageId ?? msg.QuotedMessageId,
+                            msg.Content.QuotedText ?? msg.QuotedText,
+                            msg.Content.QuotedParticipant ?? msg.QuotedParticipant ?? msg.Content.QuotedSender ?? msg.QuotedSender));
+                    }
+                    else if (!string.IsNullOrEmpty(msg.Content.LocalFilePath) && File.Exists(msg.Content.LocalFilePath))
+                    {
+                        int mType = msg.Content.Type switch
+                        {
+                            MessageContentType.Image => 0,
+                            MessageContentType.Video => 1,
+                            MessageContentType.Audio => 2,
+                            _ => 3
+                        };
+                        realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_media(
+                            _clientPtr,
+                            msg.ChatId,
+                            msg.Content.LocalFilePath,
+                            mType,
+                            msg.Content.Caption ?? msg.Content.Text,
+                            msg.Content.FileName));
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "Error executing wa_send_message in outbox queue");
+                    _logger?.LogWarning(ex, "Error executing send in outbox queue for message {Id}", msg.Id);
                 }
 
                 if (realIdPtr != IntPtr.Zero)
@@ -1650,12 +1736,6 @@ public class WhatsAppProvider : IWhatsAppProvider
                 {
                     _logger?.LogWarning(ex, "Direct media send failed for message {Id}", msg.Id);
                 }
-            }
-
-            if (!sentImmediately)
-            {
-                msg.Status = MessageStatus.Sent;
-                sentImmediately = true;
             }
         }
 
@@ -2253,6 +2333,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         }
         catch { }
         _outboxTimer?.Dispose();
+        _watchdogTimer?.Dispose();
         _ = DisconnectAsync();
     }
 

@@ -2058,7 +2058,18 @@ public partial class ConversationViewModel : ViewModelBase
                 }
             });
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to send message: {ex}");
+            _dispatcherService.Enqueue(() =>
+            {
+                var existing = Messages.FirstOrDefault(m => m.Id == pendingId);
+                if (existing != null)
+                {
+                    existing.Status = MessageStatus.Failed;
+                }
+            });
+        }
     }
 
     [RelayCommand]
