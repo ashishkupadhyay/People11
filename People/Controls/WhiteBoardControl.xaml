@@ -6,67 +6,45 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="16" RowSpacing="12">
+    <UserControl.Resources>
+        <!-- Frosted Glass Acrylic for Whiteboard Drawing Surface -->
+        <AcrylicBrush x:Key="WhiteBoardCanvasAcrylicBrush"
+                      TintColor="#FFFFFF"
+                      TintOpacity="0.88"
+                      FallbackColor="#FFFFFFFF" />
+    </UserControl.Resources>
+
+    <Grid RowSpacing="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Top Header & Native InkToolbar -->
+        <!-- 1. Top Pen Controls (Outside Drawing Board) -->
         <Border Grid.Row="0"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="12,6">
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Left: Title -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="4,0,8,0">
-                    <FontIcon Glyph="&#xEE56;" FontSize="18" Foreground="{ThemeResource AppAccentBrush}" />
-                    <TextBlock Text="White Board" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
-                </StackPanel>
-
-                <!-- Center: Native WinUI 3 InkToolbar -->
-                <InkToolbar x:Name="MyInkToolbar"
-                            Grid.Column="1"
-                            TargetInkCanvas="{x:Bind MyInkCanvas}"
-                            InitialControls="None"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                    <InkToolbarBallpointPenButton x:Name="BallpointPenBtn" />
-                    <InkToolbarPencilButton />
-                    <InkToolbarHighlighterButton />
-                    <InkToolbarEraserButton IsClearAllVisible="True" />
-                </InkToolbar>
-
-                <!-- Right: Cancel & Send Buttons -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="Cancel" Click="Cancel_Click" CornerRadius="4" Height="34" Padding="12,4" />
-                    <Button x:Name="SendButton"
-                            Style="{ThemeResource AppAccentButtonStyle}"
-                            Click="Send_Click"
-                            CornerRadius="4"
-                            Height="34"
-                            Padding="14,4">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE724;" FontSize="14" />
-                            <TextBlock Text="Send Image" FontWeight="SemiBold" FontSize="13" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Grid>
+                Padding="6,4">
+            <InkToolbar x:Name="MyInkToolbar"
+                        TargetInkCanvas="{x:Bind MyInkCanvas}"
+                        InitialControls="None"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <InkToolbarBallpointPenButton x:Name="BallpointPenBtn" />
+                <InkToolbarPencilButton />
+                <InkToolbarHighlighterButton />
+                <InkToolbarEraserButton IsClearAllVisible="True" />
+            </InkToolbar>
         </Border>
 
-        <!-- Main Native InkCanvas Surface -->
+        <!-- 2. Pure Drawing Board Canvas Surface (Row 1) -->
         <Border Grid.Row="1"
-                Background="#FFFFFFFF"
+                Background="{StaticResource WhiteBoardCanvasAcrylicBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8">
@@ -75,12 +53,28 @@
                        VerticalAlignment="Stretch" />
         </Border>
 
-        <!-- Bottom Footer Helper Text -->
-        <Grid Grid.Row="2">
-            <TextBlock Text="Draw using your pen, stylus, touch, or mouse. Tap 'Send Image' to share directly in chat."
-                       FontSize="12"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       HorizontalAlignment="Center" />
-        </Grid>
+        <!-- 3. Bottom Action Buttons (Outside Drawing Board, Bottom Right) -->
+        <StackPanel Grid.Row="2"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
+            <Button Content="Cancel"
+                    Click="Cancel_Click"
+                    CornerRadius="4"
+                    Height="34"
+                    Padding="14,4" />
+            <Button x:Name="SendButton"
+                    Style="{ThemeResource AppAccentButtonStyle}"
+                    Click="Send_Click"
+                    CornerRadius="4"
+                    Height="34"
+                    Padding="14,4">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE724;" FontSize="13" />
+                    <TextBlock Text="Send" FontWeight="SemiBold" FontSize="13" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
     </Grid>
 </UserControl>

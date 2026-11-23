@@ -35,6 +35,11 @@
         <converters:MessageStatusBrushConverter x:Key="MessageStatusBrushConverter" />
         <converters:BoolToPlayPauseGlyphConverter x:Key="BoolToPlayPauseGlyphConverter" />
         
+        <!-- Whiteboard Backdrop Blur Acrylic -->
+        <AcrylicBrush x:Key="WhiteBoardBackdropAcrylicBrush"
+                      TintColor="#000000"
+                      TintOpacity="0.65"
+                      FallbackColor="#B3000000" />
     </Page.Resources>
 
     <Grid>
@@ -1243,14 +1248,14 @@
         <Grid x:Name="WhiteBoardOverlay"
               Grid.RowSpan="3"
               Canvas.ZIndex="1100"
-              Background="#CC000000"
+              Background="{StaticResource WhiteBoardBackdropAcrylicBrush}"
               Visibility="Collapsed"
               HorizontalAlignment="Stretch"
               VerticalAlignment="Stretch">
             <controls:WhiteBoardControl x:Name="WhiteBoard"
                                         HorizontalAlignment="Stretch"
                                         VerticalAlignment="Stretch"
-                                        Margin="24"
+                                        Margin="12"
                                         CancelClicked="WhiteBoard_CancelClicked"
                                         SendImageClicked="WhiteBoard_SendImageClicked" />
         </Grid>

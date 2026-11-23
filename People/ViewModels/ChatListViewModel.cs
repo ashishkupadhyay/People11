@@ -251,7 +251,10 @@ public partial class ChatListViewModel : ViewModelBase
             await LoadChatsAsync();
             _dispatcherService.Enqueue(() =>
             {
-                IsSyncing = false;
+                if (provider.ConnectionState != ConnectionState.Connecting)
+                {
+                    IsSyncing = false;
+                }
             });
             return;
         }

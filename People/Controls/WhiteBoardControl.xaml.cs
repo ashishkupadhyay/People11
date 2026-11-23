@@ -67,8 +67,16 @@ public sealed partial class WhiteBoardControl : UserControl
         {
             SendButton.IsEnabled = false;
 
-            int width = Math.Max(800, (int)MyInkCanvas!.ActualWidth);
-            int height = Math.Max(600, (int)MyInkCanvas.ActualHeight);
+            float actualWidth = (float)(MyInkCanvas?.ActualWidth ?? 800);
+            float actualHeight = (float)(MyInkCanvas?.ActualHeight ?? 600);
+            if (actualWidth <= 0) actualWidth = 800f;
+            if (actualHeight <= 0) actualHeight = 600f;
+
+            // Proportional supersampling for small canvas/flyout screens without letterbox margins
+            float minDim = Math.Min(actualWidth, actualHeight);
+            float scale = minDim < 600f ? Math.Min(2.0f, 600f / minDim) : 1.0f;
+            int width = (int)Math.Ceiling(actualWidth * scale);
+            int height = (int)Math.Ceiling(actualHeight * scale);
 
             var tempDir = Path.Combine(Path.GetTempPath(), "People", "Whiteboard");
             Directory.CreateDirectory(tempDir);
@@ -80,6 +88,10 @@ public sealed partial class WhiteBoardControl : UserControl
                 using (var ds = renderTarget.CreateDrawingSession())
                 {
                     ds.Clear(Colors.White);
+                    if (scale != 1.0f)
+                    {
+                        ds.Transform = Matrix3x2.CreateScale(scale);
+                    }
                     RenderNativeStrokes(ds, strokes);
                 }
 

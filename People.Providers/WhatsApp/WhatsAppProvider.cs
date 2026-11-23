@@ -109,7 +109,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         catch { }
 
         _outboxTimer = new System.Threading.Timer(OnOutboxTimerTick, null, 1500, 1500);
-        _watchdogTimer = new System.Threading.Timer(OnWatchdogTimerTick, null, 10000, 10000);
+        _watchdogTimer = new System.Threading.Timer(OnWatchdogTimerTick, null, 15000, 15000);
 
         InitializeClientAndCache();
     }
@@ -193,6 +193,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     _logger?.LogInformation("WhatsApp is authenticated. Connecting backend socket...");
                     ConnectionState = ConnectionState.Connecting;
                     OnConnectionStateChanged(ConnectionState);
+                    _lastReconnectAttempt = DateTimeOffset.UtcNow;
                     _ = LoadPendingOutboxMessagesAsync();
 
                     // Run authentication in background to connect socket & sync
@@ -662,6 +663,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 }
 
                 _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
+                _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
             }
             catch (Exception ex)
             {
@@ -1413,14 +1415,22 @@ public class WhatsAppProvider : IWhatsAppProvider
         bool isReady = IsClientReady;
         if (!isReady)
         {
-            if (ConnectionState == ConnectionState.Connected)
+            if (ConnectionState == ConnectionState.Connecting)
+            {
+                // An in-flight connection is already in progress. Allow 45 seconds for TLS, Noise handshake, and backlog sync
+                if ((DateTimeOffset.UtcNow - _lastReconnectAttempt).TotalSeconds < 45)
+                {
+                    return;
+                }
+            }
+            else if (ConnectionState == ConnectionState.Connected)
             {
                 _logger?.LogWarning("Watchdog detected WhatsApp connection dropped. State set to Connecting.");
                 ConnectionState = ConnectionState.Connecting;
                 OnConnectionStateChanged(ConnectionState);
             }
 
-            if ((DateTimeOffset.UtcNow - _lastReconnectAttempt).TotalSeconds < 10)
+            if ((DateTimeOffset.UtcNow - _lastReconnectAttempt).TotalSeconds < 30)
             {
                 return;
             }
@@ -1461,6 +1471,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 ConnectionState = ConnectionState.Connected;
                 OnConnectionStateChanged(ConnectionState);
+                _ = LoadPendingOutboxMessagesAsync();
                 _ = ProcessOutboxQueueAsync();
             }
         }
@@ -1541,10 +1552,10 @@ public class WhatsAppProvider : IWhatsAppProvider
                     continue;
                 }
 
-                int retries = _outboxRetryCounts.AddOrUpdate(msg.Id, 1, (_, count) => count + 1);
-                if (retries > 3)
+                int retries = _outboxRetryCounts.GetOrAdd(msg.Id, 0);
+                if (retries > 15)
                 {
-                    _logger?.LogWarning("Outbox message {Id} exceeded maximum retry attempts (3). Marking as Failed.", msg.Id);
+                    _logger?.LogWarning("Outbox message {Id} exceeded maximum retry attempts (15). Marking as Failed.", msg.Id);
                     _outboxQueue.TryDequeue(out _);
                     _outboxRetryCounts.TryRemove(msg.Id, out _);
                     msg.Status = MessageStatus.Failed;
@@ -1555,18 +1566,23 @@ public class WhatsAppProvider : IWhatsAppProvider
                     continue;
                 }
 
-                _logger?.LogInformation("Dispatching queued message {Id} to {ChatId} (attempt {Attempt})", msg.Id, msg.ChatId, retries);
+                _logger?.LogInformation("Dispatching queued message {Id} to {ChatId} (attempt {Attempt})", msg.Id, msg.ChatId, retries + 1);
 
                 IntPtr realIdPtr = IntPtr.Zero;
                 try
                 {
                     if (msg.Content.Type == MessageContentType.Text)
                     {
+                        var quotedId = msg.Content.QuotedMessageId ?? msg.QuotedMessageId;
+                        if (!string.IsNullOrEmpty(quotedId) && quotedId.StartsWith("pending_"))
+                        {
+                            quotedId = null;
+                        }
                         realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(
                             _clientPtr,
                             msg.ChatId,
                             msg.Content.Text,
-                            msg.Content.QuotedMessageId ?? msg.QuotedMessageId,
+                            quotedId,
                             msg.Content.QuotedText ?? msg.QuotedText,
                             msg.Content.QuotedParticipant ?? msg.QuotedParticipant ?? msg.Content.QuotedSender ?? msg.QuotedSender));
                     }
@@ -1638,7 +1654,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
 
-                _logger?.LogInformation("Outbox send did not succeed for message {Id} on attempt {Attempt}.", msg.Id, retries);
+                int attempts = _outboxRetryCounts.AddOrUpdate(msg.Id, 1, (_, count) => count + 1);
+                _logger?.LogInformation("Outbox send did not succeed for message {Id} on attempt {Attempt}.", msg.Id, attempts);
                 break;
             }
         }
@@ -1677,7 +1694,12 @@ public class WhatsAppProvider : IWhatsAppProvider
             {
                 try
                 {
-                    var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text, content.QuotedMessageId, content.QuotedText, content.QuotedParticipant ?? content.QuotedSender), ct);
+                    var quotedId = content.QuotedMessageId;
+                    if (!string.IsNullOrEmpty(quotedId) && quotedId.StartsWith("pending_"))
+                    {
+                        quotedId = null;
+                    }
+                    var realIdPtr = await Task.Run(() => WhatsAppNative.wa_send_message(_clientPtr, chatId, content.Text, quotedId, content.QuotedText, content.QuotedParticipant ?? content.QuotedSender), ct);
                     if (realIdPtr != IntPtr.Zero)
                     {
                         var realId = Marshal.PtrToStringUTF8(realIdPtr);
