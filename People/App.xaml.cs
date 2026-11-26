@@ -41,7 +41,10 @@ public partial class App : Application
         // Data Layer
         var dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "people.db");
         services.AddDbContextFactory<PeopleDbContext>(options =>
-            Microsoft.EntityFrameworkCore.SqliteDbContextOptionsBuilderExtensions.UseSqlite(options, $"Data Source={dbPath};Cache=Shared;Mode=ReadWriteCreate;"));
+            Microsoft.EntityFrameworkCore.SqliteDbContextOptionsBuilderExtensions.UseSqlite(
+                options,
+                $"Data Source={dbPath};Mode=ReadWriteCreate;Pooling=True;Default Timeout=5;")
+                .AddInterceptors(SqlitePragmaInterceptor.Instance));
             
         services.AddSingleton<IChatRepository, ChatRepository>();
         services.AddSingleton<IMessageRepository, MessageRepository>();

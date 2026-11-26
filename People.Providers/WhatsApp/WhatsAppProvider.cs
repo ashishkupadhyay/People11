@@ -64,6 +64,7 @@ public class WhatsAppProvider : IWhatsAppProvider
     public event EventHandler<int>? SyncProgressChanged;
     public event EventHandler<string>? ChatMarkedRead;
     public event EventHandler<(string MessageId, long BytesReceived, long TotalBytes)>? MediaDownloadProgress;
+    public event EventHandler<string>? HistoryMessagesUpdated;
 
     private IntPtr _clientPtr = IntPtr.Zero;
     private readonly ILogger<WhatsAppProvider>? _logger;
@@ -82,6 +83,8 @@ public class WhatsAppProvider : IWhatsAppProvider
     private readonly ConcurrentQueue<Message> _outboxQueue = new();
     private readonly ConcurrentDictionary<string, int> _outboxRetryCounts = new();
     private readonly ConcurrentDictionary<string, List<Message>> _memoryMessageCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, List<TaskCompletionSource<bool>>> _pdoWaiters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _pdoAttemptedChats = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _outboxLock = new(1, 1);
     private readonly SemaphoreSlim _authLock = new(1, 1);
     private System.Threading.Timer? _outboxTimer;
@@ -180,6 +183,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                         WhatsAppNative.wa_register_chats_updated_callback(_clientPtr, &OnNativeChatsUpdated);
                         WhatsAppNative.wa_register_chat_read_callback(_clientPtr, &OnNativeChatRead);
                         WhatsAppNative.wa_register_download_progress_callback(_clientPtr, &OnNativeDownloadProgress);
+                        WhatsAppNative.wa_register_history_chunk_callback(_clientPtr, &OnNativeHistoryChunkReceived);
+                        WhatsAppNative.wa_register_connection_state_callback(_clientPtr, &OnNativeConnectionStateChanged);
                     }
 
                     await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
@@ -206,6 +211,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                         catch (Exception ex)
                         {
                             _logger?.LogError(ex, "Background WhatsApp reconnect failed.");
+                            ConnectionState = ConnectionState.Error;
+                            OnConnectionStateChanged(ConnectionState.Error, ex.Message);
                         }
                     }, ct);
                 }
@@ -279,6 +286,8 @@ public class WhatsAppProvider : IWhatsAppProvider
     public async Task ReauthenticateAsync(CancellationToken ct = default)
     {
         _logger?.LogInformation("Starting WhatsApp reauthentication: cleaning session and restarting QR flow.");
+        _memoryMessageCache.Clear();
+        _pdoAttemptedChats.Clear();
         await DisconnectAsync();
 
         try
@@ -356,6 +365,84 @@ public class WhatsAppProvider : IWhatsAppProvider
         if (_activeInstance == null) return;
         _activeInstance._logger?.LogInformation("WhatsApp sync progress: {Progress}%", progress);
         _activeInstance.SyncProgressChanged?.Invoke(_activeInstance, progress);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeHistoryChunkReceived(IntPtr chatIdPtr)
+    {
+        if (chatIdPtr == IntPtr.Zero || _activeInstance == null) return;
+        string? rawChatId = Marshal.PtrToStringUTF8(chatIdPtr);
+        if (string.IsNullOrWhiteSpace(rawChatId)) return;
+
+        var instance = _activeInstance;
+        var cleanId = rawChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? rawChatId[3..] : rawChatId;
+        var bareUser = cleanId.Split('@')[0].Split(':')[0];
+
+        // Wake any awaiting GetOlderMessagesAsync calls for this chat (match canonical ID or bare user across LID/PN aliases)
+        foreach (var kvp in instance._pdoWaiters)
+        {
+            var waiterBare = kvp.Key.Split('@')[0].Split(':')[0];
+            if (string.Equals(kvp.Key, cleanId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(bareUser) && bareUser.Length >= 5 && string.Equals(waiterBare, bareUser, StringComparison.OrdinalIgnoreCase)))
+            {
+                lock (kvp.Value)
+                {
+                    foreach (var tcs in kvp.Value)
+                    {
+                        tcs.TrySetResult(true);
+                    }
+                }
+            }
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (instance._clientPtr != IntPtr.Zero)
+                {
+                    var latest = instance.ReadMessagesFromNative(instance._clientPtr, cleanId, 0, 100);
+                    if (latest.Count > 0)
+                    {
+                        instance.UpsertMemoryCacheMessages(cleanId, latest);
+                        if (instance._messageRepository != null)
+                        {
+                            try { await instance._messageRepository.SaveManyAsync(latest); } catch { }
+                        }
+                    }
+                }
+                instance.HistoryMessagesUpdated?.Invoke(instance, cleanId);
+            }
+            catch { }
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativeConnectionStateChanged(int state)
+    {
+        if (_activeInstance == null) return;
+        var instance = _activeInstance;
+        if (state == 1)
+        {
+            if (instance.ConnectionState != ConnectionState.Connected)
+            {
+                instance.ConnectionState = ConnectionState.Connected;
+                instance.OnConnectionStateChanged(ConnectionState.Connected);
+            }
+        }
+        else if (state == 0)
+        {
+            if (instance.ConnectionState == ConnectionState.Connected)
+            {
+                instance.ConnectionState = ConnectionState.Connecting;
+                instance.OnConnectionStateChanged(ConnectionState.Connecting);
+            }
+        }
+        else if (state < 0)
+        {
+            instance.ConnectionState = ConnectionState.Error;
+            instance.OnConnectionStateChanged(ConnectionState.Error, "WhatsApp connection interrupted or logged out.");
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -651,15 +738,9 @@ public class WhatsAppProvider : IWhatsAppProvider
                 }
 
                 var cleanChat = msg.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? msg.ChatId[3..] : msg.ChatId;
-                if (_activeInstance._memoryMessageCache.TryGetValue(cleanChat, out var cachedList))
+                if (_activeInstance._memoryMessageCache.ContainsKey(cleanChat))
                 {
-                    lock (cachedList)
-                    {
-                        if (!cachedList.Any(m => m.Id == msg.Id))
-                        {
-                            cachedList.Add(msg);
-                        }
-                    }
+                    _activeInstance.UpsertMemoryCacheMessages(cleanChat, new[] { msg });
                 }
 
                 _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
@@ -701,11 +782,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 {
                     try
                     {
-                        var localChats = await _chatRepository.GetByPlatformAsync(PlatformId, 0, 500);
-                        var picMap = localChats
-                            .Where(c => !string.IsNullOrEmpty(c.PictureUrl))
-                            .ToDictionary(c => c.Id, c => c.PictureUrl);
-                        var unreadMap = localChats.ToDictionary(c => c.Id, c => c.UnreadCount);
+                        var picMap = await _chatRepository.GetPictureUrlsByPlatformAsync(PlatformId);
 
                         foreach (var rc in remoteChats)
                         {
@@ -1029,20 +1106,34 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        // 2b. If both native cache and SQLite had 0 messages and client is connected, try on-demand history fetch in background
-        if (resultList.Count == 0 && _clientPtr != IntPtr.Zero && HasInternetAccess())
+        // 2b. If local history only has a single preview message (< 15 msgs) and client is connected, trigger background PDO backfill (with per-chat cooldown)
+        if (resultList.Count < 15 && _clientPtr != IntPtr.Zero && HasInternetAccess())
         {
-            _ = Task.Run(async () =>
+            var cleanKey = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+            var now = DateTimeOffset.UtcNow;
+            bool shouldTrigger = !_pdoAttemptedChats.TryGetValue(cleanKey, out var lastAttempt) || (now - lastAttempt).TotalSeconds >= 120;
+            if (shouldTrigger)
             {
-                try
+                _pdoAttemptedChats[cleanKey] = now;
+                var oldestExisting = resultList.OrderBy(m => m.Timestamp).FirstOrDefault();
+                _ = Task.Run(async () =>
                 {
-                    await GetOlderMessagesAsync(chatId, limit, DateTimeOffset.UtcNow, null, false, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogDebug(ex, "Background on-demand fetch for empty chat {ChatId} returned no messages", chatId);
-                }
-            });
+                    try
+                    {
+                        await GetOlderMessagesAsync(
+                            chatId,
+                            30,
+                            oldestExisting?.Timestamp ?? DateTimeOffset.UtcNow,
+                            oldestExisting?.Id,
+                            oldestExisting?.IsOutgoing ?? false,
+                            CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogDebug(ex, "Background on-demand fetch for chat {ChatId} failed", chatId);
+                    }
+                });
+            }
         }
 
         // 3. Always merge pending outgoing messages (Status == Sending) from in-memory outbox
@@ -1074,13 +1165,59 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
-        return resultList.OrderBy(m => m.Timestamp).ToList();
+        var orderedResult = resultList.OrderBy(m => m.Timestamp).ToList();
+        if (orderedResult.Count > 0)
+        {
+            UpsertMemoryCacheMessages(cleanChatId, orderedResult);
+        }
+        return orderedResult;
+    }
+
+    private void UpsertMemoryCacheMessages(string chatId, IEnumerable<Message> incoming)
+    {
+        var clean = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var list = _memoryMessageCache.GetOrAdd(clean, _ => new List<Message>());
+        lock (list)
+        {
+            foreach (var m in incoming)
+            {
+                var existing = list.FirstOrDefault(x => x.Id == m.Id);
+                if (existing != null)
+                {
+                    if (m.Status > existing.Status)
+                    {
+                        existing.Status = m.Status;
+                    }
+                    if (m.Content != null && (existing.Content == null ||
+                        (existing.Content.Type == MessageContentType.Text && m.Content.Type != MessageContentType.Text) ||
+                        (string.IsNullOrEmpty(existing.Content.ThumbnailUrl) && !string.IsNullOrEmpty(m.Content.ThumbnailUrl))))
+                    {
+                        existing.Content = m.Content;
+                    }
+                }
+                else
+                {
+                    list.Add(m);
+                }
+            }
+            list.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
+            if (list.Count > 500)
+            {
+                list.RemoveRange(0, list.Count - 500);
+            }
+        }
     }
 
     private async Task<IReadOnlyList<Message>> FetchMessagesFromNativeAsync(string chatId, long beforeTs, int limit, CancellationToken ct = default)
     {
         if (_clientPtr == IntPtr.Zero) return Array.Empty<Message>();
         return await Task.Run(() => ReadMessagesFromNative(_clientPtr, chatId, beforeTs, limit), ct);
+    }
+
+    private async Task<IReadOnlyList<Message>> FetchMessagesFromNativeBeforeAsync(string chatId, long beforeTs, string? excludeId, int limit, CancellationToken ct = default)
+    {
+        if (_clientPtr == IntPtr.Zero) return Array.Empty<Message>();
+        return await Task.Run(() => ReadMessagesFromNativeBefore(_clientPtr, chatId, beforeTs, excludeId, limit), ct);
     }
 
     private static Message? ConvertDtoToMessage(NativeMessageDto dto, string fallbackChatId)
@@ -1160,10 +1297,15 @@ public class WhatsAppProvider : IWhatsAppProvider
     }
 
     private IReadOnlyList<Message> ReadMessagesFromNative(IntPtr clientPtr, string chatId, long beforeTs, int limit)
+        => ReadMessagesFromNativeBefore(clientPtr, chatId, beforeTs, null, limit);
+
+    private IReadOnlyList<Message> ReadMessagesFromNativeBefore(IntPtr clientPtr, string chatId, long beforeTs, string? excludeId, int limit)
     {
         if (string.IsNullOrEmpty(chatId)) return Array.Empty<Message>();
 
-        var ptr = WhatsAppNative.wa_get_messages_paginated(clientPtr, chatId, beforeTs, limit);
+        var ptr = string.IsNullOrEmpty(excludeId)
+            ? WhatsAppNative.wa_get_messages_paginated(clientPtr, chatId, beforeTs, limit)
+            : WhatsAppNative.wa_get_messages_paginated_before(clientPtr, chatId, beforeTs, excludeId, limit);
         if (ptr == IntPtr.Zero) return Array.Empty<Message>();
 
         try
@@ -1220,10 +1362,11 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             try
             {
-                var localOlder = await _messageRepository.GetOlderMessagesBeforeAsync(chatId, beforeTimestamp.Value, count);
+                var localOlder = await _messageRepository.GetOlderMessagesBeforeAsync(chatId, beforeTimestamp.Value, count, anchorMessageId);
                 if (localOlder.Count > 0)
                 {
                     _logger?.LogInformation("Loaded {Count} older messages from local SQLite storage.", localOlder.Count);
+                    UpsertMemoryCacheMessages(chatId, localOlder);
                     return localOlder;
                 }
             }
@@ -1238,11 +1381,12 @@ public class WhatsAppProvider : IWhatsAppProvider
             return Array.Empty<Message>();
         }
 
-        // 2. Check if native bridge in-memory cache has messages before beforeTimestamp
+        // 2. Check if native bridge in-memory cache has messages before beforeTimestamp / anchorMessageId
         long beforeUnix = beforeTimestamp?.ToUnixTimeSeconds() ?? 0;
-        var nativeCached = await FetchMessagesFromNativeAsync(chatId, beforeUnix, count, ct);
+        var nativeCached = await FetchMessagesFromNativeBeforeAsync(chatId, beforeUnix, anchorMessageId, count, ct);
         if (nativeCached.Count > 0)
         {
+            UpsertMemoryCacheMessages(chatId, nativeCached);
             if (_messageRepository != null)
             {
                 _ = Task.Run(async () =>
@@ -1275,33 +1419,48 @@ public class WhatsAppProvider : IWhatsAppProvider
             catch { }
         }
 
-        int initialCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
-
-        // Fire PDO on-demand request to the phone with exact anchor message ID and timestamp
-        await Task.Run(() =>
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var waiterList = _pdoWaiters.GetOrAdd(cleanId, _ => new List<TaskCompletionSource<bool>>());
+        lock (waiterList)
         {
-            WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, fromMe, anchorTsMs);
-        }, ct);
+            waiterList.Add(tcs);
+        }
 
-        // Poll for phone response with responsive 50ms intervals (up to 1.5 seconds for network/phone latency)
-        for (int i = 0; i < 30; i++)
+        try
         {
-            await Task.Delay(50, ct);
-            int currentCount = WhatsAppNative.wa_get_message_count(_clientPtr, cleanId);
-            if (currentCount > initialCount)
+            // Fire PDO on-demand request to the phone with exact anchor message ID and timestamp
+            await Task.Run(() =>
             {
-                break;
+                WhatsAppNative.wa_fetch_older_messages(_clientPtr, cleanId, count, anchorId, fromMe, anchorTsMs);
+            }, ct);
+
+            // Event-driven wait for HISTORY_CHUNK_CALLBACK (returns immediately when chunk arrives, up to 8s ceiling)
+            try
+            {
+                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(8), ct);
+            }
+            catch (TimeoutException) { }
+        }
+        finally
+        {
+            lock (waiterList)
+            {
+                waiterList.Remove(tcs);
             }
         }
 
-        // Fetch newly arrived messages from bridge, save to SQLite, return
-        var newlyFetched = await FetchMessagesFromNativeAsync(chatId, beforeUnix, count, ct);
-        if (_messageRepository != null && newlyFetched.Count > 0)
+        // Fetch newly arrived messages from bridge, save to SQLite, cache in RAM, and return
+        var newlyFetched = await FetchMessagesFromNativeBeforeAsync(chatId, beforeUnix, anchorMessageId, count, ct);
+        if (newlyFetched.Count > 0)
         {
-            _ = Task.Run(async () =>
+            UpsertMemoryCacheMessages(chatId, newlyFetched);
+            if (_messageRepository != null)
             {
-                try { await _messageRepository.SaveManyAsync(newlyFetched); } catch { }
-            }, ct);
+                _ = Task.Run(async () =>
+                {
+                    try { await _messageRepository.SaveManyAsync(newlyFetched); } catch { }
+                }, ct);
+            }
         }
         return newlyFetched;
     }
@@ -1415,9 +1574,14 @@ public class WhatsAppProvider : IWhatsAppProvider
         bool isReady = IsClientReady;
         if (!isReady)
         {
+            // Never abort an active native runner mid-handshake or mid-offline-drain
+            if (WhatsAppNative.wa_is_runner_alive(_clientPtr) == 1)
+            {
+                return;
+            }
+
             if (ConnectionState == ConnectionState.Connecting)
             {
-                // An in-flight connection is already in progress. Allow 45 seconds for TLS, Noise handshake, and backlog sync
                 if ((DateTimeOffset.UtcNow - _lastReconnectAttempt).TotalSeconds < 45)
                 {
                     return;
@@ -1425,7 +1589,7 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
             else if (ConnectionState == ConnectionState.Connected)
             {
-                _logger?.LogWarning("Watchdog detected WhatsApp connection dropped. State set to Connecting.");
+                _logger?.LogWarning("Watchdog detected WhatsApp connection dropped and runner exited. Reconnecting.");
                 ConnectionState = ConnectionState.Connecting;
                 OnConnectionStateChanged(ConnectionState);
             }
@@ -1628,7 +1792,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         {
                             try
                             {
-                                await _messageRepository.DeleteAsync(oldId);
+                                // Persist real message and re-point Chat.LastMessageId BEFORE deleting pending placeholder (avoids FK violation)
                                 await _messageRepository.SaveAsync(msg);
 
                                 if (_chatRepository != null)
@@ -1641,6 +1805,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                                         await _chatRepository.SaveAsync(chat);
                                     }
                                 }
+
+                                await _messageRepository.DeleteAsync(oldId);
                             }
                             catch (Exception ex)
                             {
@@ -1844,15 +2010,12 @@ public class WhatsAppProvider : IWhatsAppProvider
                     result.Add(contact);
                 }
 
-                // Persist to IContactRepository
+                // Persist to IContactRepository in a single batch
                 try
                 {
-                    if (_contactRepository != null)
+                    if (_contactRepository != null && result.Count > 0)
                     {
-                        foreach (var c in result)
-                        {
-                            await _contactRepository.SaveAsync(c);
-                        }
+                        await _contactRepository.SaveManyAsync(result);
                     }
                 }
                 catch { }

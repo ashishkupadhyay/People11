@@ -51,80 +51,92 @@ public class ChatRepository : IChatRepository
             .ToListAsync();
     }
 
-    public async Task SaveAsync(Chat chat)
+    public async Task<Dictionary<string, string>> GetPictureUrlsByPlatformAsync(string platformId)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var cleanId = chat.Id.StartsWith("wa_") ? chat.Id[3..] : chat.Id;
-        var waId = "wa_" + cleanId;
-        var existing = await context.Chats.FirstOrDefaultAsync(c => c.Id == chat.Id || c.Id == cleanId || c.Id == waId);
-        
-        if (existing == null)
-        {
-            var lm = chat.LastMessage;
-            if (lm != null)
-            {
-                chat.LastMessage = null;
-            }
-            context.Chats.Add(chat);
-            await context.SaveChangesAsync();
+        return await context.Chats
+            .AsNoTracking()
+            .Where(c => c.PlatformId == platformId && !string.IsNullOrEmpty(c.PictureUrl))
+            .Select(c => new { c.Id, PictureUrl = c.PictureUrl! })
+            .ToDictionaryAsync(x => x.Id, x => x.PictureUrl);
+    }
 
-            if (lm != null)
-            {
-                chat.LastMessage = lm;
-                await context.SaveChangesAsync();
-            }
-        }
-        else
-        {
-            var preservedPic = existing.PictureUrl;
-            var realId = existing.Id;
-            context.Entry(existing).CurrentValues.SetValues(chat);
-            existing.Id = realId;
-            if (string.IsNullOrEmpty(chat.PictureUrl) && !string.IsNullOrEmpty(preservedPic))
-            {
-                existing.PictureUrl = preservedPic;
-            }
-            if (chat.LastMessage != null)
-            {
-                existing.LastMessage = chat.LastMessage;
-            }
-            await context.SaveChangesAsync();
-        }
+    public async Task SaveAsync(Chat chat)
+    {
+        await SaveManyAsync(new[] { chat });
     }
 
     public async Task SaveManyAsync(IEnumerable<Chat> chats)
     {
-        var chatList = chats.ToList();
+        var chatList = chats
+            .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+            .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
         if (chatList.Count == 0) return;
 
         using var context = await _contextFactory.CreateDbContextAsync();
         var allIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var lmById = new Dictionary<string, Message>(StringComparer.Ordinal);
         foreach (var c in chatList)
         {
             allIds.Add(c.Id);
-            var clean = c.Id.StartsWith("wa_") ? c.Id[3..] : c.Id;
+            var clean = c.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? c.Id[3..] : c.Id;
             allIds.Add(clean);
             allIds.Add("wa_" + clean);
+            if (c.LastMessage != null && !string.IsNullOrWhiteSpace(c.LastMessage.Id))
+            {
+                c.LastMessage.Chat = null;
+                c.LastMessage.ChatId = c.Id;
+                lmById.TryAdd(c.LastMessage.Id, c.LastMessage);
+            }
         }
 
-        var existingList = await context.Chats
-            .Include(c => c.LastMessage)
-            .Where(c => allIds.Contains(c.Id))
-            .ToListAsync();
+        // Batch-query existing Chats WITHOUT Include(LastMessage) to avoid duplicate tracked Message instances
+        var existingList = new List<Chat>();
+        var idList = allIds.ToList();
+        for (int i = 0; i < idList.Count; i += 400)
+        {
+            var chunk = idList.Skip(i).Take(400).ToList();
+            var chunkChats = await context.Chats
+                .Where(c => chunk.Contains(c.Id))
+                .ToListAsync();
+            existingList.AddRange(chunkChats);
+        }
 
         var existingDict = new Dictionary<string, Chat>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in existingList)
         {
             existingDict[c.Id] = c;
-            var clean = c.Id.StartsWith("wa_") ? c.Id[3..] : c.Id;
-            existingDict[clean] = c;
-            existingDict["wa_" + clean] = c;
+            var clean = c.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? c.Id[3..] : c.Id;
+            existingDict.TryAdd(clean, c);
+            existingDict.TryAdd("wa_" + clean, c);
         }
 
-        var newChatsWithLastMessage = new List<(Chat Chat, Message LastMessage)>();
+        // Batch-check which LastMessages already exist in Messages table
+        var existingMsgIds = new HashSet<string>(StringComparer.Ordinal);
+        var lmIds = lmById.Keys.ToList();
+        for (int i = 0; i < lmIds.Count; i += 400)
+        {
+            var chunk = lmIds.Skip(i).Take(400).ToList();
+            var foundMsgIds = await context.Messages
+                .AsNoTracking()
+                .Where(m => chunk.Contains(m.Id))
+                .Select(m => m.Id)
+                .ToListAsync();
+            foreach (var mid in foundMsgIds)
+            {
+                existingMsgIds.Add(mid);
+            }
+        }
+
+        var pendingLastMsgLinks = new List<(Chat TargetChat, string MessageId, Message? NewMessage)>();
 
         foreach (var chat in chatList)
         {
+            var incomingLm = chat.LastMessage;
+            chat.LastMessage = null;
+
             if (existingDict.TryGetValue(chat.Id, out var existing))
             {
                 var preservedPic = existing.PictureUrl;
@@ -135,34 +147,53 @@ public class ChatRepository : IChatRepository
                 {
                     existing.PictureUrl = preservedPic;
                 }
-                if (chat.LastMessage != null)
+
+                if (incomingLm != null && !string.IsNullOrWhiteSpace(incomingLm.Id))
                 {
-                    existing.LastMessage = chat.LastMessage;
+                    incomingLm.ChatId = realId;
+                    pendingLastMsgLinks.Add((existing, incomingLm.Id, existingMsgIds.Contains(incomingLm.Id) ? null : incomingLm));
                 }
             }
             else
             {
-                var lm = chat.LastMessage;
-                if (lm != null)
+                var copy = new Chat
                 {
-                    chat.LastMessage = null;
-                    newChatsWithLastMessage.Add((chat, lm));
+                    Id = chat.Id,
+                    PlatformId = chat.PlatformId,
+                    Title = chat.Title,
+                    IsGroup = chat.IsGroup,
+                    UnreadCount = chat.UnreadCount,
+                    PictureUrl = chat.PictureUrl,
+                    LastMessageTime = chat.LastMessageTime
+                };
+                context.Chats.Add(copy);
+                existingDict[copy.Id] = copy;
+                var clean = copy.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? copy.Id[3..] : copy.Id;
+                existingDict.TryAdd(clean, copy);
+                existingDict.TryAdd("wa_" + clean, copy);
+
+                if (incomingLm != null && !string.IsNullOrWhiteSpace(incomingLm.Id))
+                {
+                    incomingLm.ChatId = copy.Id;
+                    pendingLastMsgLinks.Add((copy, incomingLm.Id, existingMsgIds.Contains(incomingLm.Id) ? null : incomingLm));
                 }
-                context.Chats.Add(chat);
-                existingDict[chat.Id] = chat;
-                var clean = chat.Id.StartsWith("wa_") ? chat.Id[3..] : chat.Id;
-                existingDict[clean] = chat;
-                existingDict["wa_" + clean] = chat;
             }
+
+            chat.LastMessage = incomingLm;
         }
 
         await context.SaveChangesAsync();
 
-        if (newChatsWithLastMessage.Count > 0)
+        if (pendingLastMsgLinks.Count > 0)
         {
-            foreach (var (chat, lm) in newChatsWithLastMessage)
+            var addedMsgIds = new HashSet<string>(existingMsgIds, StringComparer.Ordinal);
+            foreach (var (targetChat, msgId, newMsg) in pendingLastMsgLinks)
             {
-                chat.LastMessage = lm;
+                if (newMsg != null && addedMsgIds.Add(msgId))
+                {
+                    context.Messages.Add(newMsg);
+                }
+                context.Entry(targetChat).Property<string?>("LastMessageId").CurrentValue = msgId;
             }
             await context.SaveChangesAsync();
         }

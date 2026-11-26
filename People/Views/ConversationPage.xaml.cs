@@ -84,12 +84,16 @@ public sealed partial class ConversationPage : Page
 
         ViewModel.Messages.CollectionChanged += (s, e) =>
         {
-            // Only auto-scroll to the bottom for single live messages, NOT during initial/older batch load
-            if (ViewModel.Messages.Count > 0 && e.Action == NotifyCollectionChangedAction.Add)
+            // Auto-scroll to bottom only for new bottom messages when already near bottom or when sending outgoing
+            if (ViewModel.Messages.Count > 0 && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
             {
-                if (!ViewModel.IsLoading && !ViewModel.IsLoadingOlder)
+                if (!ViewModel.IsLoading && !ViewModel.IsLoadingOlder &&
+                    e.NewStartingIndex >= ViewModel.Messages.Count - (e.NewItems?.Count ?? 1))
                 {
-                    if (e.NewStartingIndex >= ViewModel.Messages.Count - (e.NewItems?.Count ?? 1))
+                    bool addedIsOutgoing = e.NewItems?.OfType<Message>().Any(m => m.IsOutgoing) == true;
+                    bool isNearBottom = _messagesScrollViewer == null ||
+                        (_messagesScrollViewer.ScrollableHeight - _messagesScrollViewer.VerticalOffset) <= 160;
+                    if (isNearBottom || addedIsOutgoing)
                     {
                         MessagesListView.ScrollIntoView(ViewModel.Messages[^1]);
                     }
@@ -99,38 +103,65 @@ public sealed partial class ConversationPage : Page
 
         ViewModel.InitialMessagesLoaded += (s, e) =>
         {
+            _initialLoadCts?.Cancel();
+            _initialLoadCts?.Dispose();
+            _initialLoadCts = new CancellationTokenSource();
+            var token = _initialLoadCts.Token;
+
             _initialLoadComplete = false;
+            _isRestoringScrollAnchor = false;
             ScrollToTarget();
 
             // Perform post-layout adjustment once virtualization containers begin measuring
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
+                if (token.IsCancellationRequested) return;
                 ScrollToTarget();
             });
 
             // Allow the layout pass and container virtualization to settle at the true scroll extent
             _ = Task.Run(async () =>
             {
-                await Task.Delay(80);
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                try
                 {
-                    ScrollToTarget();
-                });
+                    await Task.Delay(80, token);
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    {
+                        if (token.IsCancellationRequested) return;
+                        ScrollToTarget();
+                    });
 
-                await Task.Delay(180);
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                {
-                    ScrollToTarget();
-                    _initialLoadComplete = true;
-                });
-            });
+                    await Task.Delay(180, token);
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    {
+                        if (token.IsCancellationRequested) return;
+                        ScrollToTarget();
+                        _lastScrollVerticalOffset = _messagesScrollViewer?.VerticalOffset ?? 0;
+                        _initialLoadComplete = true;
+                    });
+                }
+                catch (OperationCanceledException) { }
+            }, token);
         };
 
         ViewModel.OlderMessagesLoaded += (s, anchor) =>
         {
             if (anchor != null)
             {
+                _isRestoringScrollAnchor = true;
                 MessagesListView.ScrollIntoView(anchor, ScrollIntoViewAlignment.Leading);
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(120);
+                        _lastScrollVerticalOffset = _messagesScrollViewer?.VerticalOffset ?? 0;
+                    }
+                    finally
+                    {
+                        _isRestoringScrollAnchor = false;
+                    }
+                });
             }
         };
 
@@ -180,6 +211,9 @@ public sealed partial class ConversationPage : Page
 
     private ScrollViewer? _messagesScrollViewer;
     private bool _initialLoadComplete;
+    private bool _isRestoringScrollAnchor;
+    private double _lastScrollVerticalOffset;
+    private CancellationTokenSource? _initialLoadCts;
 
     private void ScrollToTarget(bool forceBottom = false)
     {
@@ -231,13 +265,13 @@ public sealed partial class ConversationPage : Page
 
     private void MessagesListView_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        if (ViewModel == null || !_initialLoadComplete || ViewModel.IsLoadingOlder || !ViewModel.HasMoreOlderMessages || ViewModel.Messages.Count == 0) return;
+        if (ViewModel == null || !_initialLoadComplete || _isRestoringScrollAnchor || ViewModel.IsLoadingOlder || !ViewModel.HasMoreOlderMessages || ViewModel.Messages.Count == 0) return;
 
         var pointerPoint = e.GetCurrentPoint(MessagesListView);
         int delta = pointerPoint.Properties.MouseWheelDelta;
         if (delta > 0) // Scrolling up
         {
-            if (_messagesScrollViewer == null || _messagesScrollViewer.VerticalOffset <= 20)
+            if (_messagesScrollViewer == null || _messagesScrollViewer.VerticalOffset <= 60)
             {
                 _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
             }
@@ -248,8 +282,14 @@ public sealed partial class ConversationPage : Page
     {
         if (_messagesScrollViewer == null || ViewModel == null) return;
 
-        // When user scrolls near top (within 60px) on an established chat, dynamically load older messages
-        if (_initialLoadComplete && _messagesScrollViewer.ScrollableHeight > 100 && _messagesScrollViewer.VerticalOffset <= 60 && !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
+        double currentOffset = _messagesScrollViewer.VerticalOffset;
+        bool scrolledUp = currentOffset < _lastScrollVerticalOffset;
+        _lastScrollVerticalOffset = currentOffset;
+
+        // Trigger older history load only on an active upward scroll near the top, never on anchor restore/layout collapse
+        if (_initialLoadComplete && !_isRestoringScrollAnchor && scrolledUp &&
+            _messagesScrollViewer.ScrollableHeight > 100 && currentOffset <= 60 &&
+            !ViewModel.IsLoadingOlder && ViewModel.HasMoreOlderMessages && ViewModel.Messages.Count > 0)
         {
             _ = ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
         }

@@ -13,6 +13,9 @@ public static unsafe partial class WhatsAppNative
     [LibraryImport(DllName)]
     public static partial int wa_is_client_ready(IntPtr clientPtr);
 
+    [LibraryImport(DllName)]
+    public static partial int wa_is_runner_alive(IntPtr clientPtr);
+
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_is_authenticated(string dbPath);
 
@@ -85,7 +88,20 @@ public static unsafe partial class WhatsAppNative
     public static partial IntPtr wa_get_messages_paginated(IntPtr clientPtr, string chatId, long beforeTs, int limit);
 
     [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr wa_get_messages_paginated_before(IntPtr clientPtr, string chatId, long beforeTs, string? excludeId, int limit);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int wa_get_message_count(IntPtr clientPtr, string chatId);
+
+    [LibraryImport(DllName)]
+    public static partial int wa_register_history_chunk_callback(
+        IntPtr clientPtr,
+        delegate* unmanaged[Cdecl]<IntPtr, void> callback);
+
+    [LibraryImport(DllName)]
+    public static partial int wa_register_connection_state_callback(
+        IntPtr clientPtr,
+        delegate* unmanaged[Cdecl]<int, void> callback);
 
     [LibraryImport(DllName)]
     public static partial int wa_register_message_callback(

@@ -121,7 +121,9 @@ public partial class ChatListViewModel : ViewModelBase
     private DateTimeOffset _lastChatUpdateLoadTime = DateTimeOffset.MinValue;
     private readonly object _chatUpdateLock = new();
     private System.Threading.Timer? _syncWatchdogTimer;
+    private System.Threading.Timer? _inlineSyncWatchdogTimer;
     private DateTimeOffset _initialSyncStartTime = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastInlineSyncActivity = DateTimeOffset.MinValue;
 
     public event EventHandler? RequestCloseDetail;
 
@@ -230,6 +232,7 @@ public partial class ChatListViewModel : ViewModelBase
                 IsSyncIndeterminate = true;
                 SyncStatusText = string.Empty;
             });
+            ArmInlineSyncWatchdog(25);
 
             _ = LoadChatsAsync();
 
@@ -239,6 +242,7 @@ public partial class ChatListViewModel : ViewModelBase
             }
             catch (Exception ex)
             {
+                DisarmInlineSyncWatchdog();
                 _dispatcherService.Enqueue(() =>
                 {
                     IsSyncing = false;
@@ -253,6 +257,7 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 if (provider.ConnectionState != ConnectionState.Connecting)
                 {
+                    DisarmInlineSyncWatchdog();
                     IsSyncing = false;
                 }
             });
@@ -478,6 +483,43 @@ public partial class ChatListViewModel : ViewModelBase
         });
     }
 
+    private void ArmInlineSyncWatchdog(int idleSeconds = 25)
+    {
+        _lastInlineSyncActivity = DateTimeOffset.UtcNow;
+        int delayMs = Math.Max(1500, idleSeconds * 1000);
+        if (_inlineSyncWatchdogTimer == null)
+        {
+            _inlineSyncWatchdogTimer = new System.Threading.Timer(OnInlineSyncWatchdogTick, null, delayMs, Timeout.Infinite);
+        }
+        else
+        {
+            _inlineSyncWatchdogTimer.Change(delayMs, Timeout.Infinite);
+        }
+    }
+
+    private void DisarmInlineSyncWatchdog()
+    {
+        _inlineSyncWatchdogTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+    }
+
+    private void OnInlineSyncWatchdogTick(object? state)
+    {
+        if (!IsSyncing || IsInitialSyncing)
+        {
+            return;
+        }
+
+        _dispatcherService.Enqueue(async () =>
+        {
+            if (!IsSyncing || IsInitialSyncing) return;
+            IsSyncing = false;
+            IsSyncIndeterminate = false;
+            SyncProgress = 0;
+            SyncStatusText = string.Empty;
+            await LoadChatsAsync();
+        });
+    }
+
     private void OnSyncProgressChanged(object? sender, int progress)
     {
         _dispatcherService.Enqueue(async () =>
@@ -500,12 +542,16 @@ public partial class ChatListViewModel : ViewModelBase
             {
                 if (progress >= 100 || progress < 0)
                 {
+                    DisarmInlineSyncWatchdog();
                     IsSyncing = false;
+                    IsSyncIndeterminate = false;
+                    SyncProgress = 0;
                     SyncStatusText = string.Empty;
                     await LoadChatsAsync();
                 }
                 else if (Chats.Count == 0)
                 {
+                    DisarmInlineSyncWatchdog();
                     IsInitialSyncing = true;
                     StartSyncWatchdog();
                     InitialSyncProgress = Math.Max(0, progress);
@@ -516,6 +562,7 @@ public partial class ChatListViewModel : ViewModelBase
                     IsSyncing = true;
                     SyncProgress = Math.Max(0, progress);
                     IsSyncIndeterminate = progress <= 0;
+                    ArmInlineSyncWatchdog(25);
                 }
             }
         });
@@ -716,11 +763,17 @@ public partial class ChatListViewModel : ViewModelBase
             }
             if (!wasInSetup && !IsInitialSyncing)
             {
+                if (IsSyncing)
+                {
+                    // If server has no offline backlog, OfflineSyncPreview may not fire; auto-clear after short settle window
+                    ArmInlineSyncWatchdog(4);
+                }
                 _ = LoadChatsAsync();
             }
         }
         else if (e.State == ConnectionState.Error)
         {
+            DisarmInlineSyncWatchdog();
             _dispatcherService.Enqueue(() =>
             {
                 IsConnecting = false;

@@ -239,81 +239,119 @@ public class StringToImageSourceConverter : IValueConverter
         return null;
     }
 
+    private static bool TryReadImageDimensions(byte[] bytes, out int width, out int height)
+    {
+        width = 0;
+        height = 0;
+        if (bytes.Length >= 24 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+        {
+            // PNG IHDR chunk (big-endian width at 16, height at 20)
+            width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+            height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+            return width > 0 && height > 0;
+        }
+        if (bytes.Length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xD8)
+        {
+            // JPEG SOF0/SOF2 marker scan
+            int i = 2;
+            while (i + 9 < bytes.Length)
+            {
+                if (bytes[i] != 0xFF)
+                {
+                    i++;
+                    continue;
+                }
+                byte marker = bytes[i + 1];
+                if (marker == 0xC0 || marker == 0xC2 || marker == 0xC1)
+                {
+                    height = (bytes[i + 5] << 8) | bytes[i + 6];
+                    width = (bytes[i + 7] << 8) | bytes[i + 8];
+                    return width > 0 && height > 0;
+                }
+                if (marker == 0xD9 || marker == 0xDA) break;
+                if (marker == 0x00 || marker == 0x01 || (marker >= 0xD0 && marker <= 0xD8))
+                {
+                    i += 2;
+                    continue;
+                }
+                int segLen = (bytes[i + 2] << 8) | bytes[i + 3];
+                if (segLen < 2) break;
+                i += 2 + segLen;
+            }
+        }
+        return false;
+    }
+
     private static ImageSource? DecodeAndBlurThumbnail(byte[] bytes)
     {
         try
         {
-            // Perform decoding, 4x linear upscale, and 3-pass Gaussian/box blur inside Task.Run
-            var (pixels, width, height) = System.Threading.Tasks.Task.Run(async () =>
+            TryReadImageDimensions(bytes, out int srcW, out int srcH);
+            if (srcW <= 0 || srcH <= 0)
             {
-                var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                var stream = ras.AsStreamForWrite();
-                await stream.WriteAsync(bytes, 0, bytes.Length);
-                await stream.FlushAsync();
-                ras.Seek(0);
-
-                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
-                int srcW = (int)decoder.PixelWidth;
-                int srcH = (int)decoder.PixelHeight;
-
-                if (srcW <= 0 || srcH <= 0) return (null, 0, 0);
-
-                // WhatsApp thumbnails are typically tiny (~32x32).
-                // Upscale to at least 160x120 using Linear interpolation to avoid nearest-neighbor blockiness:
-                int targetW = Math.Max(160, srcW * 4);
-                int targetH = Math.Max(120, srcH * 4);
-
-                var transform = new Windows.Graphics.Imaging.BitmapTransform
-                {
-                    ScaledWidth = (uint)targetW,
-                    ScaledHeight = (uint)targetH,
-                    InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Linear
-                };
-
-                var pixelProvider = await decoder.GetPixelDataAsync(
-                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
-                    transform,
-                    Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
-                    Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
-
-                byte[] px = pixelProvider.DetachPixelData();
-                if (px != null && px.Length > 0)
-                {
-                    // Apply fast 3-pass box blur with radius 10 to give a smooth, frosted Fluent look
-                    ApplyFastStackBlur(px, targetW, targetH, 10);
-                }
-                return (px, targetW, targetH);
-            }).GetAwaiter().GetResult();
-
-            if (pixels != null && width > 0 && height > 0)
-            {
-                var wb = new WriteableBitmap(width, height);
-                using (var pixelStream = wb.PixelBuffer.AsStream())
-                {
-                    pixelStream.Write(pixels, 0, pixels.Length);
-                }
-                wb.Invalidate();
-                return wb;
+                srcW = 40;
+                srcH = 30;
             }
-        }
-        catch
-        {
-            // Fall through to fallback
-        }
 
-        try
-        {
-            var fallbackRas = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            var stream = fallbackRas.AsStreamForWrite();
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Flush();
-            fallbackRas.Seek(0);
-            var fallbackBitmap = new BitmapImage();
-            fallbackBitmap.DecodePixelWidth = 320;
-            fallbackBitmap.DecodePixelType = DecodePixelType.Logical;
-            fallbackBitmap.SetSource(fallbackRas);
-            return fallbackBitmap;
+            // Keep 4x upscaled minimum 160x120 while preserving aspect ratio for pre-allocated WriteableBitmap
+            int targetW = Math.Clamp(srcW * 4, 160, 320);
+            int targetH = Math.Clamp(srcH * 4, 120, 320);
+
+            var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            var wb = new WriteableBitmap(targetW, targetH);
+
+            // Decode, scale, and blur completely off the UI thread so scrolling/navigation never stalls
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    using var ras = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                    using (var stream = ras.AsStreamForWrite())
+                    {
+                        await stream.WriteAsync(bytes, 0, bytes.Length);
+                        await stream.FlushAsync();
+                    }
+                    ras.Seek(0);
+
+                    var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
+                    if (decoder.PixelWidth <= 0 || decoder.PixelHeight <= 0) return;
+
+                    var transform = new Windows.Graphics.Imaging.BitmapTransform
+                    {
+                        ScaledWidth = (uint)targetW,
+                        ScaledHeight = (uint)targetH,
+                        InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Linear
+                    };
+
+                    var pixelProvider = await decoder.GetPixelDataAsync(
+                        Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                        Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+                        transform,
+                        Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
+                        Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
+
+                    byte[] px = pixelProvider.DetachPixelData();
+                    if (px == null || px.Length == 0) return;
+
+                    ApplyFastStackBlur(px, targetW, targetH, 10);
+
+                    var dq = dispatcher ?? wb.DispatcherQueue;
+                    dq?.TryEnqueue(() =>
+                    {
+                        try
+                        {
+                            using var pixelStream = wb.PixelBuffer.AsStream();
+                            int len = Math.Min(px.Length, (int)pixelStream.Length);
+                            pixelStream.Write(px, 0, len);
+                            wb.Invalidate();
+                        }
+                        catch { }
+                    });
+                }
+                catch { }
+            });
+
+            return wb;
         }
         catch
         {

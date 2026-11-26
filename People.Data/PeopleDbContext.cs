@@ -1,11 +1,48 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using People.Core.Models;
 using System.Text.Json;
 
 namespace People.Data;
 
+/// <summary>
+/// Ensures every physical SQLite connection applies WAL concurrency and a bounded busy_timeout.
+/// </summary>
+public sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
+{
+    public static readonly SqlitePragmaInterceptor Instance = new();
+
+    private const string PragmaSql =
+        "PRAGMA journal_mode=WAL;" +
+        "PRAGMA synchronous=NORMAL;" +
+        "PRAGMA busy_timeout=5000;" +
+        "PRAGMA temp_store=MEMORY;" +
+        "PRAGMA foreign_keys=ON;";
+
+    public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = PragmaSql;
+        cmd.ExecuteNonQuery();
+    }
+
+    public override async Task ConnectionOpenedAsync(
+        DbConnection connection,
+        ConnectionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = PragmaSql;
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+}
+
 public class PeopleDbContext : DbContext
 {
+    private static string SerializeJson<T>(T value) => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null);
+
     public DbSet<Chat> Chats { get; set; } = null!;
     public DbSet<Message> Messages { get; set; } = null!;
     public DbSet<Contact> Contacts { get; set; } = null!;
@@ -20,13 +57,29 @@ public class PeopleDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        var platformColorsComparer = new ValueComparer<PlatformColors>(
+            (a, b) => SerializeJson(a!) == SerializeJson(b!),
+            v => SerializeJson(v).GetHashCode(),
+            v => JsonSerializer.Deserialize<PlatformColors>(SerializeJson(v), (JsonSerializerOptions?)null) ?? new PlatformColors());
+
+        var contentComparer = new ValueComparer<MessageContent>(
+            (a, b) => ReferenceEquals(a, b) || (a != null && b != null && SerializeJson(a) == SerializeJson(b)),
+            v => SerializeJson(v).GetHashCode(),
+            v => JsonSerializer.Deserialize<MessageContent>(SerializeJson(v), (JsonSerializerOptions?)null) ?? new MessageContent());
+
+        var reactionsComparer = new ValueComparer<List<MessageReaction>>(
+            (a, b) => ReferenceEquals(a, b) || (a != null && b != null && a.Count == b.Count && SerializeJson(a) == SerializeJson(b)),
+            v => SerializeJson(v).GetHashCode(),
+            v => DeserializeReactions(SerializeJson(v)));
+
         modelBuilder.Entity<Platform>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Colors)
                   .HasConversion(
-                      v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                      v => JsonSerializer.Deserialize<PlatformColors>(v, (JsonSerializerOptions?)null) ?? new PlatformColors());
+                      v => SerializeJson(v),
+                      v => JsonSerializer.Deserialize<PlatformColors>(v, (JsonSerializerOptions?)null) ?? new PlatformColors(),
+                      platformColorsComparer);
         });
 
         modelBuilder.Entity<Contact>(entity =>
@@ -50,6 +103,7 @@ public class PeopleDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.ChatId, e.Timestamp });
+            entity.HasIndex(e => new { e.PlatformId, e.IsOutgoing, e.Status });
             entity.HasOne(e => e.Chat)
                   .WithMany(c => c.Messages)
                   .HasForeignKey(e => e.ChatId)
@@ -58,16 +112,18 @@ public class PeopleDbContext : DbContext
 
             entity.Property(e => e.Content)
                   .HasConversion(
-                      v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                      v => JsonSerializer.Deserialize<MessageContent>(v, (JsonSerializerOptions?)null) ?? new MessageContent());
+                      v => SerializeJson(v),
+                      v => JsonSerializer.Deserialize<MessageContent>(v, (JsonSerializerOptions?)null) ?? new MessageContent(),
+                      contentComparer);
 
             entity.Ignore(e => e.ShowDateSeparator);
             entity.Ignore(e => e.DateSeparatorText);
 
             entity.Property(e => e.Reactions)
                   .HasConversion(
-                      v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                      v => DeserializeReactions(v));
+                      v => SerializeJson(v),
+                      v => DeserializeReactions(v),
+                      reactionsComparer);
         });
     }
 

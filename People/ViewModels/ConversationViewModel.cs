@@ -142,7 +142,23 @@ public partial class ConversationViewModel : ViewModelBase
         if (_provider is IWhatsAppProvider waProvider)
         {
             waProvider.MediaDownloadProgress += OnMediaDownloadProgress;
+            waProvider.HistoryMessagesUpdated += OnHistoryMessagesUpdated;
         }
+    }
+
+    private void OnHistoryMessagesUpdated(object? sender, string chatId)
+    {
+        var current = CurrentChat;
+        if (current == null || !ChatIdsMatch(current.Id, chatId)) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RefreshMessagesAfterHistoryChunkAsync(current.Id);
+            }
+            catch { }
+        });
     }
 
     private void OnMediaDownloadProgress(object? sender, (string MessageId, long BytesReceived, long TotalBytes) e)
@@ -265,48 +281,53 @@ public partial class ConversationViewModel : ViewModelBase
         {
             if (token.IsCancellationRequested) return;
 
-            // 1. Subscribe presence in background
-            if (_provider is IWhatsAppProvider waSubProvider && !chat.IsGroup)
-            {
-                try { waSubProvider.SubscribePresence(chat.Id); } catch { }
-            }
-
-            // 2. Resolve push name & unsaved contact header details in background
-            ResolveHeaderDetailsInBackground(chat, token);
-
-            // 3. Profile picture fetch in background
-            bool shouldFetchPic = false;
-            lock (_failedPictureJids)
-            {
-                shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl) && !_failedPictureJids.Contains(chat.Id);
-            }
-
-            if (shouldFetchPic && _provider is IWhatsAppProvider waProvider)
+            // Run presence, header name resolution, and profile picture fetch concurrently so messages never wait on network/avatar
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id, token);
-                    if (!string.IsNullOrEmpty(picUrl))
+                    if (_provider is IWhatsAppProvider waSubProvider && !chat.IsGroup)
                     {
-                        _dispatcherService.Enqueue(() =>
-                        {
-                            if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
-                            chat.PictureUrl = picUrl;
-                            OnPropertyChanged(nameof(CurrentChat));
-                        });
+                        try { waSubProvider.SubscribePresence(chat.Id); } catch { }
                     }
-                    else
-                    {
-                        lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
-                    }
-                }
-                catch
-                {
-                    lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
-                }
-            }
 
-            // 4. Fast path 2: Load cached messages from SQLite if in-memory cache was empty
+                    ResolveHeaderDetailsInBackground(chat, token);
+
+                    bool shouldFetchPic = false;
+                    lock (_failedPictureJids)
+                    {
+                        shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl) && !_failedPictureJids.Contains(chat.Id);
+                    }
+
+                    if (shouldFetchPic && _provider is IWhatsAppProvider waProvider && !token.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id, token);
+                            if (!string.IsNullOrEmpty(picUrl))
+                            {
+                                _dispatcherService.Enqueue(() =>
+                                {
+                                    if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
+                                    chat.PictureUrl = picUrl;
+                                    OnPropertyChanged(nameof(CurrentChat));
+                                });
+                            }
+                            else
+                            {
+                                lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
+                            }
+                        }
+                        catch
+                        {
+                            lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
+                        }
+                    }
+                }
+                catch { }
+            }, token);
+
+            // Fast path 2: Load cached messages from SQLite immediately if in-memory cache was empty
             if (syncMemoryCached == null || syncMemoryCached.Count == 0)
             {
                 var messageRepo = App.Current.Services.GetService<IMessageRepository>();
@@ -415,7 +436,7 @@ public partial class ConversationViewModel : ViewModelBase
                     UpdateSenderPushName();
                     IsLoading = false;
 
-                    if (!initialLoadedFired && Messages.Count > 0)
+                    if (!initialLoadedFired)
                     {
                         initialLoadedFired = true;
                         InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
@@ -483,7 +504,7 @@ public partial class ConversationViewModel : ViewModelBase
                 if (older.Count == 0)
                 {
                     _consecutiveEmptyOlderLoads++;
-                    if (_consecutiveEmptyOlderLoads >= 3)
+                    if (_consecutiveEmptyOlderLoads >= 2)
                     {
                         HasMoreOlderMessages = false;
                     }
@@ -644,6 +665,70 @@ public partial class ConversationViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             UpdateHeaderDetails();
+        });
+    }
+
+    private async Task RefreshMessagesAfterHistoryChunkAsync(string targetChatId)
+    {
+        if (CurrentChat == null || !ChatIdsMatch(CurrentChat.Id, targetChatId)) return;
+
+        int initialCount = Messages.Count;
+        int limit = Math.Clamp(initialCount + 50, 50, 200);
+        var msgs = await _provider.GetMessagesAsync(targetChatId, 0, limit);
+        if (CurrentChat == null || !ChatIdsMatch(CurrentChat.Id, targetChatId)) return;
+
+        _dispatcherService.Enqueue(() =>
+        {
+            if (CurrentChat == null || !ChatIdsMatch(CurrentChat.Id, targetChatId)) return;
+
+            bool hadFewMessages = Messages.Count <= 2;
+            var anchor = Messages.FirstOrDefault();
+            bool anyAdded = false;
+
+            foreach (var msg in msgs)
+            {
+                var existingById = Messages.FirstOrDefault(m => m.Id == msg.Id);
+                if (existingById != null)
+                {
+                    if (msg.Status > existingById.Status)
+                    {
+                        existingById.Status = msg.Status;
+                    }
+                    if (msg.Content != null && (existingById.Content == null ||
+                        (existingById.Content.Type == MessageContentType.Text && msg.Content.Type != MessageContentType.Text) ||
+                        (string.IsNullOrEmpty(existingById.Content.ThumbnailUrl) && !string.IsNullOrEmpty(msg.Content.ThumbnailUrl))))
+                    {
+                        existingById.Content = msg.Content;
+                    }
+                    continue;
+                }
+
+                int index = 0;
+                while (index < Messages.Count && Messages[index].Timestamp < msg.Timestamp)
+                {
+                    index++;
+                }
+                Messages.Insert(index, msg);
+                anyAdded = true;
+            }
+
+            if (anyAdded)
+            {
+                _consecutiveEmptyOlderLoads = 0;
+                HasMoreOlderMessages = true;
+                RecalculateDateSeparators();
+                UpdateChatDateString();
+                UpdateSenderPushName();
+
+                if (hadFewMessages)
+                {
+                    InitialMessagesLoaded?.Invoke(this, EventArgs.Empty);
+                }
+                else if (anchor != null)
+                {
+                    OlderMessagesLoaded?.Invoke(this, anchor);
+                }
+            }
         });
     }
 

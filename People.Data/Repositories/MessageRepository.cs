@@ -63,16 +63,36 @@ public class MessageRepository : IMessageRepository
         return msgs;
     }
 
-    public async Task<IReadOnlyList<Message>> GetOlderMessagesBeforeAsync(string chatId, DateTimeOffset beforeTimestamp, int limit = 25)
+    public async Task<IReadOnlyList<Message>> GetOlderMessagesBeforeAsync(
+        string chatId,
+        DateTimeOffset beforeTimestamp,
+        int limit = 25,
+        string? excludeMessageId = null)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
         var candidates = GetCandidateChatIds(chatId);
-        var msgs = await context.Messages
-            .Where(m => candidates.Contains(m.ChatId!) && m.Timestamp < beforeTimestamp)
+        // Include boundary timestamp when excludeMessageId is provided so same-second messages are never skipped.
+        int fetchLimit = string.IsNullOrEmpty(excludeMessageId) ? limit : limit + 15;
+        IQueryable<Message> query = string.IsNullOrEmpty(excludeMessageId)
+            ? context.Messages.Where(m => candidates.Contains(m.ChatId!) && m.Timestamp < beforeTimestamp)
+            : context.Messages.Where(m => candidates.Contains(m.ChatId!) && m.Timestamp <= beforeTimestamp && m.Id != excludeMessageId);
+
+        var msgs = await query
             .OrderByDescending(m => m.Timestamp)
-            .Take(limit)
+            .ThenByDescending(m => m.Id)
+            .Take(fetchLimit)
             .AsNoTracking()
             .ToListAsync();
+
+        if (!string.IsNullOrEmpty(excludeMessageId))
+        {
+            msgs = msgs
+                .Where(m => m.Timestamp < beforeTimestamp ||
+                            (m.Timestamp == beforeTimestamp && string.CompareOrdinal(m.Id, excludeMessageId) < 0))
+                .Take(limit)
+                .ToList();
+        }
+
         msgs.Reverse();
         foreach (var m in msgs)
         {
@@ -124,21 +144,54 @@ public class MessageRepository : IMessageRepository
         try
         {
             using var context = await _contextFactory.CreateDbContextAsync();
-            try
+
+            var conn = context.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open)
+            {
+                await conn.OpenAsync();
+            }
+
+            int userVersion = 0;
+            await using (var verCmd = conn.CreateCommand())
+            {
+                verCmd.CommandText = "PRAGMA user_version;";
+                var scalar = await verCmd.ExecuteScalarAsync();
+                if (scalar != null && scalar != DBNull.Value)
+                {
+                    userVersion = Convert.ToInt32(scalar);
+                }
+            }
+
+            if (userVersion >= 2)
+            {
+                return;
+            }
+
+            var existingCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await using (var colCmd = conn.CreateCommand())
+            {
+                colCmd.CommandText = "PRAGMA table_info(Messages);";
+                await using var reader = await colCmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    existingCols.Add(reader.GetString(1));
+                }
+            }
+
+            if (!existingCols.Contains("IsEdited"))
             {
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN IsEdited INTEGER NOT NULL DEFAULT 0;");
             }
-            catch { }
-            try
+            if (!existingCols.Contains("QuotedMessageId"))
             {
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN QuotedMessageId TEXT NULL;");
             }
-            catch { }
-            try
+            if (!existingCols.Contains("QuotedParticipant"))
             {
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE Messages ADD COLUMN QuotedParticipant TEXT NULL;");
             }
-            catch { }
+
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IF NOT EXISTS \"IX_Messages_PlatformId_IsOutgoing_Status\" ON \"Messages\" (\"PlatformId\", \"IsOutgoing\", \"Status\");");
 
             var candidates = await context.Messages
                 .Where(m => m.Content != null)
@@ -154,6 +207,7 @@ public class MessageRepository : IMessageRepository
                     if (m.Content.Type != MessageContentType.Text || m.Content.Text != oldText)
                     {
                         anyChanged = true;
+                        context.Entry(m).Property(e => e.Content).IsModified = true;
                     }
                 }
             }
@@ -162,6 +216,8 @@ public class MessageRepository : IMessageRepository
             {
                 await context.SaveChangesAsync();
             }
+
+            await context.Database.ExecuteSqlRawAsync("PRAGMA user_version = 2;");
         }
         catch { }
     }
@@ -179,94 +235,155 @@ public class MessageRepository : IMessageRepository
     public async Task SaveAsync(Message message)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        await EnsureValidChatIdAsync(context, message);
+        await EnsureValidChatIdsAsync(context, new[] { message });
         var existing = await context.Messages.FindAsync(message.Id);
-        
+
         if (existing == null)
         {
             context.Messages.Add(message);
         }
         else
         {
-            if (message.IsOutgoing && existing.Status > message.Status)
-            {
-                message.Status = existing.Status;
-            }
-            existing.Status = message.Status;
-            existing.Content = message.Content;
-            existing.SenderName = message.SenderName;
-            existing.Timestamp = message.Timestamp;
-            existing.QuotedText = message.QuotedText;
-            existing.QuotedSender = message.QuotedSender;
-            existing.QuotedMessageId = message.QuotedMessageId;
-            existing.QuotedParticipant = message.QuotedParticipant;
-            existing.Reactions = message.Reactions;
-            context.Entry(existing).State = EntityState.Modified;
+            ApplyMessageUpdates(existing, message);
         }
-        
+
         await context.SaveChangesAsync();
     }
 
     public async Task SaveManyAsync(IEnumerable<Message> messages)
     {
+        var msgList = messages
+            .Where(m => !string.IsNullOrWhiteSpace(m.Id))
+            .GroupBy(m => m.Id, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToList();
+        if (msgList.Count == 0) return;
+
         using var context = await _contextFactory.CreateDbContextAsync();
-        foreach (var message in messages)
+
+        // Batch-resolve Chat foreign keys and create any missing stubs in one round-trip
+        await EnsureValidChatIdsAsync(context, msgList);
+
+        // Batch-load existing messages in chunks of 400 to avoid SQLite parameter limit
+        var existingById = new Dictionary<string, Message>(StringComparer.Ordinal);
+        for (int i = 0; i < msgList.Count; i += 400)
         {
-            await EnsureValidChatIdAsync(context, message);
-            var existing = await context.Messages.FindAsync(message.Id);
-            if (existing == null)
+            var chunkIds = msgList.Skip(i).Take(400).Select(m => m.Id).ToList();
+            var existingChunk = await context.Messages
+                .Where(m => chunkIds.Contains(m.Id))
+                .ToListAsync();
+            foreach (var ex in existingChunk)
             {
-                context.Messages.Add(message);
+                existingById[ex.Id] = ex;
+            }
+        }
+
+        foreach (var message in msgList)
+        {
+            if (existingById.TryGetValue(message.Id, out var existing))
+            {
+                ApplyMessageUpdates(existing, message);
             }
             else
             {
-                if (message.IsOutgoing && existing.Status > message.Status)
-                {
-                    message.Status = existing.Status;
-                }
-                existing.Status = message.Status;
-                existing.Content = message.Content;
-                existing.SenderName = message.SenderName;
-                existing.Timestamp = message.Timestamp;
-                existing.QuotedText = message.QuotedText;
-                existing.QuotedSender = message.QuotedSender;
-                existing.QuotedMessageId = message.QuotedMessageId;
-                existing.QuotedParticipant = message.QuotedParticipant;
-                existing.Reactions = message.Reactions;
-                context.Entry(existing).State = EntityState.Modified;
+                context.Messages.Add(message);
+                existingById[message.Id] = message;
             }
         }
+
         await context.SaveChangesAsync();
     }
 
-    private static async Task EnsureValidChatIdAsync(PeopleDbContext context, Message message)
+    private static void ApplyMessageUpdates(Message existing, Message incoming)
     {
-        message.Chat = null;
-        if (string.IsNullOrEmpty(message.ChatId)) return;
-
-        var cleanId = message.ChatId.StartsWith("wa_") ? message.ChatId[3..] : message.ChatId;
-        var waId = "wa_" + cleanId;
-
-        var matchingChat = await context.Chats.FirstOrDefaultAsync(c => c.Id == message.ChatId || c.Id == cleanId || c.Id == waId);
-        if (matchingChat != null)
+        if (incoming.IsOutgoing && existing.Status > incoming.Status)
         {
-            message.ChatId = matchingChat.Id;
+            incoming.Status = existing.Status;
         }
-        else
+        if (existing.Status != incoming.Status) existing.Status = incoming.Status;
+        if (existing.SenderName != incoming.SenderName && !string.IsNullOrEmpty(incoming.SenderName))
         {
-            var newChat = new Chat
+            existing.SenderName = incoming.SenderName;
+        }
+        if (existing.IsEdited != incoming.IsEdited) existing.IsEdited = incoming.IsEdited;
+        if (incoming.Content != null) existing.Content = incoming.Content;
+        if (incoming.Timestamp != default && existing.Timestamp != incoming.Timestamp) existing.Timestamp = incoming.Timestamp;
+        if (!string.IsNullOrEmpty(incoming.QuotedText)) existing.QuotedText = incoming.QuotedText;
+        if (!string.IsNullOrEmpty(incoming.QuotedSender)) existing.QuotedSender = incoming.QuotedSender;
+        if (!string.IsNullOrEmpty(incoming.QuotedMessageId)) existing.QuotedMessageId = incoming.QuotedMessageId;
+        if (!string.IsNullOrEmpty(incoming.QuotedParticipant)) existing.QuotedParticipant = incoming.QuotedParticipant;
+        if (incoming.Reactions != null && incoming.Reactions.Count > 0) existing.Reactions = incoming.Reactions;
+    }
+
+    private static async Task EnsureValidChatIdsAsync(PeopleDbContext context, IEnumerable<Message> messages)
+    {
+        var candidateKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var byOriginalChat = new List<Message>();
+        foreach (var m in messages)
+        {
+            m.Chat = null;
+            if (!string.IsNullOrWhiteSpace(m.ChatId))
             {
-                Id = message.ChatId,
-                PlatformId = message.PlatformId ?? "WhatsApp",
-                Title = message.SenderName ?? "Chat",
-                LastMessageTime = message.Timestamp
-            };
-            context.Chats.Add(newChat);
-            try
-            {
-                await context.SaveChangesAsync();
+                byOriginalChat.Add(m);
+                var cleanId = m.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? m.ChatId[3..] : m.ChatId;
+                candidateKeys.Add(m.ChatId);
+                candidateKeys.Add(cleanId);
+                candidateKeys.Add("wa_" + cleanId);
             }
-            catch { }
+        }
+        if (candidateKeys.Count == 0) return;
+
+        var keyList = candidateKeys.ToList();
+        var chatLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < keyList.Count; i += 400)
+        {
+            var chunk = keyList.Skip(i).Take(400).ToList();
+            var foundIds = await context.Chats
+                .AsNoTracking()
+                .Where(c => chunk.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync();
+            foreach (var id in foundIds)
+            {
+                chatLookup[id] = id;
+                var clean = id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? id[3..] : id;
+                chatLookup.TryAdd(clean, id);
+                chatLookup.TryAdd("wa_" + clean, id);
+            }
+        }
+
+        var missingChats = new List<Chat>();
+        foreach (var m in byOriginalChat)
+        {
+            if (chatLookup.TryGetValue(m.ChatId!, out var resolvedChatId))
+            {
+                m.ChatId = resolvedChatId;
+            }
+            else
+            {
+                var stub = new Chat
+                {
+                    Id = m.ChatId!,
+                    PlatformId = m.PlatformId ?? "WhatsApp",
+                    Title = m.SenderName ?? "Chat",
+                    LastMessageTime = m.Timestamp
+                };
+                missingChats.Add(stub);
+                var clean = stub.Id.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? stub.Id[3..] : stub.Id;
+                chatLookup[stub.Id] = stub.Id;
+                chatLookup.TryAdd(clean, stub.Id);
+                chatLookup.TryAdd("wa_" + clean, stub.Id);
+            }
+        }
+
+        if (missingChats.Count > 0)
+        {
+            context.Chats.AddRange(missingChats);
+            await context.SaveChangesAsync();
+            foreach (var stub in missingChats)
+            {
+                context.Entry(stub).State = EntityState.Detached;
+            }
         }
     }
 
