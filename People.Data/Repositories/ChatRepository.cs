@@ -113,20 +113,18 @@ public class ChatRepository : IChatRepository
             existingDict.TryAdd("wa_" + clean, c);
         }
 
-        // Batch-check which LastMessages already exist in Messages table
-        var existingMsgIds = new HashSet<string>(StringComparer.Ordinal);
+        // Batch-load existing LastMessages so Status/Edit/Revoke updates persist cleanly
+        var existingMsgsById = new Dictionary<string, Message>(StringComparer.Ordinal);
         var lmIds = lmById.Keys.ToList();
         for (int i = 0; i < lmIds.Count; i += 400)
         {
             var chunk = lmIds.Skip(i).Take(400).ToList();
-            var foundMsgIds = await context.Messages
-                .AsNoTracking()
+            var foundMsgs = await context.Messages
                 .Where(m => chunk.Contains(m.Id))
-                .Select(m => m.Id)
                 .ToListAsync();
-            foreach (var mid in foundMsgIds)
+            foreach (var m in foundMsgs)
             {
-                existingMsgIds.Add(mid);
+                existingMsgsById[m.Id] = m;
             }
         }
 
@@ -136,6 +134,23 @@ public class ChatRepository : IChatRepository
         {
             var incomingLm = chat.LastMessage;
             chat.LastMessage = null;
+
+            if (incomingLm != null && !string.IsNullOrWhiteSpace(incomingLm.Id) &&
+                existingMsgsById.TryGetValue(incomingLm.Id, out var existingDbMsg))
+            {
+                if (incomingLm.Status > existingDbMsg.Status) existingDbMsg.Status = incomingLm.Status;
+                if (incomingLm.IsEdited) existingDbMsg.IsEdited = true;
+                if (incomingLm.IsRevoked)
+                {
+                    existingDbMsg.IsRevoked = true;
+                    if (existingDbMsg.Content != null && incomingLm.Content != null)
+                    {
+                        existingDbMsg.Content.IsRevoked = true;
+                        existingDbMsg.Content.Type = MessageContentType.Text;
+                        existingDbMsg.Content.Text = incomingLm.Content.Text;
+                    }
+                }
+            }
 
             if (existingDict.TryGetValue(chat.Id, out var existing))
             {
@@ -151,7 +166,7 @@ public class ChatRepository : IChatRepository
                 if (incomingLm != null && !string.IsNullOrWhiteSpace(incomingLm.Id))
                 {
                     incomingLm.ChatId = realId;
-                    pendingLastMsgLinks.Add((existing, incomingLm.Id, existingMsgIds.Contains(incomingLm.Id) ? null : incomingLm));
+                    pendingLastMsgLinks.Add((existing, incomingLm.Id, existingMsgsById.ContainsKey(incomingLm.Id) ? null : incomingLm));
                 }
             }
             else
@@ -175,7 +190,7 @@ public class ChatRepository : IChatRepository
                 if (incomingLm != null && !string.IsNullOrWhiteSpace(incomingLm.Id))
                 {
                     incomingLm.ChatId = copy.Id;
-                    pendingLastMsgLinks.Add((copy, incomingLm.Id, existingMsgIds.Contains(incomingLm.Id) ? null : incomingLm));
+                    pendingLastMsgLinks.Add((copy, incomingLm.Id, existingMsgsById.ContainsKey(incomingLm.Id) ? null : incomingLm));
                 }
             }
 
@@ -186,7 +201,7 @@ public class ChatRepository : IChatRepository
 
         if (pendingLastMsgLinks.Count > 0)
         {
-            var addedMsgIds = new HashSet<string>(existingMsgIds, StringComparer.Ordinal);
+            var addedMsgIds = new HashSet<string>(existingMsgsById.Keys, StringComparer.Ordinal);
             foreach (var (targetChat, msgId, newMsg) in pendingLastMsgLinks)
             {
                 if (newMsg != null && addedMsgIds.Add(msgId))

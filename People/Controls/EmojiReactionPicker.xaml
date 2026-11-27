@@ -56,9 +56,11 @@
         </Style>
     </UserControl.Resources>
 
-    <!-- Windows 11 Native Fluent Overlay Container (8px CornerRadius, 340x420) -->
-    <Border Width="340"
+    <!-- Windows 11 Native Fluent Overlay Container (8px CornerRadius, responsive up to 340x420) -->
+    <Border MaxWidth="340"
+            MinWidth="220"
             Height="420"
+            HorizontalAlignment="Stretch"
             Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
             BorderThickness="1"

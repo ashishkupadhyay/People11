@@ -118,6 +118,8 @@ public class ThemeService : IThemeService
             ApplyRootBackground(App.Current.MainWindow, _currentBackdrop);
         }
 
+        Views.FlyoutWindow.CurrentFlyoutWindow?.ApplyRequestedTheme(theme);
+
         ApplyCurrentAccent();
     }
 

@@ -2132,6 +2132,19 @@ public partial class ConversationViewModel : ViewModelBase
         CurrentChat.LastMessage = pendingMsg;
         CurrentChat.LastMessageTime = pendingMsg.Timestamp;
 
+        var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
+        if (chatListVm != null)
+        {
+            if (!chatListVm.Chats.Any(c => ChatIdsMatch(c.Id, CurrentChat.Id)))
+            {
+                chatListVm.Chats.Insert(0, CurrentChat);
+            }
+            else
+            {
+                chatListVm.SortChatsInPlace();
+            }
+        }
+
         try
         {
             var repo = App.Current.Services.GetService<IMessageRepository>();
@@ -2151,8 +2164,30 @@ public partial class ConversationViewModel : ViewModelBase
                 {
                     existing.Id = sentMsg.Id;
                     existing.Status = sentMsg.Status;
+                    existing.Timestamp = sentMsg.Timestamp;
                 }
+                CurrentChat.RefreshLastMessagePreview();
+                RecalculateDateSeparators();
+                UpdateChatDateString();
             });
+            if (sentMsg.Id != pendingId)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var repo = App.Current.Services.GetService<IMessageRepository>();
+                        if (repo != null)
+                        {
+                            await repo.DeleteAsync(pendingId);
+                            await repo.SaveAsync(sentMsg);
+                        }
+                        var chatRepo = App.Current.Services.GetService<IChatRepository>();
+                        if (chatRepo != null) await chatRepo.SaveAsync(CurrentChat);
+                    }
+                    catch { }
+                });
+            }
         }
         catch (Exception ex)
         {

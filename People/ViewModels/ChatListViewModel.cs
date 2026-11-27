@@ -739,7 +739,11 @@ public partial class ChatListViewModel : ViewModelBase
                     }
                     chat.RefreshLastMessagePreview();
                 }
-                else if (chat.LastMessage == null || msg.Timestamp >= chat.LastMessageTime)
+                else if (chat.LastMessage == null ||
+                    (msg.Timestamp.ToUnixTimeSeconds() >= chat.LastMessageTime.ToUnixTimeSeconds() &&
+                     !(chat.LastMessage.Id.StartsWith("pending_", StringComparison.Ordinal) &&
+                       !msg.IsOutgoing &&
+                       msg.Timestamp.ToUnixTimeSeconds() == chat.LastMessageTime.ToUnixTimeSeconds())))
                 {
                     chat.LastMessage = msg;
                     chat.LastMessageTime = msg.Timestamp;
@@ -1090,7 +1094,44 @@ public partial class ChatListViewModel : ViewModelBase
                             {
                                 existing.Title = incoming.Title;
                             }
-                            if (existing.LastMessage == null || incoming.LastMessageTime >= existing.LastMessageTime)
+                            long incomingSec = incoming.LastMessageTime.ToUnixTimeSeconds();
+                            long existingSec = existing.LastMessageTime.ToUnixTimeSeconds();
+                            bool sameLastMsgId = existing.LastMessage != null &&
+                                                 incoming.LastMessage != null &&
+                                                 existing.LastMessage.Id == incoming.LastMessage.Id;
+
+                            if (sameLastMsgId && existing.LastMessage != null && incoming.LastMessage != null)
+                            {
+                                bool refreshed = false;
+                                if (incoming.LastMessage.Status > existing.LastMessage.Status)
+                                {
+                                    existing.LastMessage.Status = incoming.LastMessage.Status;
+                                    refreshed = true;
+                                }
+                                if (incoming.LastMessage.IsRevoked && !existing.LastMessage.IsRevoked)
+                                {
+                                    existing.LastMessage.IsRevoked = true;
+                                    refreshed = true;
+                                }
+                                if (incoming.LastMessage.IsEdited && !existing.LastMessage.IsEdited)
+                                {
+                                    existing.LastMessage.IsEdited = true;
+                                    refreshed = true;
+                                }
+                                if (incomingSec > existingSec)
+                                {
+                                    existing.LastMessageTime = incoming.LastMessageTime;
+                                }
+                                if (refreshed)
+                                {
+                                    existing.RefreshLastMessagePreview();
+                                }
+                            }
+                            else if (existing.LastMessage == null ||
+                                (incomingSec >= existingSec &&
+                                 !(existing.LastMessage.Id.StartsWith("pending_", StringComparison.Ordinal) &&
+                                   incoming.LastMessage?.IsOutgoing != true &&
+                                   incomingSec == existingSec)))
                             {
                                 existing.LastMessageTime = incoming.LastMessageTime;
                                 if (incoming.LastMessage != null)
@@ -1112,7 +1153,7 @@ public partial class ChatListViewModel : ViewModelBase
                             {
                                 existing.UnreadCount = 0;
                             }
-                            else if (existing.LastMessage == null || incoming.LastMessageTime >= existing.LastMessageTime)
+                            else if (existing.LastMessage == null || incomingSec >= existingSec)
                             {
                                 existing.UnreadCount = incoming.UnreadCount;
                             }
@@ -1518,7 +1559,7 @@ public partial class ChatListViewModel : ViewModelBase
 
     public Chat GetOrCreateChatForContact(Contact contact)
     {
-        var existing = Chats.FirstOrDefault(c => c.Id == contact.Id);
+        var existing = Chats.FirstOrDefault(c => ConversationViewModel.ChatIdsMatch(c.Id, contact.Id));
         if (existing != null)
         {
             return existing;

@@ -58,6 +58,7 @@
                         <Setter Target="DetailFrame.(Grid.Column)" Value="0" />
                         <Setter Target="DetailFrame.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="DetailFrame.CornerRadius" Value="0" />
+                        <Setter Target="DetailFrame.BorderThickness" Value="0" />
                         <!-- Visibility handled by code-behind based on selection -->
                         <Setter Target="PlaceholderGrid.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
@@ -95,8 +96,21 @@
                     <!-- New Chat Button -->
                     <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AppAccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
                         <Button.Flyout>
-                            <Flyout x:Name="NewChatFlyout">
-                                <StackPanel Width="320" Spacing="12">
+                            <Flyout x:Name="NewChatFlyout"
+                                    Placement="BottomEdgeAlignedRight"
+                                    Opening="NewChatFlyout_Opening">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="MinWidth" Value="220" />
+                                        <Setter Property="MaxWidth" Value="348" />
+                                        <Setter Property="Padding" Value="12" />
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <StackPanel x:Name="NewChatFlyoutPanel"
+                                            MaxWidth="320"
+                                            HorizontalAlignment="Stretch"
+                                            Spacing="12">
                                     <TextBlock x:Uid="NewChatText" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <AutoSuggestBox x:Name="SearchContactsBox" x:Uid="SearchContactsBox" QueryIcon="Find"
                                                     PlaceholderText="Search name or type phone number..."
@@ -205,7 +219,7 @@
                             
                             <PersonPicture Grid.Column="0" 
                                            ProfilePicture="{x:Bind PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}, ConverterParameter=Avatar}"
-                                           IsGroup="{x:Bind IsGroup, Mode=OneWay}"
+                                           IsGroup="{x:Bind ShowGroupPlaceholder, Mode=OneWay}"
                                            Initials="{x:Bind Initials, Mode=OneWay}"
                                            DisplayName="{x:Bind Title, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
                                            Width="48" Height="48" Margin="0,0,12,0"/>

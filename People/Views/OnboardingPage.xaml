@@ -204,7 +204,7 @@
     </Page.Resources>
 
     <!-- Root Grid fills 100% of window with solid base surface background -->
-    <Grid Background="{ThemeResource OnboardingBaseBackgroundBrush}">
+    <Grid x:Name="RootBaseGrid" Background="{ThemeResource OnboardingBaseBackgroundBrush}">
         <!-- Transparent Draggable TitleBar Region for full-window drag -->
         <Grid x:Name="OnboardingTitleBar"
               Height="48"

@@ -591,6 +591,18 @@ public class WhatsAppProvider : IWhatsAppProvider
         });
     }
 
+    private static string? GetOptionalString(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
+
+    private static long? GetOptionalInt64(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number && prop.TryGetInt64(out var val) ? val : null;
+
+    private static int? GetOptionalInt32(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var val) ? val : null;
+
+    private static bool GetOptionalBool(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.True;
+
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static void OnNativeMessageReceived(IntPtr msgJsonPtr)
     {
@@ -631,15 +643,15 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
 
-                string text = root.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? string.Empty : string.Empty;
-                string mediaType = root.TryGetProperty("mediaType", out var mediaProp) ? mediaProp.GetString() ?? "text" : "text";
-                string? mediaUrl = root.TryGetProperty("mediaUrl", out var muProp) ? muProp.GetString() : null;
-                string? fileName = root.TryGetProperty("fileName", out var fnProp) ? fnProp.GetString() : null;
-                long? fileSize = root.TryGetProperty("fileSize", out var fsProp) ? fsProp.GetInt64() : null;
-                string? mimeType = root.TryGetProperty("mimeType", out var mtProp) ? mtProp.GetString() : null;
-                string? thumbB64 = root.TryGetProperty("thumbnailBase64", out var tbProp) ? tbProp.GetString() : null;
-                string? caption = root.TryGetProperty("caption", out var capProp) ? capProp.GetString() : null;
-                int? duration = root.TryGetProperty("durationSeconds", out var durProp) ? durProp.GetInt32() : null;
+                string text = GetOptionalString(root, "text") ?? string.Empty;
+                string mediaType = GetOptionalString(root, "mediaType") ?? "text";
+                string? mediaUrl = GetOptionalString(root, "mediaUrl");
+                string? fileName = GetOptionalString(root, "fileName");
+                long? fileSize = GetOptionalInt64(root, "fileSize");
+                string? mimeType = GetOptionalString(root, "mimeType");
+                string? thumbB64 = GetOptionalString(root, "thumbnailBase64");
+                string? caption = GetOptionalString(root, "caption");
+                int? duration = GetOptionalInt32(root, "durationSeconds");
 
                 var contentType = ParseContentType(mediaType);
                 if (contentType == MessageContentType.Text && !string.IsNullOrEmpty(text))
@@ -664,7 +676,8 @@ public class WhatsAppProvider : IWhatsAppProvider
                     }
                 }
 
-                bool isRevoked = (root.TryGetProperty("isRevoked", out var revProp) && revProp.GetBoolean())
+                bool isOutgoingMsg = GetOptionalBool(root, "isOutgoing");
+                bool isRevoked = GetOptionalBool(root, "isRevoked")
                     || mediaType == "revoked"
                     || text == "You deleted this message"
                     || text == "This message was deleted";
@@ -672,8 +685,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 if (isRevoked)
                 {
                     contentType = MessageContentType.Text;
-                    bool isOutMsg = root.TryGetProperty("isOutgoing", out var isOutBool) && isOutBool.GetBoolean();
-                    text = isOutMsg ? "You deleted this message" : "This message was deleted";
+                    text = isOutgoingMsg ? "You deleted this message" : "This message was deleted";
                     caption = null;
                     mediaUrl = null;
                     fileName = null;
@@ -691,7 +703,7 @@ public class WhatsAppProvider : IWhatsAppProvider
 
                 var localDownloaded = !string.IsNullOrEmpty(mediaUrl) && File.Exists(mediaUrl);
 
-                var rawChatId = root.TryGetProperty("chatId", out var chatProp) ? chatProp.GetString() ?? string.Empty : string.Empty;
+                var rawChatId = GetOptionalString(root, "chatId") ?? string.Empty;
                 var canonChatId = rawChatId;
                 try
                 {
@@ -706,10 +718,10 @@ public class WhatsAppProvider : IWhatsAppProvider
 
                 var msg = new Message
                 {
-                    Id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? Guid.NewGuid().ToString() : Guid.NewGuid().ToString(),
+                    Id = GetOptionalString(root, "id") ?? Guid.NewGuid().ToString(),
                     ChatId = canonChatId,
-                    SenderId = root.TryGetProperty("senderId", out var senderProp) ? senderProp.GetString() ?? string.Empty : string.Empty,
-                    SenderName = root.TryGetProperty("senderName", out var sNameProp) ? sNameProp.GetString() : null,
+                    SenderId = GetOptionalString(root, "senderId") ?? string.Empty,
+                    SenderName = GetOptionalString(root, "senderName"),
                     PlatformId = "WhatsApp",
                     Content = new MessageContent
                     {
@@ -724,12 +736,13 @@ public class WhatsAppProvider : IWhatsAppProvider
                         Caption = caption,
                         DurationSeconds = duration
                     },
-                    Timestamp = root.TryGetProperty("timestamp", out var tsProp) ? DateTimeOffset.FromUnixTimeSeconds(tsProp.GetInt64()) : DateTimeOffset.UtcNow,
-                    Status = root.TryGetProperty("status", out var stProp) ? (MessageStatus)stProp.GetInt32() : ((root.TryGetProperty("isOutgoing", out var isOut) && isOut.GetBoolean()) ? MessageStatus.Sent : MessageStatus.Delivered),
-                    IsOutgoing = root.TryGetProperty("isOutgoing", out var outProp) && outProp.GetBoolean(),
-                    IsEdited = root.TryGetProperty("isEdited", out var editProp) && editProp.GetBoolean(),
-                    QuotedText = root.TryGetProperty("quotedText", out var qTextProp) ? qTextProp.GetString() : null,
-                    QuotedSender = root.TryGetProperty("quotedSender", out var qSenderProp) ? qSenderProp.GetString() : null,
+                    Timestamp = GetOptionalInt64(root, "timestamp") is long tsSec ? DateTimeOffset.FromUnixTimeSeconds(tsSec) : DateTimeOffset.UtcNow,
+                    Status = GetOptionalInt32(root, "status") is int stVal ? (MessageStatus)stVal : (isOutgoingMsg ? MessageStatus.Sent : MessageStatus.Delivered),
+                    IsOutgoing = isOutgoingMsg,
+                    IsEdited = GetOptionalBool(root, "isEdited"),
+                    IsRevoked = isRevoked,
+                    QuotedText = GetOptionalString(root, "quotedText"),
+                    QuotedSender = GetOptionalString(root, "quotedSender"),
                     Reactions = reactionsList
                 };
 
@@ -3113,10 +3126,9 @@ public class WhatsAppProvider : IWhatsAppProvider
                 }
             }
 
-            // 3. Throttled background trickle for 1:1 contact chats missing avatars (most recent first)
+            // 3. Throttled background trickle for remaining chats/groups missing avatars (most recent first)
             var missingContacts = chats
-                .Where(c => !c.IsGroup
-                    && string.IsNullOrEmpty(TryFindExistingLocalAvatar(c.Id, c.PictureUrl))
+                .Where(c => string.IsNullOrEmpty(TryFindExistingLocalAvatar(c.Id, c.PictureUrl))
                     && (!_lastAvatarAttempt.TryGetValue(CanonicalizeCacheKey(c.Id), out var lastTs) || (now - lastTs).TotalSeconds >= 180))
                 .OrderByDescending(c => c.LastMessageTime)
                 .Take(40)

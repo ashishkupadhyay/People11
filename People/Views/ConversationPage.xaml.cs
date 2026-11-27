@@ -1743,6 +1743,20 @@ public sealed partial class ConversationPage : Page
 
     public void ApplyFlyoutTheming(Microsoft.UI.Xaml.ResourceDictionary? dict = null)
     {
+        bool isFlyout = (dict != null && ReferenceEquals(dict, FlyoutWindow.CurrentFlyoutResources))
+            || (this.XamlRoot != null &&
+                FlyoutWindow.CurrentFlyoutWindow != null &&
+                this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot);
+        if (isFlyout)
+        {
+            var transparentBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            this.Background = transparentBrush;
+            if (ConversationHeaderBorder != null)
+            {
+                ConversationHeaderBorder.Background = transparentBrush;
+            }
+        }
+
         var targetDict = dict ?? FlyoutWindow.CurrentFlyoutResources;
         if (targetDict == null) return;
 

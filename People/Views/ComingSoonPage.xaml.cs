@@ -33,7 +33,6 @@ public sealed partial class ComingSoonPage : Page
         base.OnNavigatedTo(e);
 
         bool isFlyout = (this.XamlRoot != null && FlyoutWindow.CurrentFlyoutWindow != null && this.XamlRoot == FlyoutWindow.CurrentFlyoutWindow.Content?.XamlRoot)
-                        || (FlyoutWindow.CurrentFlyoutWindow != null && FlyoutWindow.CurrentFlyoutWindow.IsFlyoutVisible)
                         || (Frame?.Tag as string == "Flyout");
 
         if (e.Parameter is string appName)
@@ -47,11 +46,18 @@ public sealed partial class ComingSoonPage : Page
             if (AppStyles.TryGetValue(appName, out var style))
             {
                 TitleTextBlock.Text = $"{appName} Support is Coming Soon";
-                
-                // Set background gradient
-                ColorStop1.Color = GetColorFromHex(style.Hex1);
-                ColorStop2.Color = GetColorFromHex(style.Hex2);
-                
+
+                // Set background gradient (translucent inside flyout so system acrylic shines through)
+                var c1 = GetColorFromHex(style.Hex1);
+                var c2 = GetColorFromHex(style.Hex2);
+                if (isFlyout)
+                {
+                    c1 = Windows.UI.Color.FromArgb(0x38, c1.R, c1.G, c1.B);
+                    c2 = Windows.UI.Color.FromArgb(0x14, c2.R, c2.G, c2.B);
+                }
+                ColorStop1.Color = c1;
+                ColorStop2.Color = c2;
+
                 UpdateAnimation(appName);
             }
         }

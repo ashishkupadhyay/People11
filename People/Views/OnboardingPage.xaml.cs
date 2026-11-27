@@ -361,6 +361,10 @@ public sealed partial class OnboardingPage : Page
         else
         {
             OnboardingTitleBar.Visibility = Visibility.Collapsed;
+            if (_isFlyout && RootBaseGrid != null)
+            {
+                RootBaseGrid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
         }
     }
 

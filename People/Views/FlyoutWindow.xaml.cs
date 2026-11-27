@@ -115,7 +115,14 @@ public sealed partial class FlyoutWindow : Window
         }
         else if (key.StartsWith("BrandColor_") || key == "AppTheme" || key == $"{_selectedPlatform}Enabled")
         {
-            DispatcherQueue.TryEnqueue(() => ApplyFlyoutPlatformAccent(_selectedPlatform));
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (key == "AppTheme")
+                {
+                    ApplyRequestedTheme();
+                }
+                ApplyFlyoutPlatformAccent(_selectedPlatform);
+            });
         }
         else if (key == "HasCompletedOnboarding" || key == "WhatsAppTestingMode")
         {
@@ -126,25 +133,47 @@ public sealed partial class FlyoutWindow : Window
     private void ApplyFlyoutBackdrop()
     {
         var backdropStr = _settingsService.GetValue<string>("FlyoutBackdrop") ?? "AcrylicBase";
+        var targetKind = backdropStr == "AcrylicThin"
+            ? Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicKind.Thin
+            : Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicKind.Base;
 
-        if (backdropStr == "AcrylicThin")
+        if (this.SystemBackdrop is FlyoutAcrylicBackdrop existingBackdrop)
         {
-            if (this.SystemBackdrop is not DesktopAcrylicBackdrop)
-            {
-                this.SystemBackdrop = new DesktopAcrylicBackdrop();
-            }
+            existingBackdrop.Kind = targetKind;
+            existingBackdrop.RefreshSystemColors();
         }
         else
         {
-            if (this.SystemBackdrop is FlyoutAcrylicBackdrop existingBackdrop)
-            {
-                existingBackdrop.Kind = DesktopAcrylicKind.Base;
-            }
-            else
-            {
-                this.SystemBackdrop = new FlyoutAcrylicBackdrop(DesktopAcrylicKind.Base);
-            }
+            var newBackdrop = new FlyoutAcrylicBackdrop(targetKind);
+            newBackdrop.SystemColorsRefreshed += OnFlyoutSystemColorsRefreshed;
+            this.SystemBackdrop = newBackdrop;
         }
+
+        ApplyRequestedTheme();
+    }
+
+    private void OnFlyoutSystemColorsRefreshed()
+    {
+        ApplyRequestedTheme();
+    }
+
+    public void ApplyRequestedTheme(string? appThemeOverride = null)
+    {
+        if (RootGrid == null) return;
+
+        if (FlyoutAcrylicBackdrop.IsTaskbarAccentColorEnabled() && !FlyoutAcrylicBackdrop.IsTaskbarLightTheme())
+        {
+            RootGrid.RequestedTheme = ElementTheme.Dark;
+            return;
+        }
+
+        var theme = appThemeOverride ?? _settingsService.GetValue<string>("AppTheme") ?? "Default";
+        RootGrid.RequestedTheme = theme switch
+        {
+            "Light" => ElementTheme.Light,
+            "Dark" => ElementTheme.Dark,
+            _ => ElementTheme.Default
+        };
     }
 
     private void ApplyFlyoutPlatformAccent(string platform)
@@ -245,6 +274,11 @@ public sealed partial class FlyoutWindow : Window
     public void ShowFlyoutAnimated(POINT? anchorPos = null)
     {
         IsFlyoutVisible = true;
+        if (this.SystemBackdrop is FlyoutAcrylicBackdrop flyoutBackdrop)
+        {
+            flyoutBackdrop.RefreshSystemColors();
+        }
+        ApplyRequestedTheme();
         UpdateNavigationState();
         PositionAndResizeWindow(anchorPos);
         ApplyFlyoutPlatformAccent(_selectedPlatform);
@@ -381,6 +415,10 @@ public sealed partial class FlyoutWindow : Window
     public void DestroyWindow()
     {
         _settingsService.SettingChanged -= OnSettingChanged;
+        if (this.SystemBackdrop is FlyoutAcrylicBackdrop flyoutBackdrop)
+        {
+            flyoutBackdrop.SystemColorsRefreshed -= OnFlyoutSystemColorsRefreshed;
+        }
         this.Close();
     }
 

@@ -134,10 +134,40 @@ public sealed partial class ChatListPage : Page
 
     private void DetailFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
-        // Only allow hits and visibility if we are looking at a conversation.
         bool hasConv = DetailFrame.Content is ConversationPage;
-        DetailFrame.IsHitTestVisible = hasConv;
-        DetailFrame.Visibility = hasConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        if (hasConv)
+        {
+            _detailCollapseTimer?.Stop();
+            DetailFrame.IsHitTestVisible = true;
+            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        }
+        else
+        {
+            DetailFrame.IsHitTestVisible = false;
+            _detailCollapseTimer?.Stop();
+            if (this.ActualWidth > 0 && this.ActualWidth < 640)
+            {
+                if (_detailCollapseTimer == null)
+                {
+                    _detailCollapseTimer = DispatcherQueue.CreateTimer();
+                    _detailCollapseTimer.Interval = TimeSpan.FromMilliseconds(320);
+                    _detailCollapseTimer.IsRepeating = false;
+                    _detailCollapseTimer.Tick += (_, _) =>
+                    {
+                        if (DetailFrame.Content is not ConversationPage)
+                        {
+                            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                        }
+                    };
+                }
+                DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                _detailCollapseTimer.Start();
+            }
+            else
+            {
+                DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
+        }
 
         if (hasConv && DetailFrame.Content is ConversationPage convPage)
         {
@@ -171,6 +201,7 @@ public sealed partial class ChatListPage : Page
         }
     }
     
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _detailCollapseTimer;
     private string? _platformId = "WhatsApp";
     private string? _lastEmptyStateKey;
     
@@ -404,6 +435,8 @@ public sealed partial class ChatListPage : Page
     {
         if (chat == null) return;
 
+        _detailCollapseTimer?.Stop();
+
         if (DetailFrame.Content is ConversationPage existingConvPage &&
             existingConvPage.ViewModel.CurrentChat?.Id == chat.Id)
         {
@@ -455,6 +488,13 @@ public sealed partial class ChatListPage : Page
         }
     }
 
+    private void NewChatFlyout_Opening(object sender, object e)
+    {
+        if (NewChatFlyoutPanel == null) return;
+        double w = ActualWidth > 0 ? ActualWidth : 340;
+        NewChatFlyoutPanel.Width = w < 400 ? Math.Clamp(w - 44, 210, 320) : 320;
+    }
+
     public bool IsDetailVisibleInNarrowMode()
     {
         return this.ActualWidth < 640 && DetailFrame.Content is ConversationPage;
@@ -463,19 +503,18 @@ public sealed partial class ChatListPage : Page
     public void CloseDetail()
     {
         if (ChatsListView != null) ChatsListView.SelectedItem = null;
+        DetailFrame.IsHitTestVisible = false;
+        var slideBack = new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo
+        {
+            Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromLeft
+        };
         if (DetailFrame.CanGoBack)
         {
-            DetailFrame.GoBack();
+            DetailFrame.GoBack(slideBack);
         }
         else
         {
-            DetailFrame.Navigate(
-                typeof(Page),
-                null,
-                new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo
-                {
-                    Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromLeft
-                });
+            DetailFrame.Navigate(typeof(Page), null, slideBack);
         }
     }
 
@@ -700,6 +739,9 @@ public sealed partial class ChatListPage : Page
         {
             convPage.ApplyFlyoutTheming(targetDict);
         }
+        var transparentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        if (SyncingOverlay != null) SyncingOverlay.Background = transparentBrush;
+        if (ErrorOverlay != null) ErrorOverlay.Background = transparentBrush;
     }
 }
 

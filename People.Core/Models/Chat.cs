@@ -15,9 +15,11 @@ public partial class Chat : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LastMessagePreview))]
+    [NotifyPropertyChangedFor(nameof(ShowGroupPlaceholder))]
     private bool _isGroup;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGroupPlaceholder))]
     private string? _pictureUrl;
 
     [ObservableProperty]
@@ -29,6 +31,8 @@ public partial class Chat : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LastMessagePreview))]
     private Message? _lastMessage;
+
+    public bool ShowGroupPlaceholder => IsGroup && string.IsNullOrEmpty(PictureUrl);
 
     public void RefreshLastMessagePreview()
     {
