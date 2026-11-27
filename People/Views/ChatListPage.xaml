@@ -315,15 +315,6 @@
             <Frame.RenderTransform>
                 <TranslateTransform x:Name="DetailTransform" X="0" />
             </Frame.RenderTransform>
-            <Frame.ContentTransitions>
-                <TransitionCollection>
-                    <NavigationThemeTransition>
-                        <NavigationThemeTransition.DefaultNavigationTransitionInfo>
-                            <SlideNavigationTransitionInfo Effect="FromRight"/>
-                        </NavigationThemeTransition.DefaultNavigationTransitionInfo>
-                    </NavigationThemeTransition>
-                </TransitionCollection>
-            </Frame.ContentTransitions>
         </Frame>
         </Grid>
 

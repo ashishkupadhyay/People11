@@ -979,26 +979,32 @@
             </Border>
 
             <!-- Scroll to Bottom Button (centered above compose box when scrolled up) -->
-            <Button x:Name="ScrollToBottomButton"
+            <Border x:Name="ScrollToBottomContainer"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Bottom"
                     Margin="0,0,0,12"
                     Width="36"
                     Height="36"
-                    Padding="0"
                     CornerRadius="18"
                     Canvas.ZIndex="15"
                     Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     Visibility="Collapsed"
-                    Opacity="0"
-                    Click="ScrollToBottomButton_Click"
-                    ToolTipService.ToolTip="Scroll to bottom"
-                    AutomationProperties.Name="Scroll to bottom"
-                    AutomationProperties.AutomationId="ScrollToBottomBtn">
-                <FontIcon Glyph="&#xE70D;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-            </Button>
+                    Opacity="0">
+                <Button x:Name="ScrollToBottomButton"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        CornerRadius="18"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        Click="ScrollToBottomButton_Click"
+                        ToolTipService.ToolTip="Scroll to bottom"
+                        AutomationProperties.Name="Scroll to bottom"
+                        AutomationProperties.AutomationId="ScrollToBottomBtn">
+                    <FontIcon Glyph="&#xE70D;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                </Button>
+            </Border>
         </Grid>
 
         <!-- Input Area -->

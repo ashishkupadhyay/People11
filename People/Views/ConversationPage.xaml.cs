@@ -260,7 +260,7 @@ public sealed partial class ConversationPage : Page
 
     private void UpdateScrollToBottomButton()
     {
-        if (ScrollToBottomButton == null) return;
+        if (ScrollToBottomContainer == null) return;
 
         bool shouldShow = _messagesScrollViewer != null
             && ViewModel != null
@@ -272,10 +272,10 @@ public sealed partial class ConversationPage : Page
 
         if (shouldShow)
         {
-            ScrollToBottomButton.Visibility = Visibility.Visible;
+            ScrollToBottomContainer.Visibility = Visibility.Visible;
             var anim = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(160) };
             var sb = new Storyboard();
-            Storyboard.SetTarget(anim, ScrollToBottomButton);
+            Storyboard.SetTarget(anim, ScrollToBottomContainer);
             Storyboard.SetTargetProperty(anim, "Opacity");
             sb.Children.Add(anim);
             sb.Begin();
@@ -284,14 +284,14 @@ public sealed partial class ConversationPage : Page
         {
             var anim = new DoubleAnimation { To = 0.0, Duration = TimeSpan.FromMilliseconds(140) };
             var sb = new Storyboard();
-            Storyboard.SetTarget(anim, ScrollToBottomButton);
+            Storyboard.SetTarget(anim, ScrollToBottomContainer);
             Storyboard.SetTargetProperty(anim, "Opacity");
             sb.Children.Add(anim);
             sb.Completed += (_, _) =>
             {
-                if (!_isScrollToBottomVisible && ScrollToBottomButton != null)
+                if (!_isScrollToBottomVisible && ScrollToBottomContainer != null)
                 {
-                    ScrollToBottomButton.Visibility = Visibility.Collapsed;
+                    ScrollToBottomContainer.Visibility = Visibility.Collapsed;
                 }
             };
             sb.Begin();
@@ -369,9 +369,12 @@ public sealed partial class ConversationPage : Page
 
         UpdateFloatingDatePill();
         UpdateScrollToBottomButton();
-        ShowFloatingDatePill();
-        _pillHideTimer.Stop();
-        _pillHideTimer.Start();
+        if (_initialLoadComplete)
+        {
+            ShowFloatingDatePill();
+            _pillHideTimer.Stop();
+            _pillHideTimer.Start();
+        }
     }
 
     private void ShowFloatingDatePill()
@@ -578,10 +581,20 @@ public sealed partial class ConversationPage : Page
     {
         _initialLoadComplete = false;
         _isScrollToBottomVisible = false;
-        if (ScrollToBottomButton != null)
+        _isPillVisible = false;
+        _pillHideTimer.Stop();
+        if (FloatingDatePill != null)
         {
-            ScrollToBottomButton.Opacity = 0;
-            ScrollToBottomButton.Visibility = Visibility.Collapsed;
+            FloatingDatePill.Opacity = 0;
+        }
+        if (PillTransform != null)
+        {
+            PillTransform.Y = -50;
+        }
+        if (ScrollToBottomContainer != null)
+        {
+            ScrollToBottomContainer.Opacity = 0;
+            ScrollToBottomContainer.Visibility = Visibility.Collapsed;
         }
         if (e.Parameter is Chat chat)
         {
@@ -994,6 +1007,8 @@ public sealed partial class ConversationPage : Page
                 if (s is not ContentDialog openedDialog) return;
                 if (FindDescendantByName<Grid>(openedDialog, "CommandSpace") is Grid commandSpace)
                 {
+                    commandSpace.ColumnDefinitions.Clear();
+                    commandSpace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     commandSpace.RowDefinitions.Clear();
                     commandSpace.RowSpacing = 8;
 
@@ -1004,7 +1019,7 @@ public sealed partial class ConversationPage : Page
                         {
                             commandSpace.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                             Grid.SetColumn(btn, 0);
-                            Grid.SetColumnSpan(btn, 5);
+                            Grid.SetColumnSpan(btn, 1);
                             Grid.SetRow(btn, row++);
                         }
                     }

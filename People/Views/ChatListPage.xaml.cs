@@ -535,14 +535,14 @@ public sealed partial class ChatListPage : Page
         {
             EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
         };
-        var duration = TimeSpan.FromMilliseconds(220);
+        var duration = TimeSpan.FromMilliseconds(190);
 
-        DetailTransform.X = 72;
-        DetailFrame.Opacity = 0.0;
+        DetailFrame.Opacity = 1.0;
+        DetailTransform.X = 56;
 
         var slideAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
-            From = 72,
+            From = 56,
             To = 0,
             Duration = duration,
             EasingFunction = ease
@@ -550,19 +550,8 @@ public sealed partial class ChatListPage : Page
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(slideAnim, DetailTransform);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(slideAnim, "X");
 
-        var fadeAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            From = 0.0,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeAnim, DetailFrame);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeAnim, "Opacity");
-
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
         sb.Children.Add(slideAnim);
-        sb.Children.Add(fadeAnim);
         _narrowSlideStoryboard = sb;
 
         sb.Completed += (_, _) =>
@@ -571,6 +560,10 @@ public sealed partial class ChatListPage : Page
             _narrowSlideStoryboard = null;
             DetailTransform.X = 0;
             DetailFrame.Opacity = 1.0;
+            if (DetailFrame.Content is ConversationPage)
+            {
+                PlaceholderGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
         };
         sb.Begin();
     }
