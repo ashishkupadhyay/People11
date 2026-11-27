@@ -65,6 +65,7 @@ public class WhatsAppProvider : IWhatsAppProvider
     public event EventHandler<string>? ChatMarkedRead;
     public event EventHandler<(string MessageId, long BytesReceived, long TotalBytes)>? MediaDownloadProgress;
     public event EventHandler<string>? HistoryMessagesUpdated;
+    public event EventHandler<(string ChatId, string? PictureUrl)>? ChatPictureUpdated;
 
     private IntPtr _clientPtr = IntPtr.Zero;
     private readonly ILogger<WhatsAppProvider>? _logger;
@@ -76,6 +77,16 @@ public class WhatsAppProvider : IWhatsAppProvider
     // Static instance pointer for unmanaged C callbacks
     private static WhatsAppProvider? _activeInstance;
 
+    private static readonly System.Net.Http.HttpClient _avatarHttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(12)
+    };
+    private static readonly string _avatarCacheDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "People",
+        "Avatars",
+        "whatsapp");
+
     // In-memory testing messages cache so sent messages persist during session
     private readonly List<Message> _testingMessages = new();
 
@@ -85,8 +96,19 @@ public class WhatsAppProvider : IWhatsAppProvider
     private readonly ConcurrentDictionary<string, List<Message>> _memoryMessageCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, List<TaskCompletionSource<bool>>> _pdoWaiters = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTimeOffset> _pdoAttemptedChats = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Task<string?>> _inflightPictureLookups = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Task<string?>> _inflightAvatarDownloads = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string?> _localAvatarPathCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastAvatarAttempt = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _outboxLock = new(1, 1);
     private readonly SemaphoreSlim _authLock = new(1, 1);
+    private readonly SemaphoreSlim _avatarBatchGate = new(1, 1);
+    private readonly System.Threading.Channels.Channel<Message> _messageSaveChannel =
+        System.Threading.Channels.Channel.CreateUnbounded<Message>(
+            new System.Threading.Channels.UnboundedChannelOptions { SingleReader = true });
+    private readonly CancellationTokenSource _providerLifetimeCts = new();
+    private volatile int _chatsNotifyDirty;
+    private int _chatsNotifyRunning;
     private System.Threading.Timer? _outboxTimer;
     private System.Threading.Timer? _watchdogTimer;
     private DateTimeOffset _lastReconnectAttempt = DateTimeOffset.MinValue;
@@ -113,6 +135,7 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         _outboxTimer = new System.Threading.Timer(OnOutboxTimerTick, null, 1500, 1500);
         _watchdogTimer = new System.Threading.Timer(OnWatchdogTimerTick, null, 15000, 15000);
+        _ = Task.Run(() => RunMessagePersistenceLoopAsync(_providerLifetimeCts.Token));
 
         InitializeClientAndCache();
     }
@@ -185,6 +208,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                         WhatsAppNative.wa_register_download_progress_callback(_clientPtr, &OnNativeDownloadProgress);
                         WhatsAppNative.wa_register_history_chunk_callback(_clientPtr, &OnNativeHistoryChunkReceived);
                         WhatsAppNative.wa_register_connection_state_callback(_clientPtr, &OnNativeConnectionStateChanged);
+                        WhatsAppNative.wa_register_picture_updated_callback(_clientPtr, &OnNativePictureUpdated);
                     }
 
                     await Task.Run(() => WhatsAppNative.wa_load_cache(dbPath), ct);
@@ -424,6 +448,7 @@ public class WhatsAppProvider : IWhatsAppProvider
         var instance = _activeInstance;
         if (state == 1)
         {
+            instance._lastAvatarAttempt.Clear();
             if (instance.ConnectionState != ConnectionState.Connected)
             {
                 instance.ConnectionState = ConnectionState.Connected;
@@ -494,50 +519,76 @@ public class WhatsAppProvider : IWhatsAppProvider
         catch { }
     }
 
-    private static readonly object _chatsUpdateLock = new();
-    private static CancellationTokenSource? _chatsUpdateDebounceCts;
-
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static void OnNativeChatsUpdated()
     {
-        if (_activeInstance == null) return;
-        _activeInstance._logger?.LogInformation("WhatsApp chats updated notification from backend.");
+        ScheduleChatsUpdatedCoalesced();
+    }
 
-        lock (_chatsUpdateLock)
+    private static void ScheduleChatsUpdatedCoalesced()
+    {
+        var instance = _activeInstance;
+        if (instance == null) return;
+
+        Interlocked.Exchange(ref instance._chatsNotifyDirty, 1);
+        if (Interlocked.CompareExchange(ref instance._chatsNotifyRunning, 1, 0) != 0)
         {
-            _chatsUpdateDebounceCts?.Cancel();
-            _chatsUpdateDebounceCts?.Dispose();
-            _chatsUpdateDebounceCts = new CancellationTokenSource();
-            var token = _chatsUpdateDebounceCts.Token;
+            return;
+        }
 
-            _ = Task.Run(async () =>
+        _ = Task.Run(async () =>
+        {
+            try
             {
-                try
+                await Task.Delay(60).ConfigureAwait(false);
+                while (true)
                 {
-                    await Task.Delay(150, token);
-                    if (token.IsCancellationRequested) return;
+                    Interlocked.Exchange(ref instance._chatsNotifyDirty, 0);
 
-                    if (_activeInstance._chatRepository != null && _activeInstance._clientPtr != IntPtr.Zero)
+                    if (instance._chatRepository != null && instance._clientPtr != IntPtr.Zero)
                     {
-                        var chats = await _activeInstance.FetchChatsFromNativeAsync(token);
-                        if (chats.Count > 0 && !token.IsCancellationRequested)
+                        var chats = await instance.FetchChatsFromNativeAsync().ConfigureAwait(false);
+                        if (chats.Count > 0)
                         {
-                            await _activeInstance._chatRepository.SaveManyAsync(chats);
+                            try
+                            {
+                                var picMap = await instance._chatRepository.GetPictureUrlsByPlatformAsync(instance.PlatformId).ConfigureAwait(false);
+                                foreach (var rc in chats)
+                                {
+                                    if (string.IsNullOrEmpty(rc.PictureUrl) && picMap.TryGetValue(rc.Id, out var cachedPic))
+                                    {
+                                        rc.PictureUrl = instance.TryFindExistingLocalAvatar(rc.Id, cachedPic) ?? cachedPic;
+                                    }
+                                }
+                            }
+                            catch { }
+
+                            await instance._chatRepository.SaveManyAsync(chats).ConfigureAwait(false);
                         }
                     }
 
-                    if (!token.IsCancellationRequested)
+                    instance.ChatUpdated?.Invoke(instance, new ChatUpdatedEventArgs());
+
+                    await Task.Delay(220).ConfigureAwait(false);
+                    if (Interlocked.CompareExchange(ref instance._chatsNotifyDirty, 0, 0) == 0)
                     {
-                        _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
+                        break;
                     }
                 }
-                catch (OperationCanceledException) { }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                instance._logger?.LogError(ex, "Failed to persist updated chats to SQLite repository.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref instance._chatsNotifyRunning, 0);
+                if (Interlocked.CompareExchange(ref instance._chatsNotifyDirty, 0, 0) != 0)
                 {
-                    _activeInstance._logger?.LogError(ex, "Failed to persist updated chats to SQLite repository.");
+                    ScheduleChatsUpdatedCoalesced();
                 }
-            }, token);
-        }
+            }
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -692,59 +743,41 @@ public class WhatsAppProvider : IWhatsAppProvider
 
                 if (shouldAutoDownload && !localDownloaded && (contentType == MessageContentType.Image || contentType == MessageContentType.Video || contentType == MessageContentType.Document))
                 {
+                    var dlChatId = msg.ChatId;
+                    var dlMsgId = msg.Id;
+                    var dlFileName = msg.Content.FileName;
+                    var dlSnapshot = CloneMessage(msg);
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            var downloadedPath = await _activeInstance.DownloadMediaAsync(msg.ChatId, msg.Id, msg.Content.FileName);
+                            var downloadedPath = await _activeInstance.DownloadMediaAsync(dlChatId, dlMsgId, dlFileName);
                             if (!string.IsNullOrEmpty(downloadedPath) && File.Exists(downloadedPath))
                             {
-                                msg.Content.LocalFilePath = downloadedPath;
-                                if (_activeInstance._messageRepository != null)
+                                dlSnapshot.Content.LocalFilePath = downloadedPath;
+                                _activeInstance._messageSaveChannel.Writer.TryWrite(CloneMessage(dlSnapshot));
+                                var canonDlKey = _activeInstance.CanonicalizeCacheKey(dlChatId);
+                                if (_activeInstance._memoryMessageCache.ContainsKey(canonDlKey))
                                 {
-                                    await _activeInstance._messageRepository.SaveAsync(msg);
+                                    _activeInstance.UpsertMemoryCacheMessages(canonDlKey, new[] { dlSnapshot });
                                 }
+                                _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(CloneMessage(dlSnapshot)));
                             }
                         }
                         catch { }
                     });
                 }
 
-                // Persist to SQLite repository
-                if (_activeInstance._messageRepository != null)
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await _activeInstance._messageRepository.SaveAsync(msg);
-                            if (_activeInstance._chatRepository != null && msg.Content?.Type != MessageContentType.SystemNotice)
-                            {
-                                var existingChat = await _activeInstance._chatRepository.GetByIdAsync(msg.ChatId)
-                                    ?? await _activeInstance._chatRepository.GetByIdAsync(msg.ChatId.StartsWith("wa_") ? msg.ChatId[3..] : ("wa_" + msg.ChatId));
-                                if (existingChat != null)
-                                {
-                                    existingChat.LastMessage = msg;
-                                    existingChat.LastMessageTime = msg.Timestamp;
-                                    await _activeInstance._chatRepository.SaveAsync(existingChat);
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _activeInstance._logger?.LogError(ex, "Failed to persist live message to SQLite.");
-                        }
-                    });
-                }
+                // Batch-persist to SQLite cleanly without lock contention during multi-day catch-up sync
+                _activeInstance._messageSaveChannel.Writer.TryWrite(CloneMessage(msg));
 
-                var cleanChat = msg.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? msg.ChatId[3..] : msg.ChatId;
-                if (_activeInstance._memoryMessageCache.ContainsKey(cleanChat))
+                var cleanChat = _activeInstance.CanonicalizeCacheKey(msg.ChatId);
+                if (!string.IsNullOrEmpty(cleanChat) && _activeInstance._memoryMessageCache.ContainsKey(cleanChat))
                 {
                     _activeInstance.UpsertMemoryCacheMessages(cleanChat, new[] { msg });
                 }
 
-                _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(msg));
-                _activeInstance.ChatUpdated?.Invoke(_activeInstance, new ChatUpdatedEventArgs());
+                _activeInstance.MessageReceived?.Invoke(_activeInstance, new MessageReceivedEventArgs(CloneMessage(msg)));
             }
             catch (Exception ex)
             {
@@ -790,6 +823,11 @@ public class WhatsAppProvider : IWhatsAppProvider
                             {
                                 rc.PictureUrl = cachedPic;
                             }
+                            var localPic = TryFindExistingLocalAvatar(rc.Id, rc.PictureUrl);
+                            if (!string.IsNullOrEmpty(localPic))
+                            {
+                                rc.PictureUrl = localPic;
+                            }
                         }
                     }
                     catch { }
@@ -811,6 +849,14 @@ public class WhatsAppProvider : IWhatsAppProvider
                 var localChats = await _chatRepository.GetByPlatformAsync(PlatformId, offset, limit);
                 if (localChats.Count > 0)
                 {
+                    foreach (var lc in localChats)
+                    {
+                        var localPic = TryFindExistingLocalAvatar(lc.Id, lc.PictureUrl);
+                        if (!string.IsNullOrEmpty(localPic))
+                        {
+                            lc.PictureUrl = localPic;
+                        }
+                    }
                     return localChats;
                 }
             }
@@ -919,12 +965,12 @@ public class WhatsAppProvider : IWhatsAppProvider
             return Array.Empty<Message>();
         }
 
-        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var cleanChatId = CanonicalizeCacheKey(chatId);
         if (_memoryMessageCache.TryGetValue(cleanChatId, out var memList) && memList.Count > 0)
         {
             lock (memList)
             {
-                return memList.TakeLast(limit).ToList();
+                return memList.TakeLast(limit).Select(CloneMessage).ToList();
             }
         }
 
@@ -955,12 +1001,12 @@ public class WhatsAppProvider : IWhatsAppProvider
             return Array.Empty<Message>();
         }
 
-        var cleanChatId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var cleanChatId = CanonicalizeCacheKey(chatId);
         if (_memoryMessageCache.TryGetValue(cleanChatId, out var memList) && memList.Count > 0)
         {
             lock (memList)
             {
-                return memList.TakeLast(limit).ToList();
+                return memList.TakeLast(limit).Select(CloneMessage).ToList();
             }
         }
 
@@ -970,22 +1016,25 @@ public class WhatsAppProvider : IWhatsAppProvider
         var bareUser = cleanChatId.Split('@')[0].Split(':')[0];
         foreach (var p in _outboxQueue)
         {
-            var c = p.ChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? p.ChatId[3..] : p.ChatId;
+            var c = CanonicalizeCacheKey(p.ChatId);
             var cBare = c.Split('@')[0].Split(':')[0];
             if (string.Equals(c, cleanChatId, StringComparison.OrdinalIgnoreCase) ||
                 (bareUser.Length >= 5 && string.Equals(cBare, bareUser, StringComparison.OrdinalIgnoreCase)))
             {
                 if (!resultList.Any(r => r.Id == p.Id) &&
-                    !resultList.Any(r => r.IsOutgoing && r.Status != MessageStatus.Sending && r.Content?.Text == p.Content?.Text))
+                    !resultList.Any(r => r.IsOutgoing && r.Status != MessageStatus.Sending && r.Content?.Text == p.Content?.Text && Math.Abs((r.Timestamp - p.Timestamp).TotalSeconds) <= 120))
                 {
-                    resultList.Add(p);
+                    resultList.Add(CloneMessage(p));
                 }
             }
         }
 
         var finalResult = resultList.OrderBy(m => m.Timestamp).ToList();
-        _memoryMessageCache[cleanChatId] = finalResult;
-        return finalResult;
+        if (finalResult.Count > 0)
+        {
+            UpsertMemoryCacheMessages(cleanChatId, finalResult);
+        }
+        return finalResult.Select(CloneMessage).ToList();
     }
 
     private async Task<IReadOnlyList<Chat>> FetchChatsFromNativeAsync(CancellationToken ct = default)
@@ -1014,14 +1063,16 @@ public class WhatsAppProvider : IWhatsAppProvider
                 {
                     continue;
                 }
+                var rawId = dto.Id ?? string.Empty;
+                var localPic = TryFindExistingLocalAvatar(rawId, dto.PictureUrl);
                 var chat = new Chat
                 {
-                    Id = dto.Id ?? string.Empty,
+                    Id = rawId,
                     PlatformId = "WhatsApp",
                     Title = dto.Title ?? string.Empty,
                     IsGroup = dto.IsGroup,
                     UnreadCount = dto.UnreadCount,
-                    PictureUrl = dto.PictureUrl,
+                    PictureUrl = !string.IsNullOrEmpty(localPic) ? localPic : dto.PictureUrl,
                     LastMessageTime = dto.LastMessageTimestamp > 0
                         ? DateTimeOffset.FromUnixTimeSeconds(dto.LastMessageTimestamp)
                         : DateTimeOffset.MinValue
@@ -1157,11 +1208,11 @@ public class WhatsAppProvider : IWhatsAppProvider
 
         foreach (var p in pendingMessages)
         {
-            // Only add if not already in resultList by ID and not replaced by a sent message with matching text
+            // Only add if not already in resultList by ID and not replaced by a sent message with matching text near timestamp
             if (!resultList.Any(r => r.Id == p.Id) &&
-                !resultList.Any(r => r.IsOutgoing && r.Status != MessageStatus.Sending && r.Content?.Text == p.Content?.Text))
+                !resultList.Any(r => r.IsOutgoing && r.Status != MessageStatus.Sending && r.Content?.Text == p.Content?.Text && Math.Abs((r.Timestamp - p.Timestamp).TotalSeconds) <= 120))
             {
-                resultList.Add(p);
+                resultList.Add(CloneMessage(p));
             }
         }
 
@@ -1170,12 +1221,13 @@ public class WhatsAppProvider : IWhatsAppProvider
         {
             UpsertMemoryCacheMessages(cleanChatId, orderedResult);
         }
-        return orderedResult;
+        return orderedResult.Select(CloneMessage).ToList();
     }
 
     private void UpsertMemoryCacheMessages(string chatId, IEnumerable<Message> incoming)
     {
-        var clean = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var clean = CanonicalizeCacheKey(chatId);
+        if (string.IsNullOrEmpty(clean)) return;
         var list = _memoryMessageCache.GetOrAdd(clean, _ => new List<Message>());
         lock (list)
         {
@@ -1188,16 +1240,24 @@ public class WhatsAppProvider : IWhatsAppProvider
                     {
                         existing.Status = m.Status;
                     }
+                    if (m.IsEdited)
+                    {
+                        existing.IsEdited = true;
+                    }
                     if (m.Content != null && (existing.Content == null ||
+                        existing.Content.IsRevoked != m.Content.IsRevoked ||
+                        existing.Content.Text != m.Content.Text ||
                         (existing.Content.Type == MessageContentType.Text && m.Content.Type != MessageContentType.Text) ||
                         (string.IsNullOrEmpty(existing.Content.ThumbnailUrl) && !string.IsNullOrEmpty(m.Content.ThumbnailUrl))))
                     {
-                        existing.Content = m.Content;
+                        existing.Content = CloneContent(m.Content);
                     }
                 }
                 else
                 {
-                    list.Add(m);
+                    var clone = CloneMessage(m);
+                    clone.ChatId = clean;
+                    list.Add(clone);
                 }
             }
             list.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
@@ -1367,7 +1427,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 {
                     _logger?.LogInformation("Loaded {Count} older messages from local SQLite storage.", localOlder.Count);
                     UpsertMemoryCacheMessages(chatId, localOlder);
-                    return localOlder;
+                    return localOlder.Select(CloneMessage).ToList();
                 }
             }
             catch (Exception ex)
@@ -1394,7 +1454,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                     try { await _messageRepository.SaveManyAsync(nativeCached); } catch { }
                 }, ct);
             }
-            return nativeCached;
+            return nativeCached.Select(CloneMessage).ToList();
         }
 
         // 3. Local storage & bridge cache exhausted -> request on-demand PDO from phone
@@ -1462,7 +1522,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                 }, ct);
             }
         }
-        return newlyFetched;
+        return newlyFetched.Select(CloneMessage).ToList();
     }
 
     private async Task<IReadOnlyList<Message>> GetAllMessagesRaw(string chatId, CancellationToken ct)
@@ -1675,13 +1735,13 @@ public class WhatsAppProvider : IWhatsAppProvider
 
     private void EnqueueOutbox(Message msg)
     {
-        if (msg.Status == MessageStatus.Sent || msg.Status == MessageStatus.Read)
+        if (msg.Status == MessageStatus.Sent || msg.Status == MessageStatus.Delivered || msg.Status == MessageStatus.Read)
         {
             return;
         }
         if (!_outboxQueue.Any(m => m.Id == msg.Id))
         {
-            _outboxQueue.Enqueue(msg);
+            _outboxQueue.Enqueue(CloneMessage(msg));
         }
         _ = ProcessOutboxQueueAsync();
     }
@@ -1784,24 +1844,37 @@ public class WhatsAppProvider : IWhatsAppProvider
                         _outboxRetryCounts.TryRemove(msg.Id, out _);
 
                         var oldId = msg.Id;
-                        msg.Id = realId;
+                        var canonChatId = CanonicalizeCacheKey(msg.ChatId);
+                        var sentMsg = CloneMessage(msg);
+                        sentMsg.Id = realId;
+                        sentMsg.ChatId = canonChatId;
                         bool isSelf = WhatsAppNative.wa_is_self_chat(_clientPtr, msg.ChatId) == 1;
-                        msg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
+                        sentMsg.Status = isSelf ? MessageStatus.Read : MessageStatus.Sent;
+
+                        if (!string.IsNullOrEmpty(canonChatId) && _memoryMessageCache.TryGetValue(canonChatId, out var cachedList))
+                        {
+                            lock (cachedList)
+                            {
+                                cachedList.RemoveAll(m => m.Id == oldId);
+                            }
+                            UpsertMemoryCacheMessages(canonChatId, new[] { sentMsg });
+                        }
 
                         if (_messageRepository != null)
                         {
                             try
                             {
                                 // Persist real message and re-point Chat.LastMessageId BEFORE deleting pending placeholder (avoids FK violation)
-                                await _messageRepository.SaveAsync(msg);
+                                await _messageRepository.SaveAsync(sentMsg);
 
                                 if (_chatRepository != null)
                                 {
-                                    var chat = await _chatRepository.GetByIdAsync(msg.ChatId);
+                                    var chat = await _chatRepository.GetByIdAsync(canonChatId)
+                                        ?? await _chatRepository.GetByIdAsync(msg.ChatId);
                                     if (chat != null)
                                     {
-                                        chat.LastMessage = msg;
-                                        chat.LastMessageTime = msg.Timestamp;
+                                        chat.LastMessage = CloneMessage(sentMsg);
+                                        chat.LastMessageTime = sentMsg.Timestamp;
                                         await _chatRepository.SaveAsync(chat);
                                     }
                                 }
@@ -1814,7 +1887,7 @@ public class WhatsAppProvider : IWhatsAppProvider
                             }
                         }
 
-                        MessageReceived?.Invoke(this, new MessageReceivedEventArgs(msg));
+                        MessageReceived?.Invoke(this, new MessageReceivedEventArgs(CloneMessage(sentMsg)));
                         ChatUpdated?.Invoke(this, new ChatUpdatedEventArgs());
                         continue;
                     }
@@ -1927,17 +2000,19 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
+        var canonSendChatId = CanonicalizeCacheKey(chatId);
         if (_messageRepository != null)
         {
             try
             {
-                await _messageRepository.SaveAsync(msg);
+                await _messageRepository.SaveAsync(CloneMessage(msg));
                 if (_chatRepository != null)
                 {
-                    var chat = await _chatRepository.GetByIdAsync(chatId);
+                    var chat = await _chatRepository.GetByIdAsync(canonSendChatId)
+                        ?? await _chatRepository.GetByIdAsync(chatId);
                     if (chat != null)
                     {
-                        chat.LastMessage = msg;
+                        chat.LastMessage = CloneMessage(msg);
                         chat.LastMessageTime = msg.Timestamp;
                         await _chatRepository.SaveAsync(chat);
                     }
@@ -1949,13 +2024,46 @@ public class WhatsAppProvider : IWhatsAppProvider
             }
         }
 
+        UpsertMemoryCacheMessages(canonSendChatId, new[] { msg });
+
         if (!sentImmediately)
         {
             _logger?.LogInformation("Message {Id} for chat {ChatId} enqueued in Outbox.", msg.Id, chatId);
             EnqueueOutbox(msg);
         }
 
-        return msg;
+        return CloneMessage(msg);
+    }
+
+    public (bool IsSyncing, int Progress) GetNativeSyncStatus()
+    {
+        if (IsTestingMode || _clientPtr == IntPtr.Zero)
+        {
+            return (false, -1);
+        }
+
+        try
+        {
+            var ptr = WhatsAppNative.wa_get_sync_status(_clientPtr);
+            if (ptr == IntPtr.Zero) return (false, -1);
+            try
+            {
+                var json = Marshal.PtrToStringUTF8(ptr);
+                if (string.IsNullOrWhiteSpace(json)) return (false, -1);
+                using var doc = JsonDocument.Parse(json);
+                bool syncing = doc.RootElement.TryGetProperty("isSyncing", out var sProp) && sProp.GetBoolean();
+                int progress = doc.RootElement.TryGetProperty("progress", out var pProp) ? pProp.GetInt32() : -1;
+                return (syncing, progress);
+            }
+            finally
+            {
+                WhatsAppNative.wa_free_string(ptr);
+            }
+        }
+        catch
+        {
+            return (false, -1);
+        }
     }
 
     public Task MarkAsReadAsync(string chatId, string messageId, CancellationToken ct = default)
@@ -2029,48 +2137,76 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
-    public async Task<string?> GetProfilePictureUrlAsync(string chatId, CancellationToken ct = default)
+    public Task<string?> GetProfilePictureUrlAsync(string chatId, CancellationToken ct = default)
     {
         if (IsTestingMode || _clientPtr == IntPtr.Zero || string.IsNullOrEmpty(chatId))
         {
-            return null;
+            return Task.FromResult<string?>(null);
         }
 
         var cleanId = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        var canonKey = string.Equals(cleanId, "self", StringComparison.OrdinalIgnoreCase)
+            ? "self"
+            : CanonicalizeCacheKey(cleanId);
 
-        return await Task.Run(async () =>
+        if (!string.Equals(canonKey, "self", StringComparison.OrdinalIgnoreCase))
         {
-            var ptr = WhatsAppNative.wa_get_profile_picture(_clientPtr, cleanId, true);
-            if (ptr == IntPtr.Zero) return null;
+            var localHit = TryFindExistingLocalAvatar(canonKey);
+            if (!string.IsNullOrEmpty(localHit))
+            {
+                return Task.FromResult<string?>(localHit);
+            }
+        }
 
-            try
+        var task = _inflightPictureLookups.GetOrAdd(canonKey, _ => FetchAndCacheProfilePictureInternalAsync(cleanId, canonKey));
+        return ct.CanBeCanceled ? task.WaitAsync(ct) : task;
+    }
+
+    private async Task<string?> FetchAndCacheProfilePictureInternalAsync(string cleanId, string canonKey)
+    {
+        try
+        {
+            var rawUrl = await Task.Run(() =>
             {
-                var url = Marshal.PtrToStringUTF8(ptr);
-                if (!string.IsNullOrWhiteSpace(url))
+                var ptr = WhatsAppNative.wa_get_profile_picture(_clientPtr, cleanId, true);
+                if (ptr == IntPtr.Zero) return null;
+                try
                 {
-                    if (_chatRepository != null)
-                    {
-                        var chat = await _chatRepository.GetByIdAsync(chatId);
-                        if (chat != null && chat.PictureUrl != url)
-                        {
-                            chat.PictureUrl = url;
-                            await _chatRepository.SaveAsync(chat);
-                        }
-                    }
-                    return url;
+                    return Marshal.PtrToStringUTF8(ptr);
                 }
+                finally
+                {
+                    WhatsAppNative.wa_free_string(ptr);
+                }
+            }).ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(rawUrl))
+            {
                 return null;
             }
-            catch (Exception ex)
+
+            string? finalUrl = rawUrl;
+            if (rawUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                _logger?.LogError(ex, "Failed to resolve profile picture for chat {ChatId}", chatId);
-                return null;
+                finalUrl = await EnsureLocalAvatarAsync(canonKey, rawUrl, CancellationToken.None).ConfigureAwait(false) ?? rawUrl;
             }
-            finally
+
+            if (!string.Equals(canonKey, "self", StringComparison.OrdinalIgnoreCase))
             {
-                WhatsAppNative.wa_free_string(ptr);
+                await UpdateChatPictureInRepoAsync(canonKey, finalUrl).ConfigureAwait(false);
+                ChatPictureUpdated?.Invoke(this, (canonKey, finalUrl));
             }
-        }, ct);
+            return finalUrl;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to resolve profile picture for chat {ChatId}", cleanId);
+            return null;
+        }
+        finally
+        {
+            _inflightPictureLookups.TryRemove(canonKey, out _);
+        }
     }
 
     public async Task MarkChatAsReadAsync(string chatId, CancellationToken ct = default)
@@ -2510,6 +2646,541 @@ public class WhatsAppProvider : IWhatsAppProvider
         }, ct);
     }
 
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void OnNativePictureUpdated(IntPtr chatIdPtr, IntPtr urlPtr)
+    {
+        if (chatIdPtr == IntPtr.Zero || _activeInstance == null) return;
+        string? rawChatId = Marshal.PtrToStringUTF8(chatIdPtr);
+        string? url = urlPtr != IntPtr.Zero ? Marshal.PtrToStringUTF8(urlPtr) : null;
+        if (string.IsNullOrWhiteSpace(rawChatId)) return;
+
+        var instance = _activeInstance;
+        var canonKey = instance.CanonicalizeCacheKey(rawChatId);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                string? finalUrl = url;
+                if (!string.IsNullOrWhiteSpace(url) && url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    finalUrl = await instance.EnsureLocalAvatarAsync(canonKey, url, CancellationToken.None) ?? url;
+                }
+                else if (string.IsNullOrWhiteSpace(url))
+                {
+                    instance.InvalidateLocalAvatar(canonKey);
+                    finalUrl = null;
+                }
+                await instance.UpdateChatPictureInRepoAsync(canonKey, finalUrl);
+                instance.ChatPictureUpdated?.Invoke(instance, (canonKey, finalUrl));
+            }
+            catch { }
+        });
+    }
+
+    private string CanonicalizeCacheKey(string chatId)
+    {
+        if (string.IsNullOrWhiteSpace(chatId)) return string.Empty;
+        var clean = chatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase) ? chatId[3..] : chatId;
+        if (_clientPtr != IntPtr.Zero && !IsTestingMode)
+        {
+            try
+            {
+                var ptr = WhatsAppNative.wa_canonicalize_chat_id(clean);
+                if (ptr != IntPtr.Zero)
+                {
+                    try
+                    {
+                        var canon = Marshal.PtrToStringUTF8(ptr);
+                        if (!string.IsNullOrWhiteSpace(canon))
+                            return canon;
+                    }
+                    finally
+                    {
+                        WhatsAppNative.wa_free_string(ptr);
+                    }
+                }
+            }
+            catch { }
+        }
+        var atIdx = clean.IndexOf('@');
+        var colonIdx = clean.IndexOf(':');
+        if (colonIdx > 0 && (atIdx < 0 || colonIdx < atIdx))
+        {
+            clean = atIdx >= 0 ? string.Concat(clean.AsSpan(0, colonIdx), clean.AsSpan(atIdx)) : clean[..colonIdx];
+        }
+        return clean;
+    }
+
+    private static MessageContent CloneContent(MessageContent? src)
+    {
+        if (src == null) return new MessageContent();
+        return new MessageContent
+        {
+            Type = src.Type,
+            Text = src.Text,
+            MediaUrl = src.MediaUrl,
+            MimeType = src.MimeType,
+            ThumbnailData = src.ThumbnailData != null ? (byte[])src.ThumbnailData.Clone() : null,
+            QuotedMessageId = src.QuotedMessageId,
+            QuotedParticipant = src.QuotedParticipant,
+            QuotedText = src.QuotedText,
+            QuotedSender = src.QuotedSender,
+            FileName = src.FileName,
+            FileSize = src.FileSize,
+            ThumbnailUrl = src.ThumbnailUrl,
+            LocalFilePath = src.LocalFilePath,
+            Caption = src.Caption,
+            DurationSeconds = src.DurationSeconds,
+            IsRevoked = src.IsRevoked,
+            IsDownloading = src.IsDownloading,
+            DownloadProgress = src.DownloadProgress
+        };
+    }
+
+    private static Message CloneMessage(Message src)
+    {
+        return new Message
+        {
+            Id = src.Id,
+            ChatId = src.ChatId,
+            PlatformId = src.PlatformId,
+            SenderId = src.SenderId,
+            SenderName = src.SenderName,
+            IsOutgoing = src.IsOutgoing,
+            Timestamp = src.Timestamp,
+            Status = src.Status,
+            IsEdited = src.IsEdited,
+            QuotedText = src.QuotedText,
+            QuotedSender = src.QuotedSender,
+            QuotedMessageId = src.QuotedMessageId,
+            QuotedParticipant = src.QuotedParticipant,
+            Content = CloneContent(src.Content),
+            Reactions = src.Reactions?.Select(r => new MessageReaction
+            {
+                Emoji = r.Emoji,
+                SenderId = r.SenderId,
+                SenderName = r.SenderName,
+                IsFromMe = r.IsFromMe,
+                Timestamp = r.Timestamp
+            }).ToList() ?? new List<MessageReaction>()
+        };
+    }
+
+    private async Task RunMessagePersistenceLoopAsync(CancellationToken ct)
+    {
+        var reader = _messageSaveChannel.Reader;
+        var batch = new List<Message>(64);
+        try
+        {
+            while (await reader.WaitToReadAsync(ct))
+            {
+                batch.Clear();
+                while (batch.Count < 64 && reader.TryRead(out var item))
+                {
+                    batch.Add(item);
+                }
+                if (batch.Count > 0 && _messageRepository != null)
+                {
+                    try
+                    {
+                        await _messageRepository.SaveManyAsync(batch);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Batched SQLite SaveManyAsync failed for {Count} messages", batch.Count);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch { }
+    }
+
+    private static string SanitizeAvatarFilePrefix(string canonicalChatId)
+    {
+        var clean = canonicalChatId.StartsWith("wa_", StringComparison.OrdinalIgnoreCase)
+            ? canonicalChatId[3..]
+            : canonicalChatId;
+        var sb = new System.Text.StringBuilder(clean.Length);
+        foreach (char ch in clean)
+        {
+            sb.Append(char.IsLetterOrDigit(ch) || ch == '.' || ch == '-' ? ch : '_');
+        }
+        return sb.ToString();
+    }
+
+    private static string ComputeUrlHash8(string url)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(url));
+        return Convert.ToHexString(bytes.AsSpan(0, 4)).ToLowerInvariant();
+    }
+
+    private string? TryFindExistingLocalAvatar(string chatId, string? expectedRemoteUrl = null)
+    {
+        if (string.IsNullOrWhiteSpace(chatId)) return null;
+        if (!string.IsNullOrWhiteSpace(expectedRemoteUrl) && !expectedRemoteUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            if (File.Exists(expectedRemoteUrl))
+            {
+                return expectedRemoteUrl;
+            }
+        }
+
+        var key = CanonicalizeCacheKey(chatId);
+        if (string.IsNullOrEmpty(key)) return null;
+
+        if (_localAvatarPathCache.TryGetValue(key, out var cachedPath) &&
+            !string.IsNullOrEmpty(cachedPath) &&
+            File.Exists(cachedPath))
+        {
+            if (string.IsNullOrWhiteSpace(expectedRemoteUrl) || !expectedRemoteUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                return cachedPath;
+            }
+            var expectedSuffix = "__" + ComputeUrlHash8(expectedRemoteUrl) + ".jpg";
+            if (cachedPath.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return cachedPath;
+            }
+        }
+
+        try
+        {
+            if (!Directory.Exists(_avatarCacheDir)) return null;
+            var prefix = SanitizeAvatarFilePrefix(key);
+            if (!string.IsNullOrWhiteSpace(expectedRemoteUrl) && expectedRemoteUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                var exact = Path.Combine(_avatarCacheDir, $"{prefix}__{ComputeUrlHash8(expectedRemoteUrl)}.jpg");
+                if (File.Exists(exact) && new FileInfo(exact).Length > 0)
+                {
+                    _localAvatarPathCache[key] = exact;
+                    return exact;
+                }
+                return null;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(_avatarCacheDir, $"{prefix}__*.jpg"))
+            {
+                var fi = new FileInfo(file);
+                if (fi.Exists && fi.Length > 0)
+                {
+                    _localAvatarPathCache[key] = file;
+                    return file;
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
+    private void InvalidateLocalAvatar(string chatId)
+    {
+        var key = CanonicalizeCacheKey(chatId);
+        if (string.IsNullOrEmpty(key)) return;
+        _localAvatarPathCache.TryRemove(key, out _);
+        try
+        {
+            if (Directory.Exists(_avatarCacheDir))
+            {
+                var prefix = SanitizeAvatarFilePrefix(key);
+                foreach (var file in Directory.EnumerateFiles(_avatarCacheDir, $"{prefix}__*.jpg"))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private Task<string?> EnsureLocalAvatarAsync(string chatId, string url, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return Task.FromResult<string?>(null);
+        if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<string?>(File.Exists(url) ? url : null);
+        }
+
+        var key = CanonicalizeCacheKey(chatId);
+        var existing = TryFindExistingLocalAvatar(key, url);
+        if (!string.IsNullOrEmpty(existing))
+        {
+            return Task.FromResult<string?>(existing);
+        }
+
+        var dedupKey = $"{key}|{url}";
+        var task = _inflightAvatarDownloads.GetOrAdd(dedupKey, _ => DownloadAvatarInternalAsync(key, url));
+        return ct.CanBeCanceled ? task.WaitAsync(ct) : task;
+    }
+
+    private async Task<string?> DownloadAvatarInternalAsync(string canonicalChatId, string url)
+    {
+        var dedupKey = $"{canonicalChatId}|{url}";
+        try
+        {
+            Directory.CreateDirectory(_avatarCacheDir);
+            var prefix = SanitizeAvatarFilePrefix(canonicalChatId);
+            var hash = ComputeUrlHash8(url);
+            var targetPath = Path.Combine(_avatarCacheDir, $"{prefix}__{hash}.jpg");
+            if (File.Exists(targetPath) && new FileInfo(targetPath).Length > 0)
+            {
+                _localAvatarPathCache[canonicalChatId] = targetPath;
+                return targetPath;
+            }
+
+            using var resp = await _avatarHttpClient.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var bytes = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            if (bytes.Length == 0)
+            {
+                return null;
+            }
+
+            var tmpPath = targetPath + $".tmp.{Guid.NewGuid():N}";
+            await File.WriteAllBytesAsync(tmpPath, bytes).ConfigureAwait(false);
+            File.Move(tmpPath, targetPath, overwrite: true);
+
+            try
+            {
+                foreach (var oldFile in Directory.EnumerateFiles(_avatarCacheDir, $"{prefix}__*.jpg"))
+                {
+                    if (!string.Equals(oldFile, targetPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { File.Delete(oldFile); } catch { }
+                    }
+                }
+            }
+            catch { }
+
+            _localAvatarPathCache[canonicalChatId] = targetPath;
+            return targetPath;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            _inflightAvatarDownloads.TryRemove(dedupKey, out _);
+        }
+    }
+
+    private async Task UpdateChatPictureInRepoAsync(string chatId, string? pictureUrl)
+    {
+        if (_chatRepository == null || string.IsNullOrWhiteSpace(chatId)) return;
+        try
+        {
+            var chat = await _chatRepository.GetByIdAsync(chatId)
+                ?? await _chatRepository.GetByIdAsync("wa_" + chatId);
+            if (chat != null && !string.Equals(chat.PictureUrl, pictureUrl, StringComparison.Ordinal))
+            {
+                chat.PictureUrl = pictureUrl;
+                await _chatRepository.SaveAsync(chat);
+            }
+        }
+        catch { }
+    }
+
+    public async Task RefreshMissingProfilePicturesAsync(IReadOnlyList<Chat> chats, CancellationToken ct = default)
+    {
+        if (IsTestingMode || _clientPtr == IntPtr.Zero || chats.Count == 0 || !HasInternetAccess())
+        {
+            return;
+        }
+        if (!IsClientReady || ConnectionState != ConnectionState.Connected)
+        {
+            return;
+        }
+
+        if (!await _avatarBatchGate.WaitAsync(0, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            var toSave = new List<Chat>();
+
+            // 1. Download any existing remote CDN URLs already known on chat objects into local disk cache first
+            var cdnOnly = chats
+                .Where(c => !string.IsNullOrWhiteSpace(c.PictureUrl)
+                    && c.PictureUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrEmpty(TryFindExistingLocalAvatar(c.Id, c.PictureUrl)))
+                .OrderByDescending(c => c.LastMessageTime)
+                .Take(80)
+                .ToList();
+
+            if (cdnOnly.Count > 0)
+            {
+                using var cdnSem = new SemaphoreSlim(4, 4);
+                var cdnTasks = cdnOnly.Select(async chat =>
+                {
+                    await cdnSem.WaitAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        var url = chat.PictureUrl;
+                        if (string.IsNullOrEmpty(url)) return;
+                        var local = await EnsureLocalAvatarAsync(chat.Id, url, ct).ConfigureAwait(false);
+                        if (!string.IsNullOrEmpty(local))
+                        {
+                            lock (toSave)
+                            {
+                                chat.PictureUrl = local;
+                                toSave.Add(chat);
+                            }
+                            ChatPictureUpdated?.Invoke(this, (CanonicalizeCacheKey(chat.Id), local));
+                        }
+                    }
+                    finally
+                    {
+                        cdnSem.Release();
+                    }
+                });
+                await Task.WhenAll(cdnTasks).ConfigureAwait(false);
+            }
+
+            // 2. Batch-query WhatsApp for ALL groups missing valid local avatars (single IQ per 50 groups!)
+            var missingGroups = chats
+                .Where(c => c.IsGroup
+                    && string.IsNullOrEmpty(TryFindExistingLocalAvatar(c.Id, c.PictureUrl))
+                    && (!_lastAvatarAttempt.TryGetValue(CanonicalizeCacheKey(c.Id), out var lastTs) || (now - lastTs).TotalSeconds >= 120))
+                .ToList();
+
+            if (missingGroups.Count > 0 && IsClientReady && !ct.IsCancellationRequested)
+            {
+                var reqIds = new List<string>(missingGroups.Count);
+                foreach (var g in missingGroups)
+                {
+                    var key = CanonicalizeCacheKey(g.Id);
+                    _lastAvatarAttempt[key] = now;
+                    reqIds.Add(key);
+                }
+
+                var reqJson = JsonSerializer.Serialize(reqIds);
+                var respJson = await Task.Run(() =>
+                {
+                    var ptr = WhatsAppNative.wa_get_group_profile_pictures(_clientPtr, reqJson);
+                    if (ptr == IntPtr.Zero) return null;
+                    try { return Marshal.PtrToStringUTF8(ptr); }
+                    finally { WhatsAppNative.wa_free_string(ptr); }
+                }, ct).ConfigureAwait(false);
+
+                if (!string.IsNullOrWhiteSpace(respJson))
+                {
+                    var groupHits = JsonSerializer.Deserialize<List<NativePictureItemDto>>(
+                        respJson,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (groupHits != null && groupHits.Count > 0)
+                    {
+                        var groupLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var hit in groupHits)
+                        {
+                            if (!string.IsNullOrWhiteSpace(hit.ChatId) && !string.IsNullOrWhiteSpace(hit.Url))
+                            {
+                                groupLookup[CanonicalizeCacheKey(hit.ChatId)] = hit.Url;
+                            }
+                        }
+
+                        using var dlSem = new SemaphoreSlim(4, 4);
+                        var dlTasks = missingGroups.Select(async gChat =>
+                        {
+                            var gk = CanonicalizeCacheKey(gChat.Id);
+                            if (!groupLookup.TryGetValue(gk, out var remoteUrl)) return;
+                            await dlSem.WaitAsync(ct).ConfigureAwait(false);
+                            try
+                            {
+                                var finalPic = await EnsureLocalAvatarAsync(gk, remoteUrl, ct).ConfigureAwait(false) ?? remoteUrl;
+                                lock (toSave)
+                                {
+                                    gChat.PictureUrl = finalPic;
+                                    toSave.Add(gChat);
+                                }
+                                ChatPictureUpdated?.Invoke(this, (gk, finalPic));
+                            }
+                            finally
+                            {
+                                dlSem.Release();
+                            }
+                        });
+                        await Task.WhenAll(dlTasks).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            // 3. Throttled background trickle for 1:1 contact chats missing avatars (most recent first)
+            var missingContacts = chats
+                .Where(c => !c.IsGroup
+                    && string.IsNullOrEmpty(TryFindExistingLocalAvatar(c.Id, c.PictureUrl))
+                    && (!_lastAvatarAttempt.TryGetValue(CanonicalizeCacheKey(c.Id), out var lastTs) || (now - lastTs).TotalSeconds >= 180))
+                .OrderByDescending(c => c.LastMessageTime)
+                .Take(40)
+                .ToList();
+
+            if (missingContacts.Count > 0 && IsClientReady && ConnectionState == ConnectionState.Connected)
+            {
+                using var contactSem = new SemaphoreSlim(2, 2);
+                var contactTasks = new List<Task>();
+                foreach (var chat in missingContacts)
+                {
+                    if (ct.IsCancellationRequested || !IsClientReady || ConnectionState != ConnectionState.Connected)
+                    {
+                        break;
+                    }
+                    var ck = CanonicalizeCacheKey(chat.Id);
+                    _lastAvatarAttempt[ck] = now;
+                    await contactSem.WaitAsync(ct).ConfigureAwait(false);
+                    contactTasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var pic = await GetProfilePictureUrlAsync(ck, ct).ConfigureAwait(false);
+                            if (!string.IsNullOrWhiteSpace(pic))
+                            {
+                                lock (toSave)
+                                {
+                                    chat.PictureUrl = pic;
+                                    toSave.Add(chat);
+                                }
+                            }
+                            await Task.Delay(180, ct).ConfigureAwait(false);
+                        }
+                        catch { }
+                        finally
+                        {
+                            contactSem.Release();
+                        }
+                    }, ct));
+                }
+                await Task.WhenAll(contactTasks).ConfigureAwait(false);
+            }
+
+            if (_chatRepository != null && toSave.Count > 0)
+            {
+                var distinct = toSave.GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()).ToList();
+                try
+                {
+                    await _chatRepository.SaveManyAsync(distinct).ConfigureAwait(false);
+                }
+                catch { }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "RefreshMissingProfilePicturesAsync failed.");
+        }
+        finally
+        {
+            _avatarBatchGate.Release();
+        }
+    }
+
     public void Dispose()
     {
         try
@@ -2517,9 +3188,19 @@ public class WhatsAppProvider : IWhatsAppProvider
             NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
         }
         catch { }
+        try { _providerLifetimeCts.Cancel(); } catch { }
+        _messageSaveChannel.Writer.TryComplete();
         _outboxTimer?.Dispose();
         _watchdogTimer?.Dispose();
+        _avatarBatchGate.Dispose();
+        _providerLifetimeCts.Dispose();
         _ = DisconnectAsync();
+    }
+
+    private class NativePictureItemDto
+    {
+        public string? ChatId { get; set; }
+        public string? Url { get; set; }
     }
 
     private class NativeContactDto

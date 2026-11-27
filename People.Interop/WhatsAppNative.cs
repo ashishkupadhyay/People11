@@ -151,4 +151,15 @@ public static unsafe partial class WhatsAppNative
 
     [LibraryImport(DllName)]
     public static partial void wa_free_string(IntPtr ptr);
+
+    [LibraryImport(DllName)]
+    public static unsafe partial int wa_register_picture_updated_callback(
+        IntPtr clientPtr,
+        delegate* unmanaged[Cdecl]<IntPtr, IntPtr, void> callback);
+
+    [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr wa_get_group_profile_pictures(IntPtr clientPtr, string jidsJson);
+
+    [LibraryImport(DllName)]
+    public static partial IntPtr wa_get_sync_status(IntPtr clientPtr);
 }

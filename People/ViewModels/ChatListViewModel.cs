@@ -113,7 +113,6 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly IDispatcherService _dispatcherService;
     private readonly ISettingsService _settingsService;
     private readonly IChatRepository? _chatRepository;
-    private readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _contactNamesByPhoneDigits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _contactNamesById = new(StringComparer.OrdinalIgnoreCase);
     private int _isLoadingChats;
@@ -124,6 +123,7 @@ public partial class ChatListViewModel : ViewModelBase
     private System.Threading.Timer? _inlineSyncWatchdogTimer;
     private DateTimeOffset _initialSyncStartTime = DateTimeOffset.MinValue;
     private DateTimeOffset _lastInlineSyncActivity = DateTimeOffset.MinValue;
+    private DateTimeOffset _chatUpdateFirstPending = DateTimeOffset.MinValue;
 
     public event EventHandler? RequestCloseDetail;
 
@@ -161,6 +161,7 @@ public partial class ChatListViewModel : ViewModelBase
             waProvider.QrCodeReceived += OnQrCodeReceived;
             waProvider.SyncProgressChanged += OnSyncProgressChanged;
             waProvider.ChatMarkedRead += OnChatMarkedRead;
+            waProvider.ChatPictureUpdated += OnChatPictureUpdated;
             _ = ConnectAndAuthenticateAsync(waProvider);
         }
         else
@@ -255,10 +256,27 @@ public partial class ChatListViewModel : ViewModelBase
             await LoadChatsAsync();
             _dispatcherService.Enqueue(() =>
             {
-                if (provider.ConnectionState != ConnectionState.Connecting)
+                var (nativeSyncing, nativeProgress) = provider.GetNativeSyncStatus();
+                if (nativeSyncing)
                 {
-                    DisarmInlineSyncWatchdog();
-                    IsSyncing = false;
+                    IsSyncing = true;
+                    if (nativeProgress > 0)
+                    {
+                        SyncProgress = nativeProgress;
+                        IsSyncIndeterminate = false;
+                        SyncStatusText = $"Downloading recent messages ({nativeProgress}%)";
+                    }
+                    else
+                    {
+                        IsSyncIndeterminate = true;
+                        SyncStatusText = "Downloading recent messages...";
+                    }
+                    ArmInlineSyncWatchdog(12);
+                }
+                else if (provider.ConnectionState != ConnectionState.Connecting)
+                {
+                    // Brief grace window in case OfflineSyncPreview arrives shortly after connect
+                    ArmInlineSyncWatchdog(5);
                 }
             });
             return;
@@ -472,18 +490,14 @@ public partial class ChatListViewModel : ViewModelBase
             // Ensure chats and recent messages are fully loaded into the collection before dismissing overlay
             await LoadChatsAsync();
 
-            lock (_failedPictureJids)
-            {
-                _failedPictureJids.Clear();
-            }
-
             IsInitialSyncing = false;
             IsSyncing = false;
+            SyncStatusText = string.Empty;
             RequestDrillInToMain?.Invoke(this, EventArgs.Empty);
         });
     }
 
-    private void ArmInlineSyncWatchdog(int idleSeconds = 25)
+    private void ArmInlineSyncWatchdog(int idleSeconds = 15)
     {
         _lastInlineSyncActivity = DateTimeOffset.UtcNow;
         int delayMs = Math.Max(1500, idleSeconds * 1000);
@@ -509,6 +523,26 @@ public partial class ChatListViewModel : ViewModelBase
             return;
         }
 
+        if (_provider is IWhatsAppProvider waProvider)
+        {
+            var (nativeSyncing, nativeProgress) = waProvider.GetNativeSyncStatus();
+            if (nativeSyncing)
+            {
+                _dispatcherService.Enqueue(() =>
+                {
+                    if (!IsSyncing || IsInitialSyncing) return;
+                    if (nativeProgress > 0 && nativeProgress > SyncProgress)
+                    {
+                        SyncProgress = nativeProgress;
+                        IsSyncIndeterminate = false;
+                        SyncStatusText = $"Downloading recent messages ({nativeProgress}%)";
+                    }
+                    ArmInlineSyncWatchdog(10);
+                });
+                return;
+            }
+        }
+
         _dispatcherService.Enqueue(async () =>
         {
             if (!IsSyncing || IsInitialSyncing) return;
@@ -524,45 +558,65 @@ public partial class ChatListViewModel : ViewModelBase
     {
         _dispatcherService.Enqueue(async () =>
         {
-            SyncProgress = progress;
             if (IsInitialSyncing)
             {
                 ResetSyncWatchdog();
                 if (progress >= 100)
                 {
+                    SyncProgress = 100;
                     CompleteInitialSync();
                 }
-                else
+                else if (progress == -2)
                 {
-                    InitialSyncProgress = Math.Max(0, progress);
+                    IsInitialSyncIndeterminate = true;
+                    InitialSyncText = "Reconnecting to continue sync...";
+                }
+                else if (progress >= 0)
+                {
+                    SyncProgress = progress;
+                    InitialSyncProgress = progress;
                     InitialSyncText = "Downloading your recent messages";
                 }
             }
             else
             {
-                if (progress >= 100 || progress < 0)
+                if (progress == -2)
+                {
+                    IsSyncing = true;
+                    IsSyncIndeterminate = true;
+                    SyncStatusText = "Reconnecting to continue sync...";
+                    ArmInlineSyncWatchdog(15);
+                }
+                else if (progress >= 100 || progress < 0)
                 {
                     DisarmInlineSyncWatchdog();
                     IsSyncing = false;
                     IsSyncIndeterminate = false;
                     SyncProgress = 0;
                     SyncStatusText = string.Empty;
-                    await LoadChatsAsync();
+                    if (progress >= 100)
+                    {
+                        await LoadChatsAsync();
+                    }
                 }
-                else if (Chats.Count == 0)
+                else if (Chats.Count == 0 && _provider.ConnectionState == ConnectionState.Connected)
                 {
                     DisarmInlineSyncWatchdog();
                     IsInitialSyncing = true;
                     StartSyncWatchdog();
-                    InitialSyncProgress = Math.Max(0, progress);
+                    SyncProgress = progress;
+                    InitialSyncProgress = progress;
                     InitialSyncText = "Downloading your recent messages";
                 }
                 else
                 {
                     IsSyncing = true;
-                    SyncProgress = Math.Max(0, progress);
+                    SyncProgress = progress;
                     IsSyncIndeterminate = progress <= 0;
-                    ArmInlineSyncWatchdog(25);
+                    SyncStatusText = progress > 0
+                        ? $"Downloading recent messages ({progress}%)"
+                        : "Downloading recent messages...";
+                    ArmInlineSyncWatchdog(15);
                 }
             }
         });
@@ -603,6 +657,34 @@ public partial class ChatListViewModel : ViewModelBase
         });
     }
 
+    private void OnChatPictureUpdated(object? sender, (string ChatId, string? PictureUrl) e)
+    {
+        if (string.IsNullOrWhiteSpace(e.ChatId)) return;
+        _dispatcherService.Enqueue(() =>
+        {
+            foreach (var c in Chats)
+            {
+                if (ConversationViewModel.ChatIdsMatch(c.Id, e.ChatId))
+                {
+                    if (!string.Equals(c.PictureUrl, e.PictureUrl, StringComparison.Ordinal))
+                    {
+                        c.PictureUrl = e.PictureUrl;
+                    }
+                }
+            }
+            foreach (var c in _allMasterChats)
+            {
+                if (ConversationViewModel.ChatIdsMatch(c.Id, e.ChatId))
+                {
+                    if (!string.Equals(c.PictureUrl, e.PictureUrl, StringComparison.Ordinal))
+                    {
+                        c.PictureUrl = e.PictureUrl;
+                    }
+                }
+            }
+        });
+    }
+
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
         if (IsInitialSyncing && Chats.Count == 0)
@@ -614,7 +696,7 @@ public partial class ChatListViewModel : ViewModelBase
         _dispatcherService.Enqueue(() =>
         {
             var msg = e.Message;
-            if (msg.Content == null || (msg.Content.Type == MessageContentType.Text && string.IsNullOrWhiteSpace(msg.Content.Text)))
+            if (!msg.IsRevoked && (msg.Content == null || (msg.Content.Type == MessageContentType.Text && string.IsNullOrWhiteSpace(msg.Content.Text))))
             {
                 return;
             }
@@ -623,10 +705,33 @@ public partial class ChatListViewModel : ViewModelBase
 
             if (chat != null)
             {
-                if (chat.LastMessage != null && chat.LastMessage.Id == msg.Id)
+                bool matchesExistingLast = chat.LastMessage != null && (
+                    chat.LastMessage.Id == msg.Id
+                    || (msg.IsOutgoing && chat.LastMessage.IsOutgoing &&
+                        (chat.LastMessage.Id.StartsWith("pending_") || chat.LastMessage.Status == MessageStatus.Sending) &&
+                        Math.Abs((msg.Timestamp - chat.LastMessage.Timestamp).TotalSeconds) <= 120 &&
+                        (chat.LastMessage.Content?.Text == msg.Content?.Text ||
+                         (chat.LastMessage.Content?.Type != MessageContentType.Text && chat.LastMessage.Content?.Type == msg.Content?.Type))));
+
+                if (matchesExistingLast && chat.LastMessage != null)
                 {
-                    chat.LastMessage.Status = msg.Status;
-                    if (msg.IsEdited && chat.LastMessage.Content != null && msg.Content != null)
+                    chat.LastMessage.Id = msg.Id;
+                    if (msg.Status >= chat.LastMessage.Status)
+                    {
+                        chat.LastMessage.Status = msg.Status;
+                    }
+                    if (msg.IsRevoked)
+                    {
+                        chat.LastMessage.IsRevoked = true;
+                        chat.LastMessage.IsEdited = false;
+                        if (chat.LastMessage.Content != null)
+                        {
+                            chat.LastMessage.Content.IsRevoked = true;
+                            chat.LastMessage.Content.Type = MessageContentType.Text;
+                            chat.LastMessage.Content.Text = msg.Content?.Text ?? (chat.LastMessage.IsOutgoing ? "You deleted this message" : "This message was deleted");
+                        }
+                    }
+                    else if (msg.IsEdited && chat.LastMessage.Content != null && msg.Content != null)
                     {
                         chat.LastMessage.Content.Text = msg.Content.Text;
                         chat.LastMessage.Content.Caption = msg.Content.Caption;
@@ -634,7 +739,7 @@ public partial class ChatListViewModel : ViewModelBase
                     }
                     chat.RefreshLastMessagePreview();
                 }
-                else
+                else if (chat.LastMessage == null || msg.Timestamp >= chat.LastMessageTime)
                 {
                     chat.LastMessage = msg;
                     chat.LastMessageTime = msg.Timestamp;
@@ -718,20 +823,35 @@ public partial class ChatListViewModel : ViewModelBase
     private readonly object _chatUpdateDebounceLock = new();
     private System.Threading.Timer? _chatUpdateDebounceTimer;
 
-    private void ScheduleDebouncedLoadChats(int delayMs = 300)
+    private void ScheduleDebouncedLoadChats(int delayMs = 250)
     {
         lock (_chatUpdateDebounceLock)
         {
+            var now = DateTimeOffset.UtcNow;
+            if (_chatUpdateFirstPending == DateTimeOffset.MinValue)
+            {
+                _chatUpdateFirstPending = now;
+            }
+
+            // Cap starvation under continuous sync bursts at 250ms from first dirty signal
+            var elapsedMs = (int)(now - _chatUpdateFirstPending).TotalMilliseconds;
+            int remainingCapMs = Math.Max(0, 250 - elapsedMs);
+            int targetDelayMs = Math.Min(delayMs, remainingCapMs);
+
             if (_chatUpdateDebounceTimer == null)
             {
                 _chatUpdateDebounceTimer = new System.Threading.Timer(_ =>
                 {
+                    lock (_chatUpdateDebounceLock)
+                    {
+                        _chatUpdateFirstPending = DateTimeOffset.MinValue;
+                    }
                     _ = LoadChatsAsync();
-                }, null, delayMs, Timeout.Infinite);
+                }, null, targetDelayMs, Timeout.Infinite);
             }
-            else
+            else if (remainingCapMs == 0 || delayMs < 150)
             {
-                _chatUpdateDebounceTimer.Change(delayMs, Timeout.Infinite);
+                _chatUpdateDebounceTimer.Change(targetDelayMs, Timeout.Infinite);
             }
         }
     }
@@ -757,16 +877,12 @@ public partial class ChatListViewModel : ViewModelBase
                 }
                 HasError = false;
             });
-            lock (_failedPictureJids)
-            {
-                _failedPictureJids.Clear();
-            }
             if (!wasInSetup && !IsInitialSyncing)
             {
                 if (IsSyncing)
                 {
-                    // If server has no offline backlog, OfflineSyncPreview may not fire; auto-clear after short settle window
-                    ArmInlineSyncWatchdog(4);
+                    // Check native sync status after brief grace window instead of unconditionally hiding early
+                    ArmInlineSyncWatchdog(6);
                 }
                 _ = LoadChatsAsync();
             }
@@ -979,6 +1095,12 @@ public partial class ChatListViewModel : ViewModelBase
                                 existing.LastMessageTime = incoming.LastMessageTime;
                                 if (incoming.LastMessage != null)
                                 {
+                                    if (existing.LastMessage != null &&
+                                        existing.LastMessage.Id == incoming.LastMessage.Id &&
+                                        existing.LastMessage.Status > incoming.LastMessage.Status)
+                                    {
+                                        incoming.LastMessage.Status = existing.LastMessage.Status;
+                                    }
                                     existing.LastMessage = incoming.LastMessage;
                                     existing.RefreshLastMessagePreview();
                                 }
@@ -994,7 +1116,11 @@ public partial class ChatListViewModel : ViewModelBase
                             {
                                 existing.UnreadCount = incoming.UnreadCount;
                             }
-                            if (!string.IsNullOrEmpty(incoming.PictureUrl) && existing.PictureUrl != incoming.PictureUrl)
+                            if (!string.IsNullOrEmpty(incoming.PictureUrl) &&
+                                (string.IsNullOrEmpty(existing.PictureUrl) ||
+                                 !incoming.PictureUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+                                 existing.PictureUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)) &&
+                                existing.PictureUrl != incoming.PictureUrl)
                             {
                                 existing.PictureUrl = incoming.PictureUrl;
                             }
@@ -1012,6 +1138,11 @@ public partial class ChatListViewModel : ViewModelBase
                 _allMasterChats.Clear();
                 _allMasterChats.AddRange(Chats);
             });
+
+            if (_provider is IWhatsAppProvider waPicProvider && sortedIncoming.Count > 0)
+            {
+                _ = Task.Run(() => waPicProvider.RefreshMissingProfilePicturesAsync(sortedIncoming));
+            }
         }
         catch (Exception)
         {

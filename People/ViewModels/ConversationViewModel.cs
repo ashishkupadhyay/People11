@@ -143,7 +143,25 @@ public partial class ConversationViewModel : ViewModelBase
         {
             waProvider.MediaDownloadProgress += OnMediaDownloadProgress;
             waProvider.HistoryMessagesUpdated += OnHistoryMessagesUpdated;
+            waProvider.ChatPictureUpdated += OnChatPictureUpdated;
         }
+    }
+
+    private void OnChatPictureUpdated(object? sender, (string ChatId, string? PictureUrl) e)
+    {
+        if (string.IsNullOrWhiteSpace(e.ChatId)) return;
+        _dispatcherService.Enqueue(() =>
+        {
+            var current = CurrentChat;
+            if (current != null && ChatIdsMatch(current.Id, e.ChatId))
+            {
+                if (!string.Equals(current.PictureUrl, e.PictureUrl, StringComparison.Ordinal))
+                {
+                    current.PictureUrl = e.PictureUrl;
+                    OnPropertyChanged(nameof(CurrentChat));
+                }
+            }
+        });
     }
 
     private void OnHistoryMessagesUpdated(object? sender, string chatId)
@@ -178,7 +196,6 @@ public partial class ConversationViewModel : ViewModelBase
     private CancellationTokenSource? _loadChatCts;
     private int _consecutiveEmptyOlderLoads;
     private static readonly SemaphoreSlim _thumbSemaphore = new(1, 1);
-    private static readonly HashSet<string> _failedPictureJids = new(StringComparer.OrdinalIgnoreCase);
 
     public void CancelLoading()
     {
@@ -293,35 +310,27 @@ public partial class ConversationViewModel : ViewModelBase
 
                     ResolveHeaderDetailsInBackground(chat, token);
 
-                    bool shouldFetchPic = false;
-                    lock (_failedPictureJids)
-                    {
-                        shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl) && !_failedPictureJids.Contains(chat.Id);
-                    }
+                    bool shouldFetchPic = string.IsNullOrEmpty(chat.PictureUrl)
+                        || chat.PictureUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase);
 
                     if (shouldFetchPic && _provider is IWhatsAppProvider waProvider && !token.IsCancellationRequested)
                     {
                         try
                         {
                             var picUrl = await waProvider.GetProfilePictureUrlAsync(chat.Id, token);
-                            if (!string.IsNullOrEmpty(picUrl))
+                            if (!string.IsNullOrEmpty(picUrl) && !string.Equals(chat.PictureUrl, picUrl, StringComparison.Ordinal))
                             {
                                 _dispatcherService.Enqueue(() =>
                                 {
-                                    if (token.IsCancellationRequested || CurrentChat?.Id != chat.Id) return;
                                     chat.PictureUrl = picUrl;
-                                    OnPropertyChanged(nameof(CurrentChat));
+                                    if (!token.IsCancellationRequested && CurrentChat?.Id == chat.Id)
+                                    {
+                                        OnPropertyChanged(nameof(CurrentChat));
+                                    }
                                 });
                             }
-                            else
-                            {
-                                lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
-                            }
                         }
-                        catch
-                        {
-                            lock (_failedPictureJids) { _failedPictureJids.Add(chat.Id); }
-                        }
+                        catch { }
                     }
                 }
                 catch { }
@@ -853,7 +862,9 @@ public partial class ConversationViewModel : ViewModelBase
             _dispatcherService.Enqueue(() =>
             {
                 var existing = Messages.FirstOrDefault(m => m.Id == e.Message.Id ||
-                    (m.IsOutgoing && (m.Status == MessageStatus.Sending || m.Id.StartsWith("pending_")) &&
+                    (m.IsOutgoing && e.Message.IsOutgoing &&
+                     (m.Status == MessageStatus.Sending || m.Id.StartsWith("pending_")) &&
+                     Math.Abs((e.Message.Timestamp - m.Timestamp).TotalSeconds) <= 120 &&
                      (m.Content?.Text == e.Message.Content?.Text || (m.Content?.Type != MessageContentType.Text && m.Content?.Type == e.Message.Content?.Type))));
                 if (existing != null)
                 {

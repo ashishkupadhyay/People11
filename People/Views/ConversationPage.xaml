@@ -52,7 +52,7 @@
         <!-- Header -->
         <Border Grid.Row="0" Canvas.ZIndex="20" Padding="16" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="12">
-                <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}, ConverterParameter=Avatar}"
                                IsGroup="{x:Bind ViewModel.CurrentChat.IsGroup, Mode=OneWay}"
                                Initials="{x:Bind ViewModel.CurrentChat.Initials, Mode=OneWay}"
                                DisplayName="{x:Bind ViewModel.CurrentChat, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}"

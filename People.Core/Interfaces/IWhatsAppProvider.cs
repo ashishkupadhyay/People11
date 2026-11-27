@@ -13,6 +13,7 @@ public interface IWhatsAppProvider : IMessagingProvider
     event EventHandler<int>? SyncProgressChanged;
     event EventHandler<string>? ChatMarkedRead;
     event EventHandler<string>? HistoryMessagesUpdated;
+    event EventHandler<(string ChatId, string? PictureUrl)>? ChatPictureUpdated;
     event EventHandler<(string MessageId, long BytesReceived, long TotalBytes)>? MediaDownloadProgress;
     Task AuthenticateAsync(CancellationToken ct = default);
     Task ReauthenticateAsync(CancellationToken ct = default);
@@ -24,6 +25,8 @@ public interface IWhatsAppProvider : IMessagingProvider
     string? GetPushName(string chatId);
     string? GetPhoneNumber(string chatId);
     Task<string?> GetProfilePictureUrlAsync(string chatId, CancellationToken ct = default);
+    Task RefreshMissingProfilePicturesAsync(System.Collections.Generic.IReadOnlyList<Chat> chats, CancellationToken ct = default);
+    (bool IsSyncing, int Progress) GetNativeSyncStatus();
     Task MarkChatAsReadAsync(string chatId, CancellationToken ct = default);
     void SubscribePresence(string chatId);
 }

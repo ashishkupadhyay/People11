@@ -223,12 +223,24 @@ public class StringToImageSourceConverter : IValueConverter
 
                 if (System.IO.File.Exists(url))
                 {
-                    return new BitmapImage(new Uri(url));
+                    var bmp = new BitmapImage();
+                    if (string.Equals(parameter?.ToString(), "Avatar", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bmp.DecodePixelWidth = 128;
+                    }
+                    bmp.UriSource = new Uri(url);
+                    return bmp;
                 }
 
                 if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
                 {
-                    return new BitmapImage(uri);
+                    var bmp = new BitmapImage();
+                    if (string.Equals(parameter?.ToString(), "Avatar", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bmp.DecodePixelWidth = 128;
+                    }
+                    bmp.UriSource = uri;
+                    return bmp;
                 }
             }
             catch
@@ -723,12 +735,25 @@ public class MessageStatusBrushConverter : IValueConverter, IScopedResourceConve
     public ResourceDictionary? ScopedResources { get; set; }
 
     private static readonly SolidColorBrush s_readCyan = new(Microsoft.UI.ColorHelper.FromArgb(255, 83, 189, 235)); // #53BDEB
+    private static readonly SolidColorBrush s_failedRed = new(Microsoft.UI.ColorHelper.FromArgb(255, 229, 72, 77));
+    private static readonly SolidColorBrush s_neutralFallback = new(Microsoft.UI.ColorHelper.FromArgb(255, 138, 145, 153));
 
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is People.Core.Models.MessageStatus s && s == People.Core.Models.MessageStatus.Read)
+        if (value is People.Core.Models.MessageStatus s)
         {
-            return s_readCyan;
+            if (s == People.Core.Models.MessageStatus.Read)
+            {
+                return s_readCyan;
+            }
+            if (s == People.Core.Models.MessageStatus.Failed)
+            {
+                return ScopedResourceHelper.ResolveBrush(ScopedResources, "SystemFillColorCriticalBrush") as Microsoft.UI.Xaml.Media.Brush ?? s_failedRed;
+            }
+        }
+        if (string.Equals(parameter?.ToString(), "Neutral", StringComparison.OrdinalIgnoreCase))
+        {
+            return ScopedResourceHelper.ResolveBrush(ScopedResources, "TextFillColorSecondaryBrush") as Microsoft.UI.Xaml.Media.Brush ?? s_neutralFallback;
         }
         return ScopedResourceHelper.ResolveBrush(ScopedResources, "OutgoingBubbleSubtextBrush") as Microsoft.UI.Xaml.Media.Brush ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
     }

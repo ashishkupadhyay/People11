@@ -21,6 +21,10 @@
         <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
         <converters:UnreadToTimestampBrushConverter x:Key="UnreadToTimestampBrushConverter" />
         <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
+        <converters:MessageStatusSendingVisibilityConverter x:Key="MessageStatusSendingVisibilityConverter" />
+        <converters:MessageStatusSentVisibilityConverter x:Key="MessageStatusSentVisibilityConverter" />
+        <converters:MessageStatusDoubleCheckVisibilityConverter x:Key="MessageStatusDoubleCheckVisibilityConverter" />
+        <converters:MessageStatusBrushConverter x:Key="MessageStatusBrushConverter" />
     </Page.Resources>
 
     <Grid x:Name="RootGrid">
@@ -122,7 +126,7 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <PersonPicture Grid.Column="0" 
-                                                                   ProfilePicture="{x:Bind ProfilePictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                                                   ProfilePicture="{x:Bind ProfilePictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}, ConverterParameter=Avatar}"
                                                                    Initials="{x:Bind Initials, Mode=OneWay}"
                                                                    DisplayName="{x:Bind Name, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
                                                                    Width="36" Height="36" Margin="0,0,10,0"/>
@@ -146,14 +150,22 @@
                 </Grid>
 
                 <!-- Launch Sync Progress Bar -->
-                <ProgressBar Height="2"
-                             Margin="0,-4,0,0"
-                             IsIndeterminate="{x:Bind ViewModel.IsSyncIndeterminate, Mode=OneWay}"
-                             Value="{x:Bind ViewModel.SyncProgress, Mode=OneWay}"
-                             Maximum="100"
-                             Foreground="{ThemeResource AppAccentBrush}"
-                             Visibility="{x:Bind ViewModel.IsSyncing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                             AutomationProperties.Name="Syncing messages" />
+                <StackPanel Spacing="3"
+                            Margin="0,-2,0,4"
+                            Visibility="{x:Bind ViewModel.IsSyncing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="{x:Bind ViewModel.SyncStatusText, Mode=OneWay}"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               MaxLines="1"
+                               Visibility="{x:Bind ViewModel.SyncStatusText, Mode=OneWay, Converter={StaticResource StringToVisibilityConverter}}" />
+                    <ProgressBar Height="3"
+                                 IsIndeterminate="{x:Bind ViewModel.IsSyncIndeterminate, Mode=OneWay}"
+                                 Value="{x:Bind ViewModel.SyncProgress, Mode=OneWay}"
+                                 Maximum="100"
+                                 Foreground="{ThemeResource AppAccentBrush}"
+                                 AutomationProperties.Name="Syncing messages" />
+                </StackPanel>
             </StackPanel>
 
             <InfoBar Grid.Row="1"
@@ -192,7 +204,7 @@
                             </Grid.ColumnDefinitions>
                             
                             <PersonPicture Grid.Column="0" 
-                                           ProfilePicture="{x:Bind PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}}"
+                                           ProfilePicture="{x:Bind PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}, ConverterParameter=Avatar}"
                                            IsGroup="{x:Bind IsGroup, Mode=OneWay}"
                                            Initials="{x:Bind Initials, Mode=OneWay}"
                                            DisplayName="{x:Bind Title, Mode=OneWay, Converter={StaticResource PersonPictureDisplayNameConverter}}" 
@@ -200,10 +212,34 @@
                             
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{x:Bind LastMessagePreview, Mode=OneWay}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                           TextTrimming="CharacterEllipsis" 
-                                           MaxLines="1" />
+                                <Grid ColumnSpacing="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0"
+                                          VerticalAlignment="Center"
+                                          Visibility="{x:Bind LastMessage.ShowStatusIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <FontIcon Glyph="&#xE916;" FontSize="10"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Visibility="{x:Bind LastMessage.Status, Mode=OneWay, Converter={StaticResource MessageStatusSendingVisibilityConverter}}" />
+                                        <FontIcon Glyph="&#xE73E;" FontSize="10"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Visibility="{x:Bind LastMessage.Status, Mode=OneWay, Converter={StaticResource MessageStatusSentVisibilityConverter}}" />
+                                        <Viewbox Width="15" Height="11"
+                                                 Visibility="{x:Bind LastMessage.Status, Mode=OneWay, Converter={StaticResource MessageStatusDoubleCheckVisibilityConverter}}">
+                                            <Path Data="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
+                                                  Fill="{x:Bind LastMessage.Status, Mode=OneWay, Converter={StaticResource MessageStatusBrushConverter}, ConverterParameter=Neutral}" />
+                                        </Viewbox>
+                                    </Grid>
+
+                                    <TextBlock Grid.Column="1"
+                                               Text="{x:Bind LastMessagePreview, Mode=OneWay}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               TextTrimming="CharacterEllipsis" 
+                                               MaxLines="1" />
+                                </Grid>
                             </StackPanel>
 
                             <!-- Right-aligned timestamp and unread badge -->
