@@ -577,6 +577,14 @@ public sealed partial class ConversationPage : Page
         return _contextMenuTargetMessage;
     }
 
+    private void MenuFlyout_Opening(object sender, object e)
+    {
+        if (sender is MenuFlyout menu)
+        {
+            FlyoutWindow.ApplyMenuFlyoutTheming(menu, this.XamlRoot);
+        }
+    }
+
     private void MessageBubble_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
     {
         if (args.Handled) return;
@@ -601,6 +609,8 @@ public sealed partial class ConversationPage : Page
             {
                 flyout = GetOrCreateTextContextMenu();
             }
+
+            FlyoutWindow.ApplyMenuFlyoutTheming(flyout, this.XamlRoot);
 
             args.Handled = true;
             if (args.TryGetPosition(fe, out var pt))
@@ -803,12 +813,30 @@ public sealed partial class ConversationPage : Page
     {
         dialog.CornerRadius = new CornerRadius(12);
         dialog.BorderThickness = new Thickness(1);
-        dialog.RequestedTheme = this.ActualTheme;
+
+        bool inFlyout = FlyoutWindow.IsHostedInFlyout(this.XamlRoot);
+        bool inFlyoutTaskbarAccent = inFlyout && FlyoutAcrylicBackdrop.IsTaskbarAccentColorEnabled();
+
+        dialog.RequestedTheme = inFlyoutTaskbarAccent
+            ? (FlyoutAcrylicBackdrop.IsTaskbarLightTheme() ? ElementTheme.Light : ElementTheme.Dark)
+            : this.ActualTheme;
 
         // Apply active platform accent (or system accent fallback) to dialog's scoped resources
         var themeService = App.Current.Services.GetService<People.Core.Interfaces.IThemeService>();
         var platformId = ViewModel?.CurrentChat?.PlatformId ?? "WhatsApp";
         themeService?.ApplyAccentToResourceDictionary(dialog.Resources, platformId);
+
+        if (inFlyout)
+        {
+            FlyoutWindow.ApplySurfaceAccentToResources(dialog.Resources);
+        }
+
+        if (inFlyoutTaskbarAccent && FlyoutWindow.TryCreateTaskbarSurfaceBrush(out var tbAcrylic, out var tbBorder, 0.84))
+        {
+            dialog.Background = tbAcrylic!;
+            dialog.BorderBrush = tbBorder!;
+            return;
+        }
 
         bool isDark = this.ActualTheme == ElementTheme.Dark || (this.ActualTheme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
         if (Application.Current.Resources.TryGetValue("AcrylicInAppFillColorDefaultBrush", out var acrylicObj) && acrylicObj is Brush acrylicBrush)
@@ -846,22 +874,104 @@ public sealed partial class ConversationPage : Page
                                     msg.Status != MessageStatus.Failed &&
                                     (DateTimeOffset.UtcNow - msg.Timestamp).TotalHours <= 60.0;
 
-        var dialog = new ContentDialog
+        bool stackButtons = FlyoutWindow.IsHostedInFlyout(this.XamlRoot) || (this.ActualWidth > 0 && this.ActualWidth < 520);
+
+        string promptText = canDeleteForEveryone
+            ? "Are you sure you want to delete this message? You can delete it for everyone or just for yourself."
+            : "Are you sure you want to delete this message from your chat history?";
+
+        if (stackButtons)
+        {
+            bool? deleteForEveryoneChoice = null;
+            var dialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = "Delete message?"
+            };
+            ApplyDialogTransparency(dialog);
+
+            var accentStyle = Application.Current.Resources.TryGetValue("AccentButtonStyle", out var styleObj) && styleObj is Style s
+                ? s
+                : null;
+
+            Button CreateStackedButton(string label, bool isAccent, Action onClick)
+            {
+                var btn = new Button
+                {
+                    Content = label,
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+                if (isAccent && accentStyle != null)
+                {
+                    btn.Style = accentStyle;
+                }
+                btn.Click += (_, _) =>
+                {
+                    onClick();
+                    dialog.Hide();
+                };
+                return btn;
+            }
+
+            var buttonStack = new StackPanel
+            {
+                Spacing = 8,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+            if (canDeleteForEveryone)
+            {
+                buttonStack.Children.Add(CreateStackedButton("Delete for everyone", isAccent: true, () => deleteForEveryoneChoice = true));
+                buttonStack.Children.Add(CreateStackedButton("Delete for me", isAccent: false, () => deleteForEveryoneChoice = false));
+            }
+            else
+            {
+                buttonStack.Children.Add(CreateStackedButton("Delete for me", isAccent: true, () => deleteForEveryoneChoice = false));
+            }
+            buttonStack.Children.Add(CreateStackedButton("Cancel", isAccent: false, () => deleteForEveryoneChoice = null));
+
+            var contentPanel = new StackPanel { Spacing = 8 };
+            contentPanel.Children.Add(new TextBlock
+            {
+                Text = promptText,
+                TextWrapping = TextWrapping.Wrap
+            });
+            contentPanel.Children.Add(buttonStack);
+
+            var escapeAccel = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
+            escapeAccel.Invoked += (_, args) =>
+            {
+                args.Handled = true;
+                deleteForEveryoneChoice = null;
+                dialog.Hide();
+            };
+            contentPanel.KeyboardAccelerators.Add(escapeAccel);
+
+            dialog.Content = contentPanel;
+            await dialog.ShowAsync();
+
+            if (deleteForEveryoneChoice.HasValue)
+            {
+                await ViewModel.DeleteMessageAsync(msg, forEveryone: deleteForEveryoneChoice.Value);
+            }
+            return;
+        }
+
+        var wideDialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
             Title = "Delete message?",
+            Content = promptText,
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary
         };
-        ApplyDialogTransparency(dialog);
+        ApplyDialogTransparency(wideDialog);
 
         if (canDeleteForEveryone)
         {
-            dialog.Content = "Are you sure you want to delete this message? You can delete it for everyone or just for yourself.";
-            dialog.PrimaryButtonText = "Delete for everyone";
-            dialog.SecondaryButtonText = "Delete for me";
+            wideDialog.PrimaryButtonText = "Delete for everyone";
+            wideDialog.SecondaryButtonText = "Delete for me";
 
-            var result = await dialog.ShowAsync();
+            var result = await wideDialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
                 await ViewModel.DeleteMessageAsync(msg, forEveryone: true);
@@ -873,10 +983,9 @@ public sealed partial class ConversationPage : Page
         }
         else
         {
-            dialog.Content = "Are you sure you want to delete this message from your chat history?";
-            dialog.PrimaryButtonText = "Delete for me";
+            wideDialog.PrimaryButtonText = "Delete for me";
 
-            var result = await dialog.ShowAsync();
+            var result = await wideDialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
                 await ViewModel.DeleteMessageAsync(msg, forEveryone: false);
@@ -1030,9 +1139,10 @@ public sealed partial class ConversationPage : Page
         }
 
         var filteredChats = new System.Collections.ObjectModel.ObservableCollection<Chat>(targetChats);
+        double dlgWidth = (ActualWidth > 0 && ActualWidth < 430) ? Math.Clamp(ActualWidth - 64, 240, 360) : 360;
 
         // Dialog content layout
-        var contentStack = new StackPanel { Spacing = 12, Width = 360 };
+        var contentStack = new StackPanel { Spacing = 12, Width = dlgWidth };
 
         // Search Box for contacts / chats
         var searchBox = new AutoSuggestBox
@@ -1049,7 +1159,7 @@ public sealed partial class ConversationPage : Page
             SelectionMode = ListViewSelectionMode.Single,
             MaxHeight = 320,
             MinHeight = 180,
-            Width = 360,
+            Width = dlgWidth,
             IsItemClickEnabled = true
         };
 
@@ -1628,8 +1738,34 @@ public sealed partial class ConversationPage : Page
         if (targetMsg != null && targetMsg.HasReactions && sender is FrameworkElement anchor)
         {
             var detailsFlyout = GetOrCreateReactionDetailsFlyout();
+            SyncPopupControlTheming(_reactionDetailsControl);
             _reactionDetailsControl?.SetMessage(targetMsg);
             detailsFlyout.ShowAt(anchor);
+        }
+    }
+
+    private void SyncPopupControlTheming(FrameworkElement? popupControl)
+    {
+        if (popupControl == null) return;
+        if (!FlyoutWindow.IsHostedInFlyout(this.XamlRoot)) return;
+
+        FlyoutWindow.ApplySurfaceAccentToResources(popupControl.Resources);
+        bool hasTaskbarAccent = FlyoutWindow.TryCreateTaskbarSurfaceBrush(out var bgBrush, out var borderBrush, 0.86);
+        popupControl.RequestedTheme = hasTaskbarAccent
+            ? (FlyoutAcrylicBackdrop.IsTaskbarLightTheme() ? ElementTheme.Light : ElementTheme.Dark)
+            : this.ActualTheme;
+
+        switch (popupControl)
+        {
+            case People.Controls.QuickReactionPicker quick:
+                quick.ApplySurfaceBrushes(hasTaskbarAccent ? bgBrush : null, hasTaskbarAccent ? borderBrush : null);
+                break;
+            case People.Controls.EmojiReactionPicker emoji:
+                emoji.ApplySurfaceBrushes(hasTaskbarAccent ? bgBrush : null, hasTaskbarAccent ? borderBrush : null);
+                break;
+            case People.Controls.ReactionDetailsControl details:
+                details.ApplySurfaceBrushes(hasTaskbarAccent ? bgBrush : null, hasTaskbarAccent ? borderBrush : null);
+                break;
         }
     }
 
@@ -1650,6 +1786,7 @@ public sealed partial class ConversationPage : Page
             {
                 _quickReactionFlyout?.Hide();
                 var fullFlyout = GetOrCreateFullEmojiPickerFlyout();
+                SyncPopupControlTheming(_fullEmojiPicker);
                 _fullEmojiPicker?.Reset();
                 if (_activeReactionButton != null)
                 {
@@ -1670,6 +1807,7 @@ public sealed partial class ConversationPage : Page
                 FlyoutPresenterStyle = quickFlyoutStyle
             };
         }
+        SyncPopupControlTheming(_quickReactionPicker);
         return _quickReactionFlyout;
     }
 
@@ -1708,6 +1846,7 @@ public sealed partial class ConversationPage : Page
                 FlyoutPresenterStyle = fullFlyoutStyle
             };
         }
+        SyncPopupControlTheming(_fullEmojiPicker);
         return _fullEmojiPickerFlyout;
     }
 
@@ -1738,6 +1877,7 @@ public sealed partial class ConversationPage : Page
                 FlyoutPresenterStyle = detailsFlyoutStyle
             };
         }
+        SyncPopupControlTheming(_reactionDetailsControl);
         return _reactionDetailsFlyout;
     }
 
@@ -1755,6 +1895,25 @@ public sealed partial class ConversationPage : Page
             {
                 ConversationHeaderBorder.Background = transparentBrush;
             }
+            FlyoutWindow.ApplySurfaceAccentToResources(this.Resources);
+            if (WhiteBoard != null)
+            {
+                FlyoutWindow.ApplySurfaceAccentToResources(WhiteBoard.Resources);
+            }
+            if (WhiteBoardOverlay != null)
+            {
+                if (FlyoutWindow.TryCreateTaskbarSurfaceBrush(out var wbBrush, out _, 0.72))
+                {
+                    WhiteBoardOverlay.Background = wbBrush!;
+                }
+                else if (Resources.TryGetValue("WhiteBoardBackdropAcrylicBrush", out var defaultWb) && defaultWb is Brush defaultBrush)
+                {
+                    WhiteBoardOverlay.Background = defaultBrush;
+                }
+            }
+            SyncPopupControlTheming(_quickReactionPicker);
+            SyncPopupControlTheming(_fullEmojiPicker);
+            SyncPopupControlTheming(_reactionDetailsControl);
         }
 
         var targetDict = dict ?? FlyoutWindow.CurrentFlyoutResources;

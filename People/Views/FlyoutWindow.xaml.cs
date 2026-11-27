@@ -155,6 +155,163 @@ public sealed partial class FlyoutWindow : Window
     private void OnFlyoutSystemColorsRefreshed()
     {
         ApplyRequestedTheme();
+        ApplyFlyoutPlatformAccent(_selectedPlatform);
+    }
+
+    public static bool IsHostedInFlyout(XamlRoot? xamlRoot)
+    {
+        return CurrentFlyoutWindow != null &&
+               xamlRoot != null &&
+               xamlRoot == CurrentFlyoutWindow.Content?.XamlRoot;
+    }
+
+    private static readonly string[] TaskbarSurfaceBrushKeys =
+    [
+        "AcrylicInAppFillColorDefaultBrush",
+        "AcrylicBackgroundFillColorDefaultBrush",
+        "DesktopAcrylicTransparentBrush",
+        "SolidBackgroundFillColorBaseBrush",
+        "SolidBackgroundFillColorSecondaryBrush",
+        "SolidBackgroundFillColorTertiaryBrush",
+        "FlyoutPresenterBackground",
+        "MenuFlyoutPresenterBackground",
+        "ContentDialogBackground",
+        "ComboBoxDropDownBackground",
+        "LayerFillColorDefaultBrush",
+        "LayerFillColorAltBrush",
+        "ContentDialogTopOverlay",
+        "CardStrokeColorDefaultBrush",
+        "CardStrokeColorDefaultSolidBrush",
+        "MenuFlyoutPresenterBorderBrush",
+        "FlyoutBorderThemeBrush",
+        "ContentDialogSeparatorBorderBrush"
+    ];
+
+    public static bool TryCreateTaskbarSurfaceBrush(
+        out AcrylicBrush? surfaceBrush,
+        out SolidColorBrush? borderBrush,
+        double opacity = 0.84)
+    {
+        surfaceBrush = null;
+        borderBrush = null;
+        if (!FlyoutAcrylicBackdrop.TryGetTaskbarTintColors(out var tint, out var fallback, out var border, out var isLight))
+        {
+            return false;
+        }
+
+        surfaceBrush = new AcrylicBrush
+        {
+            TintColor = tint,
+            FallbackColor = fallback,
+            TintOpacity = opacity,
+            TintLuminosityOpacity = isLight ? 0.86 : 0.88
+        };
+        borderBrush = new SolidColorBrush(border);
+        return true;
+    }
+
+    public static void ApplySurfaceAccentToResources(ResourceDictionary targetDict)
+    {
+        if (!FlyoutAcrylicBackdrop.TryGetTaskbarTintColors(out var tint, out var fallback, out var border, out var isLight))
+        {
+            foreach (var key in TaskbarSurfaceBrushKeys)
+            {
+                targetDict.Remove(key);
+            }
+            return;
+        }
+
+        AcrylicBrush MakeAcrylic(double opacity) => new()
+        {
+            TintColor = tint,
+            FallbackColor = fallback,
+            TintOpacity = opacity,
+            TintLuminosityOpacity = isLight ? 0.86 : 0.88
+        };
+
+        var acrylicDefault = MakeAcrylic(0.80);
+        var acrylicSurface = MakeAcrylic(0.84);
+        var acrylicPopup = MakeAcrylic(0.86);
+
+        targetDict["AcrylicInAppFillColorDefaultBrush"] = acrylicDefault;
+        targetDict["AcrylicBackgroundFillColorDefaultBrush"] = acrylicDefault;
+        targetDict["DesktopAcrylicTransparentBrush"] = acrylicPopup;
+
+        targetDict["SolidBackgroundFillColorBaseBrush"] = acrylicSurface;
+        targetDict["SolidBackgroundFillColorSecondaryBrush"] = acrylicPopup;
+        targetDict["SolidBackgroundFillColorTertiaryBrush"] = acrylicPopup;
+
+        targetDict["FlyoutPresenterBackground"] = acrylicPopup;
+        targetDict["MenuFlyoutPresenterBackground"] = acrylicPopup;
+        targetDict["ContentDialogBackground"] = acrylicSurface;
+        targetDict["ComboBoxDropDownBackground"] = acrylicPopup;
+
+        targetDict["LayerFillColorDefaultBrush"] = new SolidColorBrush(Windows.UI.Color.FromArgb(isLight ? (byte)0x48 : (byte)0x5C, tint.R, tint.G, tint.B));
+        targetDict["LayerFillColorAltBrush"] = new SolidColorBrush(Windows.UI.Color.FromArgb(isLight ? (byte)0x38 : (byte)0x48, fallback.R, fallback.G, fallback.B));
+        targetDict["ContentDialogTopOverlay"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+        var borderBrush = new SolidColorBrush(border);
+        targetDict["CardStrokeColorDefaultBrush"] = borderBrush;
+        targetDict["CardStrokeColorDefaultSolidBrush"] = borderBrush;
+        targetDict["MenuFlyoutPresenterBorderBrush"] = borderBrush;
+        targetDict["FlyoutBorderThemeBrush"] = borderBrush;
+        targetDict["ContentDialogSeparatorBorderBrush"] = borderBrush;
+    }
+
+    public static void ApplyMenuFlyoutTheming(MenuFlyout menu, XamlRoot? xamlRoot)
+    {
+        if (!IsHostedInFlyout(xamlRoot) || !TryCreateTaskbarSurfaceBrush(out var bgBrush, out var borderBrush, 0.86))
+        {
+            menu.MenuFlyoutPresenterStyle = null;
+            return;
+        }
+
+        var style = new Style(typeof(MenuFlyoutPresenter));
+        style.Setters.Add(new Setter(Control.BackgroundProperty, bgBrush!));
+        style.Setters.Add(new Setter(Control.BorderBrushProperty, borderBrush!));
+        style.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty,
+            FlyoutAcrylicBackdrop.IsTaskbarLightTheme() ? ElementTheme.Light : ElementTheme.Dark));
+        menu.MenuFlyoutPresenterStyle = style;
+    }
+
+    public static void ApplyFlyoutPresenterTheming(Flyout flyout, XamlRoot? xamlRoot, Style? baseStyle = null)
+    {
+        if (!IsHostedInFlyout(xamlRoot) || !TryCreateTaskbarSurfaceBrush(out var bgBrush, out var borderBrush, 0.86))
+        {
+            if (baseStyle != null)
+            {
+                flyout.FlyoutPresenterStyle = baseStyle;
+            }
+            return;
+        }
+
+        var style = new Style(typeof(FlyoutPresenter));
+        if (baseStyle != null)
+        {
+            foreach (SetterBase sb in baseStyle.Setters)
+            {
+                if (sb is Setter s &&
+                    s.Property != Control.BackgroundProperty &&
+                    s.Property != Control.BorderBrushProperty &&
+                    s.Property != FrameworkElement.RequestedThemeProperty)
+                {
+                    style.Setters.Add(new Setter(s.Property, s.Value));
+                }
+            }
+        }
+        style.Setters.Add(new Setter(Control.BackgroundProperty, bgBrush!));
+        style.Setters.Add(new Setter(Control.BorderBrushProperty, borderBrush!));
+        style.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty,
+            FlyoutAcrylicBackdrop.IsTaskbarLightTheme() ? ElementTheme.Light : ElementTheme.Dark));
+        flyout.FlyoutPresenterStyle = style;
+    }
+
+    private void PlatformMenuFlyout_Opening(object? sender, object e)
+    {
+        if (sender is MenuFlyout menu)
+        {
+            ApplyMenuFlyoutTheming(menu, Content?.XamlRoot);
+        }
     }
 
     public void ApplyRequestedTheme(string? appThemeOverride = null)
@@ -185,6 +342,7 @@ public sealed partial class FlyoutWindow : Window
 
         var themeService = App.Current.Services.GetRequiredService<IThemeService>();
         themeService.ApplyAccentToResourceDictionary(RootGrid.Resources, platform);
+        ApplySurfaceAccentToResources(RootGrid.Resources);
         CurrentFlyoutResources = RootGrid.Resources;
 
         if (ContentFrame.Content is ChatListPage chatList)

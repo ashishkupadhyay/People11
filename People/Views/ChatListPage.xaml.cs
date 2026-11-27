@@ -135,38 +135,19 @@ public sealed partial class ChatListPage : Page
     private void DetailFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         bool hasConv = DetailFrame.Content is ConversationPage;
-        if (hasConv)
+        if (!hasConv)
         {
-            _detailCollapseTimer?.Stop();
-            DetailFrame.IsHitTestVisible = true;
-            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-        }
-        else
-        {
-            DetailFrame.IsHitTestVisible = false;
-            _detailCollapseTimer?.Stop();
-            if (this.ActualWidth > 0 && this.ActualWidth < 640)
+            _isClosingDetail = false;
+            if (_narrowSlideStoryboard == null)
             {
-                if (_detailCollapseTimer == null)
-                {
-                    _detailCollapseTimer = DispatcherQueue.CreateTimer();
-                    _detailCollapseTimer.Interval = TimeSpan.FromMilliseconds(320);
-                    _detailCollapseTimer.IsRepeating = false;
-                    _detailCollapseTimer.Tick += (_, _) =>
-                    {
-                        if (DetailFrame.Content is not ConversationPage)
-                        {
-                            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
-                        }
-                    };
-                }
-                DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
-                _detailCollapseTimer.Start();
-            }
-            else
-            {
+                DetailFrame.IsHitTestVisible = false;
                 DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
             }
+        }
+        else if (_narrowSlideStoryboard == null)
+        {
+            DetailFrame.IsHitTestVisible = true;
+            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         }
 
         if (hasConv && DetailFrame.Content is ConversationPage convPage)
@@ -201,7 +182,10 @@ public sealed partial class ChatListPage : Page
         }
     }
     
-    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _detailCollapseTimer;
+    private Microsoft.UI.Xaml.Media.Animation.Storyboard? _narrowSlideStoryboard;
+    private int _narrowNavGeneration;
+    private bool _isClosingDetail;
+    private Microsoft.UI.Xaml.Style? _baseNewChatFlyoutStyle;
     private string? _platformId = "WhatsApp";
     private string? _lastEmptyStateKey;
     
@@ -298,8 +282,16 @@ public sealed partial class ChatListPage : Page
         }
 
         bool hasConv = DetailFrame.Content is ConversationPage;
+        bool isNarrow = (this.ActualWidth > 0 ? this.ActualWidth : 340) < 640;
         DetailFrame.IsHitTestVisible = hasConv;
         DetailFrame.Visibility = hasConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        if (ListGrid != null)
+        {
+            ListGrid.Visibility = (isNarrow && hasConv) ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+            ListGrid.Opacity = 1.0;
+        }
+        if (ListTransform != null) ListTransform.X = 0;
+        if (DetailTransform != null) DetailTransform.X = 0;
 
         if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
         {
@@ -321,14 +313,40 @@ public sealed partial class ChatListPage : Page
 
         if (width < 640)
         {
-            // Narrow State
-            // We no longer collapse grids here so transitions can play out.
-            // DetailFrame is on top, and if empty/transparent, ListGrid is seen.
-            mainVm.IsBackEnabled = hasConversation;
+            bool showConv = hasConversation && !_isClosingDetail;
+            mainVm.IsBackEnabled = showConv;
             PlaceholderGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+
+            if (_narrowSlideStoryboard == null)
+            {
+                if (ListGrid != null)
+                {
+                    ListGrid.Visibility = showConv ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+                    ListGrid.IsHitTestVisible = !showConv;
+                    ListGrid.Opacity = 1.0;
+                }
+                if (ListTransform != null) ListTransform.X = 0;
+                if (DetailTransform != null) DetailTransform.X = 0;
+                DetailFrame.Visibility = showConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+                DetailFrame.IsHitTestVisible = showConv;
+            }
         }
         else
         {
+            StopNarrowSlideAnimation();
+            _isClosingDetail = false;
+
+            if (ListGrid != null)
+            {
+                ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+                ListGrid.IsHitTestVisible = true;
+                ListGrid.Opacity = 1.0;
+            }
+            if (ListTransform != null) ListTransform.X = 0;
+            if (DetailTransform != null) DetailTransform.X = 0;
+            DetailFrame.Visibility = hasConversation ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            DetailFrame.IsHitTestVisible = hasConversation;
+
             // Wide State handled by VisualStateManager
             var navService = App.Current.Services.GetRequiredService<People.Core.Interfaces.INavigationService>();
             mainVm.IsBackEnabled = navService.CanGoBack;
@@ -431,20 +449,142 @@ public sealed partial class ChatListPage : Page
         }
     }
 
+    private void StopNarrowSlideAnimation()
+    {
+        if (_narrowSlideStoryboard != null)
+        {
+            _narrowSlideStoryboard.Stop();
+            _narrowSlideStoryboard = null;
+        }
+    }
+
+    private void StartNarrowSlideAnimation(bool opening, double width, int gen, Action onCompleted)
+    {
+        StopNarrowSlideAnimation();
+
+        var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
+        };
+        var duration = TimeSpan.FromMilliseconds(220);
+
+        double detailFrom = opening ? width : 0;
+        double detailTo = opening ? 0 : width;
+        double listFrom = opening ? 0 : -width * 0.25;
+        double listTo = opening ? -width * 0.25 : 0;
+        double listOpacityFrom = opening ? 1.0 : 0.0;
+        double listOpacityTo = opening ? 0.0 : 1.0;
+
+        DetailTransform.X = detailFrom;
+        ListTransform.X = listFrom;
+        ListGrid.Opacity = listOpacityFrom;
+
+        var detailAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = detailFrom,
+            To = detailTo,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(detailAnim, DetailTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(detailAnim, "X");
+
+        var listSlideAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = listFrom,
+            To = listTo,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(listSlideAnim, ListTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(listSlideAnim, "X");
+
+        var listFadeAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = listOpacityFrom,
+            To = listOpacityTo,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(listFadeAnim, ListGrid);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(listFadeAnim, "Opacity");
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(detailAnim);
+        sb.Children.Add(listSlideAnim);
+        sb.Children.Add(listFadeAnim);
+        _narrowSlideStoryboard = sb;
+
+        sb.Completed += (_, _) =>
+        {
+            if (_narrowNavGeneration != gen) return;
+            _narrowSlideStoryboard = null;
+            onCompleted();
+        };
+        sb.Begin();
+    }
+
     public void OpenChatInDetail(People.Core.Models.Chat chat)
     {
         if (chat == null) return;
 
-        _detailCollapseTimer?.Stop();
+        double width = ActualWidth > 0 ? ActualWidth : 340;
+        bool isNarrow = width < 640;
 
         if (DetailFrame.Content is ConversationPage existingConvPage &&
-            existingConvPage.ViewModel.CurrentChat?.Id == chat.Id)
+            existingConvPage.ViewModel.CurrentChat?.Id == chat.Id &&
+            !_isClosingDetail)
         {
             DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
             DetailFrame.IsHitTestVisible = true;
+            if (isNarrow && ListGrid != null)
+            {
+                ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
             return;
         }
 
+        if (isNarrow)
+        {
+            int gen = ++_narrowNavGeneration;
+            _isClosingDetail = false;
+            StopNarrowSlideAnimation();
+
+            ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            ListGrid.IsHitTestVisible = false;
+            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+            DetailFrame.IsHitTestVisible = true;
+
+            DetailFrame.Navigate(
+                typeof(ConversationPage),
+                chat,
+                new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+
+            ConversationOpened?.Invoke(this, chat);
+
+            StartNarrowSlideAnimation(opening: true, width, gen, () =>
+            {
+                if ((ActualWidth > 0 ? ActualWidth : 340) < 640 &&
+                    DetailFrame.Content is ConversationPage &&
+                    !_isClosingDetail)
+                {
+                    ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+                }
+                ListGrid.IsHitTestVisible = true;
+                ListGrid.Opacity = 1.0;
+                ListTransform.X = 0;
+                DetailTransform.X = 0;
+            });
+            return;
+        }
+
+        StopNarrowSlideAnimation();
+        _isClosingDetail = false;
+        ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        ListGrid.IsHitTestVisible = true;
+        ListGrid.Opacity = 1.0;
+        ListTransform.X = 0;
+        DetailTransform.X = 0;
         DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         DetailFrame.IsHitTestVisible = true;
 
@@ -493,29 +633,80 @@ public sealed partial class ChatListPage : Page
         if (NewChatFlyoutPanel == null) return;
         double w = ActualWidth > 0 ? ActualWidth : 340;
         NewChatFlyoutPanel.Width = w < 400 ? Math.Clamp(w - 44, 210, 320) : 320;
+        if (NewChatFlyout != null)
+        {
+            _baseNewChatFlyoutStyle ??= NewChatFlyout.FlyoutPresenterStyle;
+            FlyoutWindow.ApplyFlyoutPresenterTheming(NewChatFlyout, this.XamlRoot, _baseNewChatFlyoutStyle);
+        }
+        if (_isFlyout || FlyoutWindow.IsHostedInFlyout(this.XamlRoot))
+        {
+            FlyoutWindow.ApplySurfaceAccentToResources(NewChatFlyoutPanel.Resources);
+        }
     }
 
     public bool IsDetailVisibleInNarrowMode()
     {
-        return this.ActualWidth < 640 && DetailFrame.Content is ConversationPage;
+        return this.ActualWidth < 640 && DetailFrame.Content is ConversationPage && !_isClosingDetail;
     }
 
     public void CloseDetail()
     {
         if (ChatsListView != null) ChatsListView.SelectedItem = null;
+
+        double width = ActualWidth > 0 ? ActualWidth : 340;
+        bool isNarrow = width < 640;
+
+        if (!isNarrow)
+        {
+            _narrowNavGeneration++;
+            StopNarrowSlideAnimation();
+            _isClosingDetail = false;
+            DetailFrame.IsHitTestVisible = false;
+            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            ConversationClosed?.Invoke(this, EventArgs.Empty);
+            if (DetailFrame.CanGoBack)
+            {
+                DetailFrame.GoBack(new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+            }
+            else
+            {
+                DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+            }
+            return;
+        }
+
+        if (DetailFrame.Content is not ConversationPage || _isClosingDetail)
+        {
+            return;
+        }
+
+        _isClosingDetail = true;
+        int gen = ++_narrowNavGeneration;
+        StopNarrowSlideAnimation();
         DetailFrame.IsHitTestVisible = false;
-        var slideBack = new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo
+        ConversationClosed?.Invoke(this, EventArgs.Empty);
+
+        ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        ListGrid.IsHitTestVisible = true;
+        DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+
+        StartNarrowSlideAnimation(opening: false, width, gen, () =>
         {
-            Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromLeft
-        };
-        if (DetailFrame.CanGoBack)
-        {
-            DetailFrame.GoBack(slideBack);
-        }
-        else
-        {
-            DetailFrame.Navigate(typeof(Page), null, slideBack);
-        }
+            _isClosingDetail = false;
+            DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            DetailTransform.X = 0;
+            ListTransform.X = 0;
+            ListGrid.Opacity = 1.0;
+
+            if (DetailFrame.CanGoBack)
+            {
+                DetailFrame.GoBack(new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+            }
+            else
+            {
+                DetailFrame.Navigate(typeof(Page), null, new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
+            }
+        });
     }
 
     private void OnboardingDoodleCanvas_SizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)
@@ -734,6 +925,16 @@ public sealed partial class ChatListPage : Page
             {
                 conv.ScopedResources = targetDict;
             }
+        }
+        FlyoutWindow.ApplySurfaceAccentToResources(Resources);
+        if (NewChatFlyoutPanel != null)
+        {
+            FlyoutWindow.ApplySurfaceAccentToResources(NewChatFlyoutPanel.Resources);
+        }
+        if (NewChatFlyout != null)
+        {
+            _baseNewChatFlyoutStyle ??= NewChatFlyout.FlyoutPresenterStyle;
+            FlyoutWindow.ApplyFlyoutPresenterTheming(NewChatFlyout, this.XamlRoot, _baseNewChatFlyoutStyle);
         }
         if (DetailFrame.Content is ConversationPage convPage)
         {

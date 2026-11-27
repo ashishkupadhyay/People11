@@ -71,7 +71,7 @@
                                     AutomationProperties.AutomationId="FlyoutPlatformChevronBtn">
                                 <FontIcon Glyph="&#xE76C;" FontSize="10" />
                                 <Button.Flyout>
-                                    <MenuFlyout x:Name="PlatformMenuFlyout">
+                                    <MenuFlyout x:Name="PlatformMenuFlyout" Opening="PlatformMenuFlyout_Opening">
                                         <MenuFlyoutItem Text="WhatsApp" Tag="WhatsApp" Click="PlatformMenuItem_Click" />
                                         <MenuFlyoutItem Text="Telegram" Tag="Telegram" Click="PlatformMenuItem_Click" />
                                         <MenuFlyoutItem Text="Discord" Tag="Discord" Click="PlatformMenuItem_Click" />

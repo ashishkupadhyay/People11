@@ -77,6 +77,9 @@
             </Grid.ColumnDefinitions>
 
             <Grid x:Name="ListGrid" Grid.Column="0">
+                <Grid.RenderTransform>
+                    <TranslateTransform x:Name="ListTransform" X="0" />
+                </Grid.RenderTransform>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -305,6 +308,9 @@
         <Frame x:Name="DetailFrame" Grid.Column="1" Background="Transparent" CornerRadius="{ThemeResource OverlayCornerRadius}"
                IsHitTestVisible="False" Visibility="Collapsed"
                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
+            <Frame.RenderTransform>
+                <TranslateTransform x:Name="DetailTransform" X="0" />
+            </Frame.RenderTransform>
             <Frame.ContentTransitions>
                 <TransitionCollection>
                     <NavigationThemeTransition>

@@ -53,7 +53,8 @@
         </Style>
     </UserControl.Resources>
 
-    <Border Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+    <Border x:Name="ContainerBorder"
+            Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
             BorderThickness="1"
             CornerRadius="22"

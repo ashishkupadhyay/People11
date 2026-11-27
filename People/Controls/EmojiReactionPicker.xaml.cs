@@ -37,6 +37,15 @@ public sealed partial class EmojiReactionPicker : UserControl
         Loaded += (s, e) => Reset();
     }
 
+    public void ApplySurfaceBrushes(Brush? background, Brush? border)
+    {
+        if (ContainerBorder == null) return;
+        if (background != null) ContainerBorder.Background = background;
+        else ContainerBorder.ClearValue(Border.BackgroundProperty);
+        if (border != null) ContainerBorder.BorderBrush = border;
+        else ContainerBorder.ClearValue(Border.BorderBrushProperty);
+    }
+
     public void Reset()
     {
         _searchDebounceTimer?.Stop();

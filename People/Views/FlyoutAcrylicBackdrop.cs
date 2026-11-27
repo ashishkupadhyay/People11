@@ -91,6 +91,46 @@ public sealed class FlyoutAcrylicBackdrop : SystemBackdrop
         return false;
     }
 
+    public static bool TryGetTaskbarTintColors(
+        out Color tintColor,
+        out Color fallbackColor,
+        out Color borderColor,
+        out bool isLightTaskbar)
+    {
+        tintColor = default;
+        fallbackColor = default;
+        borderColor = default;
+        isLightTaskbar = false;
+
+        if (!IsTaskbarAccentColorEnabled())
+        {
+            return false;
+        }
+
+        try
+        {
+            var uiSettings = new UISettings();
+            isLightTaskbar = IsTaskbarLightTheme();
+            if (isLightTaskbar)
+            {
+                tintColor = uiSettings.GetColorValue(UIColorType.AccentLight2);
+                fallbackColor = uiSettings.GetColorValue(UIColorType.AccentLight3);
+                borderColor = Color.FromArgb(0x28, 0x00, 0x00, 0x00);
+            }
+            else
+            {
+                tintColor = uiSettings.GetColorValue(UIColorType.AccentDark2);
+                fallbackColor = uiSettings.GetColorValue(UIColorType.AccentDark3);
+                borderColor = Color.FromArgb(0x32, 0xFF, 0xFF, 0xFF);
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public void RefreshSystemColors()
     {
         if (_connectedTarget == null || _controller == null)
@@ -183,7 +223,7 @@ public sealed class FlyoutAcrylicBackdrop : SystemBackdrop
             return;
         }
 
-        if (!IsTaskbarAccentColorEnabled())
+        if (!TryGetTaskbarTintColors(out var tintColor, out var fallbackColor, out _, out var isLightTaskbar))
         {
             // Recreate controller when leaving custom tinting so WinUI restores built-in Base/Thin colors.
             if (_isCustomTinted)
@@ -196,27 +236,12 @@ public sealed class FlyoutAcrylicBackdrop : SystemBackdrop
 
         try
         {
-            _uiSettings ??= new UISettings();
-            bool isLightTaskbar = IsTaskbarLightTheme();
-            Color tintColor;
-            Color fallbackColor;
-            float tintOpacity;
-            float luminosityOpacity;
-
-            if (isLightTaskbar)
-            {
-                tintColor = _uiSettings.GetColorValue(UIColorType.AccentLight2);
-                fallbackColor = _uiSettings.GetColorValue(UIColorType.AccentLight3);
-                tintOpacity = _kind == DesktopAcrylicKind.Thin ? 0.65f : 0.78f;
-                luminosityOpacity = 0.85f;
-            }
-            else
-            {
-                tintColor = _uiSettings.GetColorValue(UIColorType.AccentDark2);
-                fallbackColor = _uiSettings.GetColorValue(UIColorType.AccentDark3);
-                tintOpacity = _kind == DesktopAcrylicKind.Thin ? 0.68f : 0.82f;
-                luminosityOpacity = _kind == DesktopAcrylicKind.Thin ? 0.80f : 0.90f;
-            }
+            float tintOpacity = isLightTaskbar
+                ? (_kind == DesktopAcrylicKind.Thin ? 0.65f : 0.78f)
+                : (_kind == DesktopAcrylicKind.Thin ? 0.68f : 0.82f);
+            float luminosityOpacity = isLightTaskbar
+                ? 0.85f
+                : (_kind == DesktopAcrylicKind.Thin ? 0.80f : 0.90f);
 
             _controller.TintColor = tintColor;
             _controller.FallbackColor = fallbackColor;

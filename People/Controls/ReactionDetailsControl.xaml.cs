@@ -22,6 +22,15 @@ public sealed partial class ReactionDetailsControl : UserControl
         InitializeComponent();
     }
 
+    public void ApplySurfaceBrushes(Brush? background, Brush? border)
+    {
+        if (ContainerBorder == null) return;
+        if (background != null) ContainerBorder.Background = background;
+        else ContainerBorder.ClearValue(Border.BackgroundProperty);
+        if (border != null) ContainerBorder.BorderBrush = border;
+        else ContainerBorder.ClearValue(Border.BorderBrushProperty);
+    }
+
     public void SetMessage(Message message)
     {
         _message = message;

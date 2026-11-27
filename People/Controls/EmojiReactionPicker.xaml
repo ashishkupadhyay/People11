@@ -57,7 +57,8 @@
     </UserControl.Resources>
 
     <!-- Windows 11 Native Fluent Overlay Container (8px CornerRadius, responsive up to 340x420) -->
-    <Border MaxWidth="340"
+    <Border x:Name="ContainerBorder"
+            MaxWidth="340"
             MinWidth="220"
             Height="420"
             HorizontalAlignment="Stretch"

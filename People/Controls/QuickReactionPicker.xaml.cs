@@ -14,6 +14,15 @@ public sealed partial class QuickReactionPicker : UserControl
         InitializeComponent();
     }
 
+    public void ApplySurfaceBrushes(Microsoft.UI.Xaml.Media.Brush? background, Microsoft.UI.Xaml.Media.Brush? border)
+    {
+        if (ContainerBorder == null) return;
+        if (background != null) ContainerBorder.Background = background;
+        else ContainerBorder.ClearValue(Border.BackgroundProperty);
+        if (border != null) ContainerBorder.BorderBrush = border;
+        else ContainerBorder.ClearValue(Border.BorderBrushProperty);
+    }
+
     private void QuickEmoji_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string emoji)

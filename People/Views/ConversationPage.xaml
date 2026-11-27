@@ -321,7 +321,7 @@
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
-                                                            <MenuFlyout>
+                                                            <MenuFlyout Opening="MenuFlyout_Opening">
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -467,7 +467,7 @@
                                                         </Border>
 
                                                         <Grid.ContextFlyout>
-                                                            <MenuFlyout>
+                                                            <MenuFlyout Opening="MenuFlyout_Opening">
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -632,7 +632,7 @@
                                                         </StackPanel>
 
                                                         <Border.ContextFlyout>
-                                                            <MenuFlyout>
+                                                            <MenuFlyout Opening="MenuFlyout_Opening">
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -785,7 +785,7 @@
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
-                                                            <MenuFlyout>
+                                                            <MenuFlyout Opening="MenuFlyout_Opening">
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -1056,7 +1056,7 @@
                             AutomationProperties.Name="Attachment button">
                         <FontIcon Glyph="&#xE723;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <Button.Flyout>
-                            <MenuFlyout x:Name="AttachFlyout" Placement="TopEdgeAlignedLeft">
+                            <MenuFlyout x:Name="AttachFlyout" Placement="TopEdgeAlignedLeft" Opening="MenuFlyout_Opening">
                                 <MenuFlyoutItem Text="Document" Click="AttachDocument_Click">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE8A5;" />
