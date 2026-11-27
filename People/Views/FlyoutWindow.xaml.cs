@@ -169,12 +169,10 @@ public sealed partial class FlyoutWindow : Window
     [
         "AcrylicInAppFillColorDefaultBrush",
         "AcrylicBackgroundFillColorDefaultBrush",
-        "DesktopAcrylicTransparentBrush",
         "SolidBackgroundFillColorBaseBrush",
         "SolidBackgroundFillColorSecondaryBrush",
         "SolidBackgroundFillColorTertiaryBrush",
         "FlyoutPresenterBackground",
-        "MenuFlyoutPresenterBackground",
         "ContentDialogBackground",
         "ComboBoxDropDownBackground",
         "LayerFillColorDefaultBrush",
@@ -182,7 +180,6 @@ public sealed partial class FlyoutWindow : Window
         "ContentDialogTopOverlay",
         "CardStrokeColorDefaultBrush",
         "CardStrokeColorDefaultSolidBrush",
-        "MenuFlyoutPresenterBorderBrush",
         "FlyoutBorderThemeBrush",
         "ContentDialogSeparatorBorderBrush"
     ];
@@ -235,25 +232,22 @@ public sealed partial class FlyoutWindow : Window
 
         targetDict["AcrylicInAppFillColorDefaultBrush"] = acrylicDefault;
         targetDict["AcrylicBackgroundFillColorDefaultBrush"] = acrylicDefault;
-        targetDict["DesktopAcrylicTransparentBrush"] = acrylicPopup;
 
         targetDict["SolidBackgroundFillColorBaseBrush"] = acrylicSurface;
         targetDict["SolidBackgroundFillColorSecondaryBrush"] = acrylicPopup;
         targetDict["SolidBackgroundFillColorTertiaryBrush"] = acrylicPopup;
 
         targetDict["FlyoutPresenterBackground"] = acrylicPopup;
-        targetDict["MenuFlyoutPresenterBackground"] = acrylicPopup;
         targetDict["ContentDialogBackground"] = acrylicSurface;
         targetDict["ComboBoxDropDownBackground"] = acrylicPopup;
 
         targetDict["LayerFillColorDefaultBrush"] = new SolidColorBrush(Windows.UI.Color.FromArgb(isLight ? (byte)0x48 : (byte)0x5C, tint.R, tint.G, tint.B));
         targetDict["LayerFillColorAltBrush"] = new SolidColorBrush(Windows.UI.Color.FromArgb(isLight ? (byte)0x38 : (byte)0x48, fallback.R, fallback.G, fallback.B));
-        targetDict["ContentDialogTopOverlay"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        targetDict["ContentDialogTopOverlay"] = new SolidColorBrush(Windows.UI.Color.FromArgb(isLight ? (byte)0x38 : (byte)0x48, isLight ? (byte)255 : (byte)0, isLight ? (byte)255 : (byte)0, isLight ? (byte)255 : (byte)0));
 
         var borderBrush = new SolidColorBrush(border);
         targetDict["CardStrokeColorDefaultBrush"] = borderBrush;
         targetDict["CardStrokeColorDefaultSolidBrush"] = borderBrush;
-        targetDict["MenuFlyoutPresenterBorderBrush"] = borderBrush;
         targetDict["FlyoutBorderThemeBrush"] = borderBrush;
         targetDict["ContentDialogSeparatorBorderBrush"] = borderBrush;
     }

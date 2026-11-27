@@ -51,7 +51,11 @@
 
         <!-- Header -->
         <Border x:Name="ConversationHeaderBorder"
-                Grid.Row="0" Canvas.ZIndex="20" Padding="16" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                Grid.Row="0" Canvas.ZIndex="20" Padding="16"
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                SizeChanged="ConversationHeaderBorder_SizeChanged">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <PersonPicture ProfilePicture="{x:Bind ViewModel.CurrentChat.PictureUrl, Mode=OneWay, Converter={StaticResource StringToImageSourceConverter}, ConverterParameter=Avatar}"
                                IsGroup="{x:Bind ViewModel.CurrentChat.ShowGroupPlaceholder, Mode=OneWay}"
@@ -68,8 +72,8 @@
             </StackPanel>
         </Border>
 
-        <!-- Messages -->
-        <Grid Grid.Row="1">
+        <!-- Messages (spans behind Row 0 header so messages blur underneath it) -->
+        <Grid Grid.Row="0" Grid.RowSpan="2">
             <Canvas x:Name="DoodleCanvas"
                     Visibility="{x:Bind ViewModel.IsDoodleWallpaperVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Opacity="{ThemeResource WhatsAppDoodleOpacity}"
@@ -89,12 +93,15 @@
                         <TransitionCollection />
                     </ListView.ItemContainerTransitions>
                     <ListView.Header>
-                        <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay}"
-                                      Visibility="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                      HorizontalAlignment="Center"
-                                      Width="24" Height="24" Margin="0,8"
-                                      Foreground="{ThemeResource AppAccentBrush}"
-                                      AutomationProperties.Name="Loading older messages" />
+                        <StackPanel>
+                            <Border x:Name="HeaderSpacer" Height="73" IsHitTestVisible="False" />
+                            <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay}"
+                                          Visibility="{x:Bind ViewModel.IsLoadingOlder, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                          HorizontalAlignment="Center"
+                                          Width="24" Height="24" Margin="0,8"
+                                          Foreground="{ThemeResource AppAccentBrush}"
+                                          AutomationProperties.Name="Loading older messages" />
+                        </StackPanel>
                     </ListView.Header>
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
@@ -321,7 +328,7 @@
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
-                                                            <MenuFlyout Opening="MenuFlyout_Opening">
+                                                            <MenuFlyout>
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -467,7 +474,7 @@
                                                         </Border>
 
                                                         <Grid.ContextFlyout>
-                                                            <MenuFlyout Opening="MenuFlyout_Opening">
+                                                            <MenuFlyout>
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -632,7 +639,7 @@
                                                         </StackPanel>
 
                                                         <Border.ContextFlyout>
-                                                            <MenuFlyout Opening="MenuFlyout_Opening">
+                                                            <MenuFlyout>
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -785,7 +792,7 @@
                                                         </Grid>
 
                                                         <Border.ContextFlyout>
-                                                            <MenuFlyout Opening="MenuFlyout_Opening">
+                                                            <MenuFlyout>
                                                                 <MenuFlyoutItem Text="Reply" Click="MessageReply_Click">
                                                                     <MenuFlyoutItem.Icon>
                                                                         <FontIcon Glyph="&#xE97A;" />
@@ -953,7 +960,7 @@
             <Border x:Name="FloatingDatePill"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top"
-                    Margin="0,16,0,0"
+                    Margin="0,85,0,0"
                     Padding="12,4"
                     CornerRadius="12"
                     Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
@@ -970,6 +977,28 @@
                            FontWeight="SemiBold"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
+
+            <!-- Scroll to Bottom Button (centered above compose box when scrolled up) -->
+            <Button x:Name="ScrollToBottomButton"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,12"
+                    Width="36"
+                    Height="36"
+                    Padding="0"
+                    CornerRadius="18"
+                    Canvas.ZIndex="15"
+                    Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    Visibility="Collapsed"
+                    Opacity="0"
+                    Click="ScrollToBottomButton_Click"
+                    ToolTipService.ToolTip="Scroll to bottom"
+                    AutomationProperties.Name="Scroll to bottom"
+                    AutomationProperties.AutomationId="ScrollToBottomBtn">
+                <FontIcon Glyph="&#xE70D;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            </Button>
         </Grid>
 
         <!-- Input Area -->

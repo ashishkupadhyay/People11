@@ -237,6 +237,79 @@ public sealed partial class ConversationPage : Page
             }
             MessagesListView.ScrollIntoView(ViewModel.Messages[^1], ScrollIntoViewAlignment.Default);
         }
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateScrollToBottomButton);
+    }
+
+    private bool _isScrollToBottomVisible;
+
+    private void ConversationHeaderBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        double headerH = e.NewSize.Height;
+        if (headerH <= 0) return;
+
+        if (HeaderSpacer != null)
+        {
+            HeaderSpacer.Height = headerH;
+        }
+        if (FloatingDatePill != null)
+        {
+            FloatingDatePill.Margin = new Thickness(0, headerH + 12, 0, 0);
+        }
+    }
+
+    private void UpdateScrollToBottomButton()
+    {
+        if (ScrollToBottomButton == null) return;
+
+        bool shouldShow = _messagesScrollViewer != null
+            && ViewModel != null
+            && ViewModel.Messages.Count > 0
+            && (_messagesScrollViewer.ScrollableHeight - _messagesScrollViewer.VerticalOffset) > 120;
+
+        if (shouldShow == _isScrollToBottomVisible) return;
+        _isScrollToBottomVisible = shouldShow;
+
+        if (shouldShow)
+        {
+            ScrollToBottomButton.Visibility = Visibility.Visible;
+            var anim = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(160) };
+            var sb = new Storyboard();
+            Storyboard.SetTarget(anim, ScrollToBottomButton);
+            Storyboard.SetTargetProperty(anim, "Opacity");
+            sb.Children.Add(anim);
+            sb.Begin();
+        }
+        else
+        {
+            var anim = new DoubleAnimation { To = 0.0, Duration = TimeSpan.FromMilliseconds(140) };
+            var sb = new Storyboard();
+            Storyboard.SetTarget(anim, ScrollToBottomButton);
+            Storyboard.SetTargetProperty(anim, "Opacity");
+            sb.Children.Add(anim);
+            sb.Completed += (_, _) =>
+            {
+                if (!_isScrollToBottomVisible && ScrollToBottomButton != null)
+                {
+                    ScrollToBottomButton.Visibility = Visibility.Collapsed;
+                }
+            };
+            sb.Begin();
+        }
+    }
+
+    private void ScrollToBottomButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel == null || ViewModel.Messages.Count == 0) return;
+
+        if (_messagesScrollViewer != null)
+        {
+            _messagesScrollViewer.ChangeView(null, _messagesScrollViewer.ScrollableHeight, null, disableAnimation: false);
+        }
+        else
+        {
+            MessagesListView.ScrollIntoView(ViewModel.Messages[^1], ScrollIntoViewAlignment.Default);
+        }
     }
 
     private void MessagesListView_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -295,6 +368,7 @@ public sealed partial class ConversationPage : Page
         }
 
         UpdateFloatingDatePill();
+        UpdateScrollToBottomButton();
         ShowFloatingDatePill();
         _pillHideTimer.Stop();
         _pillHideTimer.Start();
@@ -392,7 +466,7 @@ public sealed partial class ConversationPage : Page
         var transform = MessagesListView.TransformToVisual(null);
         if (transform == null) return;
 
-        for (double y = 70; y <= 160; y += 30)
+        for (double y = 90; y <= 180; y += 30)
         {
             var hostPoint = transform.TransformPoint(new Windows.Foundation.Point(width / 2, y));
             var hitElements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(hostPoint, MessagesListView);
@@ -503,6 +577,12 @@ public sealed partial class ConversationPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         _initialLoadComplete = false;
+        _isScrollToBottomVisible = false;
+        if (ScrollToBottomButton != null)
+        {
+            ScrollToBottomButton.Opacity = 0;
+            ScrollToBottomButton.Visibility = Visibility.Collapsed;
+        }
         if (e.Parameter is Chat chat)
         {
             ViewModel.LoadChat(chat);
@@ -609,8 +689,6 @@ public sealed partial class ConversationPage : Page
             {
                 flyout = GetOrCreateTextContextMenu();
             }
-
-            FlyoutWindow.ApplyMenuFlyoutTheming(flyout, this.XamlRoot);
 
             args.Handled = true;
             if (args.TryGetPosition(fe, out var pt))
@@ -859,6 +937,25 @@ public sealed partial class ConversationPage : Page
         }
     }
 
+    private static T? FindDescendantByName<T>(DependencyObject root, string name) where T : FrameworkElement
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match && match.Name == name)
+            {
+                return match;
+            }
+            var nested = FindDescendantByName<T>(child, name);
+            if (nested != null)
+            {
+                return nested;
+            }
+        }
+        return null;
+    }
+
     private async void MessageDelete_Click(object sender, RoutedEventArgs e)
     {
         var msg = GetMessageFromSender(sender);
@@ -876,102 +973,48 @@ public sealed partial class ConversationPage : Page
 
         bool stackButtons = FlyoutWindow.IsHostedInFlyout(this.XamlRoot) || (this.ActualWidth > 0 && this.ActualWidth < 520);
 
-        string promptText = canDeleteForEveryone
-            ? "Are you sure you want to delete this message? You can delete it for everyone or just for yourself."
-            : "Are you sure you want to delete this message from your chat history?";
-
-        if (stackButtons)
-        {
-            bool? deleteForEveryoneChoice = null;
-            var dialog = new ContentDialog
-            {
-                XamlRoot = this.XamlRoot,
-                Title = "Delete message?"
-            };
-            ApplyDialogTransparency(dialog);
-
-            var accentStyle = Application.Current.Resources.TryGetValue("AccentButtonStyle", out var styleObj) && styleObj is Style s
-                ? s
-                : null;
-
-            Button CreateStackedButton(string label, bool isAccent, Action onClick)
-            {
-                var btn = new Button
-                {
-                    Content = label,
-                    HorizontalAlignment = HorizontalAlignment.Stretch
-                };
-                if (isAccent && accentStyle != null)
-                {
-                    btn.Style = accentStyle;
-                }
-                btn.Click += (_, _) =>
-                {
-                    onClick();
-                    dialog.Hide();
-                };
-                return btn;
-            }
-
-            var buttonStack = new StackPanel
-            {
-                Spacing = 8,
-                Margin = new Thickness(0, 12, 0, 0)
-            };
-            if (canDeleteForEveryone)
-            {
-                buttonStack.Children.Add(CreateStackedButton("Delete for everyone", isAccent: true, () => deleteForEveryoneChoice = true));
-                buttonStack.Children.Add(CreateStackedButton("Delete for me", isAccent: false, () => deleteForEveryoneChoice = false));
-            }
-            else
-            {
-                buttonStack.Children.Add(CreateStackedButton("Delete for me", isAccent: true, () => deleteForEveryoneChoice = false));
-            }
-            buttonStack.Children.Add(CreateStackedButton("Cancel", isAccent: false, () => deleteForEveryoneChoice = null));
-
-            var contentPanel = new StackPanel { Spacing = 8 };
-            contentPanel.Children.Add(new TextBlock
-            {
-                Text = promptText,
-                TextWrapping = TextWrapping.Wrap
-            });
-            contentPanel.Children.Add(buttonStack);
-
-            var escapeAccel = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
-            escapeAccel.Invoked += (_, args) =>
-            {
-                args.Handled = true;
-                deleteForEveryoneChoice = null;
-                dialog.Hide();
-            };
-            contentPanel.KeyboardAccelerators.Add(escapeAccel);
-
-            dialog.Content = contentPanel;
-            await dialog.ShowAsync();
-
-            if (deleteForEveryoneChoice.HasValue)
-            {
-                await ViewModel.DeleteMessageAsync(msg, forEveryone: deleteForEveryoneChoice.Value);
-            }
-            return;
-        }
-
-        var wideDialog = new ContentDialog
+        var dialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
             Title = "Delete message?",
-            Content = promptText,
+            Content = canDeleteForEveryone
+                ? "Are you sure you want to delete this message? You can delete it for everyone or just for yourself."
+                : "Are you sure you want to delete this message from your chat history?",
+            PrimaryButtonText = canDeleteForEveryone ? "Delete for everyone" : "Delete for me",
+            SecondaryButtonText = canDeleteForEveryone ? "Delete for me" : string.Empty,
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary
         };
-        ApplyDialogTransparency(wideDialog);
+        ApplyDialogTransparency(dialog);
 
+        if (stackButtons)
+        {
+            dialog.Opened += (s, _) =>
+            {
+                if (s is not ContentDialog openedDialog) return;
+                if (FindDescendantByName<Grid>(openedDialog, "CommandSpace") is Grid commandSpace)
+                {
+                    commandSpace.RowDefinitions.Clear();
+                    commandSpace.RowSpacing = 8;
+
+                    int row = 0;
+                    foreach (var btnName in new[] { "PrimaryButton", "SecondaryButton", "CloseButton" })
+                    {
+                        if (FindDescendantByName<Button>(commandSpace, btnName) is Button btn && btn.Visibility == Visibility.Visible)
+                        {
+                            commandSpace.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                            Grid.SetColumn(btn, 0);
+                            Grid.SetColumnSpan(btn, 5);
+                            Grid.SetRow(btn, row++);
+                        }
+                    }
+                }
+            };
+        }
+
+        var result = await dialog.ShowAsync();
         if (canDeleteForEveryone)
         {
-            wideDialog.PrimaryButtonText = "Delete for everyone";
-            wideDialog.SecondaryButtonText = "Delete for me";
-
-            var result = await wideDialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
                 await ViewModel.DeleteMessageAsync(msg, forEveryone: true);
@@ -981,15 +1024,9 @@ public sealed partial class ConversationPage : Page
                 await ViewModel.DeleteMessageAsync(msg, forEveryone: false);
             }
         }
-        else
+        else if (result == ContentDialogResult.Primary)
         {
-            wideDialog.PrimaryButtonText = "Delete for me";
-
-            var result = await wideDialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                await ViewModel.DeleteMessageAsync(msg, forEveryone: false);
-            }
+            await ViewModel.DeleteMessageAsync(msg, forEveryone: false);
         }
     }
 
@@ -1891,11 +1928,18 @@ public sealed partial class ConversationPage : Page
         {
             var transparentBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
             this.Background = transparentBrush;
+            FlyoutWindow.ApplySurfaceAccentToResources(this.Resources);
             if (ConversationHeaderBorder != null)
             {
-                ConversationHeaderBorder.Background = transparentBrush;
+                if (FlyoutWindow.TryCreateTaskbarSurfaceBrush(out var headerAcrylic, out _, 0.68))
+                {
+                    ConversationHeaderBorder.Background = headerAcrylic!;
+                }
+                else
+                {
+                    ConversationHeaderBorder.ClearValue(Border.BackgroundProperty);
+                }
             }
-            FlyoutWindow.ApplySurfaceAccentToResources(this.Resources);
             if (WhiteBoard != null)
             {
                 FlyoutWindow.ApplySurfaceAccentToResources(WhiteBoard.Resources);

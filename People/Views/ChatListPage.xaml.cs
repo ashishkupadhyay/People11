@@ -292,6 +292,7 @@ public sealed partial class ChatListPage : Page
         }
         if (ListTransform != null) ListTransform.X = 0;
         if (DetailTransform != null) DetailTransform.X = 0;
+        DetailFrame.Opacity = 1.0;
 
         if (ViewModel.IsWelcomeVisible || ViewModel.IsQrLinkVisible || ViewModel.IsInitialSyncing)
         {
@@ -329,6 +330,7 @@ public sealed partial class ChatListPage : Page
                 if (DetailTransform != null) DetailTransform.X = 0;
                 DetailFrame.Visibility = showConv ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
                 DetailFrame.IsHitTestVisible = showConv;
+                DetailFrame.Opacity = 1.0;
             }
         }
         else
@@ -344,6 +346,7 @@ public sealed partial class ChatListPage : Page
             }
             if (ListTransform != null) ListTransform.X = 0;
             if (DetailTransform != null) DetailTransform.X = 0;
+            DetailFrame.Opacity = 1.0;
             DetailFrame.Visibility = hasConversation ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
             DetailFrame.IsHitTestVisible = hasConversation;
 
@@ -524,6 +527,54 @@ public sealed partial class ChatListPage : Page
         sb.Begin();
     }
 
+    private void StartWideSlideInAnimation(int gen)
+    {
+        StopNarrowSlideAnimation();
+
+        var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
+        };
+        var duration = TimeSpan.FromMilliseconds(220);
+
+        DetailTransform.X = 72;
+        DetailFrame.Opacity = 0.0;
+
+        var slideAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = 72,
+            To = 0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(slideAnim, DetailTransform);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(slideAnim, "X");
+
+        var fadeAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = 0.0,
+            To = 1.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeAnim, DetailFrame);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeAnim, "Opacity");
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(slideAnim);
+        sb.Children.Add(fadeAnim);
+        _narrowSlideStoryboard = sb;
+
+        sb.Completed += (_, _) =>
+        {
+            if (_narrowNavGeneration != gen) return;
+            _narrowSlideStoryboard = null;
+            DetailTransform.X = 0;
+            DetailFrame.Opacity = 1.0;
+        };
+        sb.Begin();
+    }
+
     public void OpenChatInDetail(People.Core.Models.Chat chat)
     {
         if (chat == null) return;
@@ -537,6 +588,7 @@ public sealed partial class ChatListPage : Page
         {
             DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
             DetailFrame.IsHitTestVisible = true;
+            DetailFrame.Opacity = 1.0;
             if (isNarrow && ListGrid != null)
             {
                 ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
@@ -550,6 +602,7 @@ public sealed partial class ChatListPage : Page
             _isClosingDetail = false;
             StopNarrowSlideAnimation();
 
+            DetailFrame.Opacity = 1.0;
             ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
             ListGrid.IsHitTestVisible = false;
             DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
@@ -578,25 +631,24 @@ public sealed partial class ChatListPage : Page
             return;
         }
 
+        int wideGen = ++_narrowNavGeneration;
         StopNarrowSlideAnimation();
         _isClosingDetail = false;
         ListGrid.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         ListGrid.IsHitTestVisible = true;
         ListGrid.Opacity = 1.0;
         ListTransform.X = 0;
-        DetailTransform.X = 0;
         DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         DetailFrame.IsHitTestVisible = true;
+        PlaceholderGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
 
         DetailFrame.Navigate(
             typeof(ConversationPage),
             chat,
-            new Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionInfo
-            {
-                Effect = Microsoft.UI.Xaml.Media.Animation.SlideNavigationTransitionEffect.FromRight
-            });
+            new Microsoft.UI.Xaml.Media.Animation.SuppressNavigationTransitionInfo());
 
         ConversationOpened?.Invoke(this, chat);
+        StartWideSlideInAnimation(wideGen);
     }
 
     public People.Core.Models.Chat? GetActiveConversation()
