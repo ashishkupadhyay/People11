@@ -6,14 +6,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <!-- Frosted Glass Acrylic for Whiteboard Drawing Surface -->
-        <AcrylicBrush x:Key="WhiteBoardCanvasAcrylicBrush"
-                      TintColor="#FFFFFF"
-                      TintOpacity="0.88"
-                      FallbackColor="#FFFFFFFF" />
-    </UserControl.Resources>
-
     <Grid RowSpacing="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -21,7 +13,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 1. Top Pen Controls (Outside Drawing Board) -->
+        <!-- 1. Top Pen Controls & History (Outside Drawing Board) -->
         <Border Grid.Row="0"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
@@ -30,21 +22,57 @@
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="6,4">
-            <InkToolbar x:Name="MyInkToolbar"
-                        TargetInkCanvas="{x:Bind MyInkCanvas}"
-                        InitialControls="None"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                <InkToolbarBallpointPenButton x:Name="BallpointPenBtn" />
-                <InkToolbarPencilButton />
-                <InkToolbarHighlighterButton />
-                <InkToolbarEraserButton IsClearAllVisible="True" />
-            </InkToolbar>
+            <StackPanel Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Spacing="2">
+                <InkToolbar x:Name="MyInkToolbar"
+                            TargetInkCanvas="{x:Bind MyInkCanvas}"
+                            InitialControls="None"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <InkToolbarBallpointPenButton x:Name="BallpointPenBtn" />
+                    <InkToolbarPencilButton />
+                    <InkToolbarHighlighterButton />
+                    <InkToolbarEraserButton IsClearAllVisible="True" />
+                </InkToolbar>
+
+                <AppBarSeparator VerticalAlignment="Center"
+                                 Height="22"
+                                 Margin="2,0" />
+
+                <Button x:Name="UndoButton"
+                        Click="Undo_Click"
+                        IsEnabled="False"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        CornerRadius="4"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Undo (Ctrl+Z)"
+                        AutomationProperties.Name="Undo">
+                    <FontIcon Glyph="&#xE7A7;" FontSize="15" />
+                </Button>
+
+                <Button x:Name="RedoButton"
+                        Click="Redo_Click"
+                        IsEnabled="False"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        CornerRadius="4"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Redo (Ctrl+Y)"
+                        AutomationProperties.Name="Redo">
+                    <FontIcon Glyph="&#xE7A6;" FontSize="15" />
+                </Button>
+            </StackPanel>
         </Border>
 
-        <!-- 2. Pure Drawing Board Canvas Surface (Row 1) -->
+        <!-- 2. Pure Drawing Board Canvas Surface (Row 1, opaque white) -->
         <Border Grid.Row="1"
-                Background="{StaticResource WhiteBoardCanvasAcrylicBrush}"
+                Background="#FFFFFF"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="8">
@@ -53,28 +81,47 @@
                        VerticalAlignment="Stretch" />
         </Border>
 
-        <!-- 3. Bottom Action Buttons (Outside Drawing Board, Bottom Right) -->
-        <StackPanel Grid.Row="2"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Orientation="Horizontal"
-                    Spacing="8">
-            <Button Content="Cancel"
-                    Click="Cancel_Click"
-                    CornerRadius="4"
-                    Height="34"
-                    Padding="14,4" />
-            <Button x:Name="SendButton"
-                    Style="{ThemeResource AppAccentButtonStyle}"
-                    Click="Send_Click"
-                    CornerRadius="4"
-                    Height="34"
-                    Padding="14,4">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE724;" FontSize="13" />
-                    <TextBlock Text="Send" FontWeight="SemiBold" FontSize="13" />
-                </StackPanel>
-            </Button>
-        </StackPanel>
+        <!-- 3. Bottom Caption Input & Action Buttons (Row 2) -->
+        <Grid Grid.Row="2"
+              ColumnSpacing="8"
+              VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="CaptionTextBox"
+                     Grid.Column="0"
+                     PlaceholderText="Add a caption..."
+                     VerticalAlignment="Center"
+                     HorizontalAlignment="Stretch"
+                     MaxLength="1024"
+                     CornerRadius="4"
+                     KeyDown="CaptionTextBox_KeyDown"
+                     AutomationProperties.Name="Image caption" />
+
+            <StackPanel Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                <Button Content="Cancel"
+                        Click="Cancel_Click"
+                        CornerRadius="4"
+                        Height="34"
+                        Padding="14,4" />
+                <Button x:Name="SendButton"
+                        Style="{ThemeResource AppAccentButtonStyle}"
+                        Click="Send_Click"
+                        CornerRadius="4"
+                        Height="34"
+                        Padding="14,4"
+                        AutomationProperties.Name="Send drawing">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE724;" FontSize="13" />
+                        <TextBlock Text="Send" FontWeight="SemiBold" FontSize="13" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

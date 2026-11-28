@@ -88,7 +88,15 @@
                           Width="36" Height="36"
                           Foreground="{ThemeResource AppAccentBrush}"
                           AutomationProperties.Name="Loading conversation" />
-            <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" Padding="16,8,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+            <ListView x:Name="MessagesListView" ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}" SelectionMode="None" ShowsScrollingPlaceholders="False" Padding="16,8,16,16" Loaded="MessagesListView_Loaded" AutomationProperties.Name="Messages list" AutomationProperties.AutomationId="MessagesListView">
+                    <ListView.Resources>
+                        <SolidColorBrush x:Key="ListViewItemPlaceholderBackground" Color="Transparent" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
+                    </ListView.Resources>
                     <ListView.ItemContainerTransitions>
                         <TransitionCollection />
                     </ListView.ItemContainerTransitions>
@@ -960,7 +968,7 @@
             <Border x:Name="FloatingDatePill"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top"
-                    Margin="0,85,0,0"
+                    Margin="0,89,0,0"
                     Padding="12,4"
                     CornerRadius="12"
                     Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"

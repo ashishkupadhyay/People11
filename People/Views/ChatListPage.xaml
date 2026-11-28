@@ -43,6 +43,7 @@
                         <Setter Target="DetailFrame.(Grid.Column)" Value="1" />
                         <Setter Target="DetailFrame.(Grid.ColumnSpan)" Value="1" />
                         <Setter Target="DetailFrame.(Canvas.ZIndex)" Value="1" />
+                        <Setter Target="DetailFrame.Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
                         <Setter Target="DetailFrame.CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
                         <Setter Target="ListGrid.Visibility" Value="Visible" />
                         <Setter Target="DetailFrame.Visibility" Value="Visible" />
@@ -61,6 +62,7 @@
                         <Setter Target="DetailFrame.(Grid.Column)" Value="0" />
                         <Setter Target="DetailFrame.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="DetailFrame.(Canvas.ZIndex)" Value="2" />
+                        <Setter Target="DetailFrame.Background" Value="Transparent" />
                         <Setter Target="DetailFrame.CornerRadius" Value="0" />
                         <Setter Target="DetailFrame.BorderThickness" Value="0" />
                         <!-- Visibility handled by code-behind based on selection -->

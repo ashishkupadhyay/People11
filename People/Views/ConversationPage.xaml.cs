@@ -219,6 +219,8 @@ public sealed partial class ConversationPage : Page
     {
         if (ViewModel == null || ViewModel.Messages.Count == 0) return;
 
+        MessagesListView.UpdateLayout();
+
         if (_messagesScrollViewer == null)
         {
             _messagesScrollViewer = FindVisualChild<ScrollViewer>(MessagesListView);
@@ -254,7 +256,7 @@ public sealed partial class ConversationPage : Page
         }
         if (FloatingDatePill != null)
         {
-            FloatingDatePill.Margin = new Thickness(0, headerH + 12, 0, 0);
+            FloatingDatePill.Margin = new Thickness(0, headerH + 16, 0, 0);
         }
     }
 
@@ -1656,12 +1658,12 @@ public sealed partial class ConversationPage : Page
         WhiteBoardOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private async void WhiteBoard_SendImageClicked(object sender, string imagePath)
+    private async void WhiteBoard_SendImageClicked(object sender, (string ImagePath, string? Caption) result)
     {
         WhiteBoardOverlay.Visibility = Visibility.Collapsed;
-        if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+        if (!string.IsNullOrEmpty(result.ImagePath) && File.Exists(result.ImagePath))
         {
-            await ViewModel.SendMediaFileAsync(imagePath);
+            await ViewModel.SendMediaFileAsync(result.ImagePath, result.Caption);
         }
     }
 

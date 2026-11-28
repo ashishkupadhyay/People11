@@ -2037,13 +2037,14 @@ public partial class ConversationViewModel : ViewModelBase
         await SendCustomMessageAsync(content);
     }
 
-    public async Task SendMediaFileAsync(string filePath)
+    public async Task SendMediaFileAsync(string filePath, string? caption = null)
     {
         if (CurrentChat == null || string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return;
 
         var fi = new FileInfo(filePath);
         var ext = fi.Extension.ToLowerInvariant();
         bool isVideo = ext is ".mp4" or ".mov" or ".mkv" or ".avi" or ".webm";
+        var normalizedCaption = string.IsNullOrWhiteSpace(caption) ? null : caption.Trim();
         var content = new MessageContent
         {
             Type = isVideo ? MessageContentType.Video : MessageContentType.Image,
@@ -2051,6 +2052,7 @@ public partial class ConversationViewModel : ViewModelBase
             FileName = fi.Name,
             FileSize = fi.Length,
             ThumbnailUrl = isVideo ? null : filePath,
+            Caption = normalizedCaption,
             Text = string.Empty
         };
 

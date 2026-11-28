@@ -36,6 +36,16 @@ public sealed partial class MainWindow : Window
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
 
+        try
+        {
+            var icoPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "TrayIcons", "TrayIcon_Color.ico");
+            if (System.IO.File.Exists(icoPath))
+            {
+                appWindow.SetIcon(icoPath);
+            }
+        }
+        catch { }
+
         // Keep app running in background when closed via title bar close button
         appWindow.Closing += (sender, args) =>
         {

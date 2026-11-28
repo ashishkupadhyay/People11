@@ -9,7 +9,9 @@ using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Windows.Storage.Streams;
+using Windows.System;
 using Windows.UI.Core;
 
 namespace People.Controls;
@@ -17,7 +19,13 @@ namespace People.Controls;
 public sealed partial class WhiteBoardControl : UserControl
 {
     public event EventHandler? CancelClicked;
-    public event EventHandler<string>? SendImageClicked;
+    public event EventHandler<(string ImagePath, string? Caption)>? SendImageClicked;
+
+    private readonly Stack<List<Windows.UI.Input.Inking.InkStroke>> _undoSnapshots = new();
+    private readonly Stack<List<Windows.UI.Input.Inking.InkStroke>> _redoSnapshots = new();
+    private List<Windows.UI.Input.Inking.InkStroke> _currentSnapshot = new();
+    private bool _isPresenterHooked;
+    private bool _isApplyingHistory;
 
     public WhiteBoardControl()
     {
@@ -32,18 +40,158 @@ public sealed partial class WhiteBoardControl : UserControl
 
     private void ConfigureInkPresenter()
     {
-        if (MyInkCanvas?.InkPresenter != null)
+        var presenter = MyInkCanvas?.InkPresenter;
+        if (presenter == null) return;
+
+        presenter.InputDeviceTypes =
+            CoreInputDeviceTypes.Pen | CoreInputDeviceTypes.Mouse | CoreInputDeviceTypes.Touch;
+
+        if (!_isPresenterHooked)
         {
-            MyInkCanvas.InkPresenter.InputDeviceTypes =
-                CoreInputDeviceTypes.Pen | CoreInputDeviceTypes.Mouse | CoreInputDeviceTypes.Touch;
+            presenter.StrokesCollected += (_, _) =>
+            {
+                if (!_isApplyingHistory) RecordStrokeSnapshot();
+            };
+            presenter.StrokesErased += (_, _) =>
+            {
+                if (!_isApplyingHistory) RecordStrokeSnapshot();
+            };
+            if (MyInkToolbar != null)
+            {
+                MyInkToolbar.EraseAllClicked += MyInkToolbar_EraseAllClicked;
+            }
+            this.PreviewKeyDown += WhiteBoardControl_PreviewKeyDown;
+            _isPresenterHooked = true;
+            UpdateUndoRedoButtons();
+        }
+    }
+
+    private void MyInkToolbar_EraseAllClicked(InkToolbar sender, object args)
+    {
+        if (_currentSnapshot.Count == 0) return;
+        DispatcherQueue?.TryEnqueue(RecordStrokeSnapshot);
+    }
+
+    private void RecordStrokeSnapshot()
+    {
+        var container = MyInkCanvas?.InkPresenter?.StrokeContainer;
+        if (container == null) return;
+
+        var liveStrokes = container.GetStrokes();
+        if (liveStrokes.Count == 0 && _currentSnapshot.Count == 0)
+        {
+            return;
+        }
+
+        _undoSnapshots.Push(_currentSnapshot);
+        _redoSnapshots.Clear();
+        _currentSnapshot = liveStrokes.Select(s => s.Clone()).ToList();
+        UpdateUndoRedoButtons();
+    }
+
+    private void Undo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_undoSnapshots.Count == 0) return;
+
+        _redoSnapshots.Push(_currentSnapshot);
+        _currentSnapshot = _undoSnapshots.Pop();
+        RestoreSnapshot(_currentSnapshot);
+        UpdateUndoRedoButtons();
+    }
+
+    private void Redo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_redoSnapshots.Count == 0) return;
+
+        _undoSnapshots.Push(_currentSnapshot);
+        _currentSnapshot = _redoSnapshots.Pop();
+        RestoreSnapshot(_currentSnapshot);
+        UpdateUndoRedoButtons();
+    }
+
+    private void RestoreSnapshot(List<Windows.UI.Input.Inking.InkStroke> snapshot)
+    {
+        var container = MyInkCanvas?.InkPresenter?.StrokeContainer;
+        if (container == null) return;
+
+        _isApplyingHistory = true;
+        try
+        {
+            container.Clear();
+            if (snapshot.Count > 0)
+            {
+                container.AddStrokes(snapshot.Select(s => s.Clone()));
+            }
+        }
+        finally
+        {
+            _isApplyingHistory = false;
+        }
+    }
+
+    private void UpdateUndoRedoButtons()
+    {
+        if (UndoButton != null)
+        {
+            UndoButton.IsEnabled = _undoSnapshots.Count > 0;
+        }
+        if (RedoButton != null)
+        {
+            RedoButton.IsEnabled = _redoSnapshots.Count > 0;
+        }
+    }
+
+    private void WhiteBoardControl_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (CaptionTextBox != null && CaptionTextBox.FocusState != FocusState.Unfocused)
+        {
+            return;
+        }
+
+        var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+        bool isCtrlDown = (ctrlState & CoreVirtualKeyStates.Down) == CoreVirtualKeyStates.Down;
+        if (!isCtrlDown) return;
+
+        if (e.Key == VirtualKey.Z)
+        {
+            Undo_Click(this, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == VirtualKey.Y)
+        {
+            Redo_Click(this, new RoutedEventArgs());
+            e.Handled = true;
+        }
+    }
+
+    private void CaptionTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter &&
+            MyInkCanvas?.InkPresenter?.StrokeContainer?.GetStrokes().Count > 0)
+        {
+            e.Handled = true;
+            Send_Click(this, new RoutedEventArgs());
         }
     }
 
     public void Reset()
     {
-        if (MyInkCanvas?.InkPresenter?.StrokeContainer != null)
+        _isApplyingHistory = true;
+        try
         {
-            MyInkCanvas.InkPresenter.StrokeContainer.Clear();
+            MyInkCanvas?.InkPresenter?.StrokeContainer?.Clear();
+            _undoSnapshots.Clear();
+            _redoSnapshots.Clear();
+            _currentSnapshot.Clear();
+            if (CaptionTextBox != null)
+            {
+                CaptionTextBox.Text = string.Empty;
+            }
+            UpdateUndoRedoButtons();
+        }
+        finally
+        {
+            _isApplyingHistory = false;
         }
     }
 
@@ -102,7 +250,11 @@ public sealed partial class WhiteBoardControl : UserControl
                 }
             }
 
-            SendImageClicked?.Invoke(this, filePath);
+            string? caption = string.IsNullOrWhiteSpace(CaptionTextBox?.Text)
+                ? null
+                : CaptionTextBox.Text.Trim();
+
+            SendImageClicked?.Invoke(this, (filePath, caption));
         }
         catch (Exception ex)
         {

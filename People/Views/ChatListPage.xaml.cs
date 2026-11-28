@@ -633,7 +633,6 @@ public sealed partial class ChatListPage : Page
         ListTransform.X = 0;
         DetailFrame.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
         DetailFrame.IsHitTestVisible = true;
-        PlaceholderGrid.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
 
         DetailFrame.Navigate(
             typeof(ConversationPage),
