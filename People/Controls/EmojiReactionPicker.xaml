@@ -97,14 +97,15 @@
                                 TextChanged="SearchBox_TextChanged" />
             </Grid>
 
-            <!-- 2. Fluent Category Tabs Bar -->
+            <!-- 2. Fluent Category Tabs Bar using native SelectorBar -->
             <ScrollViewer Grid.Row="1"
                           x:Name="CategoryScrollViewer"
                           HorizontalScrollBarVisibility="Hidden"
                           VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollMode="Enabled"
                           VerticalScrollMode="Disabled">
-                <StackPanel x:Name="CategoryTabsPanel" Orientation="Horizontal" Spacing="3" />
+                <SelectorBar x:Name="CategorySelectorBar"
+                             SelectionChanged="CategorySelectorBar_SelectionChanged" />
             </ScrollViewer>
 
             <!-- 3. Virtualized Emoji Grid Area using ItemsRepeater + UniformGridLayout -->

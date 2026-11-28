@@ -425,11 +425,6 @@ public class ThemeService : IThemeService
         SetOrMutateBrush("AppAccentPressedBrush", effectivePressed);
         SetOrMutateBrush("AppAccentForegroundBrush", effectiveForeground);
 
-        SetOrMutateBrush("AppAccentButtonBrush", btnBg);
-        SetOrMutateBrush("AppAccentButtonHoverBrush", btnHover);
-        SetOrMutateBrush("AppAccentButtonPressedBrush", btnPressed);
-        SetOrMutateBrush("AppAccentButtonForegroundBrush", btnFg);
-
         SetOrMutateBrush("AccentButtonBackground", btnBg);
         SetOrMutateBrush("AccentButtonBackgroundPointerOver", btnHover);
         SetOrMutateBrush("AccentButtonBackgroundPressed", btnPressed);

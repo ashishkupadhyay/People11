@@ -64,14 +64,14 @@ public sealed partial class MainWindow : Window
                 titleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
                 titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
                 titleBar.IconShowOptions = Microsoft.UI.Windowing.IconShowOptions.HideIconAndSystemMenu;
-                UpdateTitleBarColors(titleBar, rootElement.ActualTheme);
+                UpdateTitleBarTheme(titleBar, rootElement.ActualTheme);
             }
 
             rootElement.ActualThemeChanged += (s, args) =>
             {
                 if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
                 {
-                    UpdateTitleBarColors(appWindow.TitleBar, rootElement.ActualTheme);
+                    UpdateTitleBarTheme(appWindow.TitleBar, rootElement.ActualTheme);
                 }
             };
         }
@@ -262,40 +262,16 @@ public sealed partial class MainWindow : Window
         Views.MainShellPage.Current?.OpenChat(chat);
     }
 
-    private static bool IsDarkTheme(ElementTheme theme)
+    private static void UpdateTitleBarTheme(Microsoft.UI.Windowing.AppWindowTitleBar titleBar, ElementTheme theme)
     {
-        if (theme == ElementTheme.Dark) return true;
-        if (theme == ElementTheme.Light) return false;
-        try
-        {
-            var uiSettings = new Windows.UI.ViewManagement.UISettings();
-            var bg = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
-            return bg.R < 128;
-        }
-        catch
-        {
-            return Application.Current.RequestedTheme == ApplicationTheme.Dark;
-        }
-    }
-
-    private void UpdateTitleBarColors(Microsoft.UI.Windowing.AppWindowTitleBar titleBar, ElementTheme theme)
-    {
-        bool isDark = IsDarkTheme(theme);
-        var foregroundColor = isDark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
         titleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
         titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
-        titleBar.ButtonForegroundColor = foregroundColor;
-        titleBar.ButtonHoverForegroundColor = foregroundColor;
-        titleBar.ButtonPressedForegroundColor = foregroundColor;
-        titleBar.ButtonHoverBackgroundColor = isDark
-            ? Microsoft.UI.ColorHelper.FromArgb(25, 255, 255, 255)
-            : Microsoft.UI.ColorHelper.FromArgb(25, 0, 0, 0);
-        titleBar.ButtonPressedBackgroundColor = isDark
-            ? Microsoft.UI.ColorHelper.FromArgb(40, 255, 255, 255)
-            : Microsoft.UI.ColorHelper.FromArgb(40, 0, 0, 0);
-        titleBar.ButtonInactiveForegroundColor = isDark
-            ? Microsoft.UI.ColorHelper.FromArgb(255, 150, 150, 150)
-            : Microsoft.UI.ColorHelper.FromArgb(255, 100, 100, 100);
+        titleBar.PreferredTheme = theme switch
+        {
+            ElementTheme.Light => Microsoft.UI.Windowing.TitleBarTheme.Light,
+            ElementTheme.Dark => Microsoft.UI.Windowing.TitleBarTheme.Dark,
+            _ => Microsoft.UI.Windowing.TitleBarTheme.UseDefaultAppMode
+        };
     }
 
     [DllImport("user32.dll", SetLastError = true)]

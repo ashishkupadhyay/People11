@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
 
 namespace People.Controls;
 
@@ -15,6 +15,7 @@ public sealed partial class EmojiReactionPicker : UserControl
 
     private string _activeCategory = "Smileys";
     private DispatcherTimer? _searchDebounceTimer;
+    private bool _isUpdatingSelection;
 
     // Static cached lookup by category - zero allocation, O(1) instantaneous category switching
     private static readonly Dictionary<string, List<EmojiItem>> CategoryCache =
@@ -52,7 +53,7 @@ public sealed partial class EmojiReactionPicker : UserControl
         SearchBox.Text = string.Empty;
         CategoryScrollViewer.Visibility = Visibility.Visible;
         _activeCategory = "Smileys";
-        HighlightCategoryTab(_activeCategory);
+        SelectCategoryItem(_activeCategory);
         LoadCategoryEmojis(_activeCategory);
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
@@ -63,94 +64,66 @@ public sealed partial class EmojiReactionPicker : UserControl
 
     private void BuildCategoryTabs()
     {
-        CategoryTabsPanel.Children.Clear();
-        foreach (var cat in EmojiData.Categories)
+        _isUpdatingSelection = true;
+        try
         {
-            var icon = EmojiData.CategoryIcons.TryGetValue(cat, out var ic) ? ic : cat[..1];
+            CategorySelectorBar.Items.Clear();
+            var emojiFont = new FontFamily("Segoe UI Emoji");
 
-            var containerGrid = new Grid
+            foreach (var cat in EmojiData.Categories)
             {
-                Width = 32,
-                Height = 32,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+                var icon = EmojiData.CategoryIcons.TryGetValue(cat, out var ic) ? ic : cat[..1];
+                var item = new SelectorBarItem
+                {
+                    Icon = new FontIcon
+                    {
+                        Glyph = icon,
+                        FontFamily = emojiFont,
+                        FontSize = 15
+                    },
+                    Tag = cat,
+                    MinWidth = 34,
+                    Padding = new Thickness(6, 4, 6, 4)
+                };
+                ToolTipService.SetToolTip(item, cat);
+                AutomationProperties.SetName(item, cat);
+                CategorySelectorBar.Items.Add(item);
+            }
 
-            var textBlock = new TextBlock
-            {
-                Text = icon,
-                FontSize = 16,
-                FontFamily = new FontFamily("Segoe UI Emoji"),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 3)
-            };
-
-            var indicator = new Rectangle
-            {
-                Tag = "ActiveIndicator",
-                Height = 2.5,
-                Width = 16,
-                RadiusX = 1.25,
-                RadiusY = 1.25,
-                Fill = GetAccentBrush(),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Visibility = cat == _activeCategory ? Visibility.Visible : Visibility.Collapsed
-            };
-
-            containerGrid.Children.Add(textBlock);
-            containerGrid.Children.Add(indicator);
-
-            var btn = new Button
-            {
-                Content = containerGrid,
-                Tag = cat,
-                Padding = new Thickness(0),
-                Width = 32,
-                Height = 32,
-                CornerRadius = new CornerRadius(4),
-                Background = cat == _activeCategory ? GetSubtleSecondaryBrush() : GetTransparentBrush(),
-                BorderThickness = new Thickness(0),
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center
-            };
-
-            ToolTipService.SetToolTip(btn, cat);
-            btn.Click += CategoryTab_Click;
-            CategoryTabsPanel.Children.Add(btn);
+            SelectCategoryItem(_activeCategory);
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
         }
     }
 
-    private void HighlightCategoryTab(string category)
+    private void SelectCategoryItem(string category)
     {
-        foreach (var child in CategoryTabsPanel.Children)
+        _isUpdatingSelection = true;
+        try
         {
-            if (child is Button btn && btn.Tag is string cat)
+            foreach (var item in CategorySelectorBar.Items)
             {
-                var isSelected = cat == category;
-                btn.Background = isSelected ? GetSubtleSecondaryBrush() : GetTransparentBrush();
-
-                if (btn.Content is Grid grid)
+                if (item.Tag is string cat && cat == category)
                 {
-                    foreach (var element in grid.Children)
-                    {
-                        if (element is Rectangle rect && Equals(rect.Tag, "ActiveIndicator"))
-                        {
-                            rect.Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
-                        }
-                    }
+                    CategorySelectorBar.SelectedItem = item;
+                    break;
                 }
             }
         }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
     }
 
-    private void CategoryTab_Click(object sender, RoutedEventArgs e)
+    private void CategorySelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        if (sender is Button btn && btn.Tag is string cat)
+        if (_isUpdatingSelection) return;
+        if (sender.SelectedItem is SelectorBarItem item && item.Tag is string cat)
         {
             _activeCategory = cat;
-            HighlightCategoryTab(cat);
             LoadCategoryEmojis(cat);
             EmojiScrollViewer.ChangeView(0, 0, 1.0f, true);
         }
@@ -221,30 +194,5 @@ public sealed partial class EmojiReactionPicker : UserControl
                 EmojiSelected?.Invoke(this, emoji);
             }
         }
-    }
-
-    private static Brush GetSubtleSecondaryBrush()
-    {
-        return Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Brush brush
-            ? brush
-            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-    }
-
-    private static Brush GetTransparentBrush()
-    {
-        return new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-    }
-
-    private static Brush GetAccentBrush()
-    {
-        if (Application.Current.Resources.TryGetValue("AppAccentBrush", out var b) && b is Brush brush)
-        {
-            return brush;
-        }
-        if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var ab) && ab is Brush aBrush)
-        {
-            return aBrush;
-        }
-        return new SolidColorBrush(Microsoft.UI.Colors.DodgerBlue);
     }
 }

@@ -60,7 +60,6 @@ public sealed partial class WhiteBoardControl : UserControl
             {
                 MyInkToolbar.EraseAllClicked += MyInkToolbar_EraseAllClicked;
             }
-            this.PreviewKeyDown += WhiteBoardControl_PreviewKeyDown;
             _isPresenterHooked = true;
             UpdateUndoRedoButtons();
         }
@@ -141,27 +140,16 @@ public sealed partial class WhiteBoardControl : UserControl
         }
     }
 
-    private void WhiteBoardControl_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    private void CaptionTextBox_GotFocus(object sender, RoutedEventArgs e)
     {
-        if (CaptionTextBox != null && CaptionTextBox.FocusState != FocusState.Unfocused)
-        {
-            return;
-        }
+        if (UndoAccelerator != null) UndoAccelerator.IsEnabled = false;
+        if (RedoAccelerator != null) RedoAccelerator.IsEnabled = false;
+    }
 
-        var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
-        bool isCtrlDown = (ctrlState & CoreVirtualKeyStates.Down) == CoreVirtualKeyStates.Down;
-        if (!isCtrlDown) return;
-
-        if (e.Key == VirtualKey.Z)
-        {
-            Undo_Click(this, new RoutedEventArgs());
-            e.Handled = true;
-        }
-        else if (e.Key == VirtualKey.Y)
-        {
-            Redo_Click(this, new RoutedEventArgs());
-            e.Handled = true;
-        }
+    private void CaptionTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (UndoAccelerator != null) UndoAccelerator.IsEnabled = true;
+        if (RedoAccelerator != null) RedoAccelerator.IsEnabled = true;
     }
 
     private void CaptionTextBox_KeyDown(object sender, KeyRoutedEventArgs e)

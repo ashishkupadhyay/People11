@@ -14,6 +14,7 @@ public sealed partial class ReactionDetailsControl : UserControl
 
     private Message? _message;
     private string _activeFilter = "All";
+    private bool _isUpdatingTabs;
 
     public Message? CurrentMessage => _message;
 
@@ -42,48 +43,49 @@ public sealed partial class ReactionDetailsControl : UserControl
 
     private void BuildTabs()
     {
-        EmojiTabsPanel.Children.Clear();
-        if (_message == null || _message.Reactions.Count == 0) return;
-
-        // "All" tab
-        AddTabButton("All", $"All {_message.TotalReactionCount}", "All");
-
-        // Per emoji tabs
-        var grouped = _message.Reactions.GroupBy(r => r.Emoji);
-        foreach (var group in grouped)
+        _isUpdatingTabs = true;
+        try
         {
-            AddTabButton(group.Key, $"{group.Key} {group.Count()}", group.Key);
+            EmojiFilterSelectorBar.Items.Clear();
+            if (_message == null || _message.Reactions.Count == 0) return;
+
+            var itemFont = new FontFamily("Segoe UI Emoji, Segoe UI");
+            var allItem = new SelectorBarItem
+            {
+                Text = $"All {_message.TotalReactionCount}",
+                Tag = "All",
+                FontFamily = itemFont,
+                Padding = new Thickness(10, 4, 10, 4),
+                MinWidth = 0
+            };
+            EmojiFilterSelectorBar.Items.Add(allItem);
+
+            foreach (var group in _message.Reactions.GroupBy(r => r.Emoji))
+            {
+                EmojiFilterSelectorBar.Items.Add(new SelectorBarItem
+                {
+                    Text = $"{group.Key} {group.Count()}",
+                    Tag = group.Key,
+                    FontFamily = itemFont,
+                    Padding = new Thickness(10, 4, 10, 4),
+                    MinWidth = 0
+                });
+            }
+
+            EmojiFilterSelectorBar.SelectedItem = allItem;
+        }
+        finally
+        {
+            _isUpdatingTabs = false;
         }
     }
 
-    private void AddTabButton(string key, string label, string tag)
+    private void EmojiFilterSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        var isSelected = key == _activeFilter;
-        var btn = new Button
-        {
-            Content = new TextBlock
-            {
-                Text = label,
-                FontSize = 12,
-                FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
-                FontFamily = new FontFamily("Segoe UI Emoji, Segoe UI")
-            },
-            Tag = tag,
-            Padding = new Thickness(8, 4, 8, 4),
-            CornerRadius = new CornerRadius(4),
-            Background = isSelected ? GetSubtleSecondaryBrush() : GetTransparentBrush(),
-            BorderThickness = new Thickness(0)
-        };
-        btn.Click += TabButton_Click;
-        EmojiTabsPanel.Children.Add(btn);
-    }
-
-    private void TabButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is string tag)
+        if (_isUpdatingTabs) return;
+        if (sender.SelectedItem is SelectorBarItem item && item.Tag is string tag)
         {
             _activeFilter = tag;
-            BuildTabs();
             RefreshList();
         }
     }
@@ -92,37 +94,20 @@ public sealed partial class ReactionDetailsControl : UserControl
     {
         if (_message == null)
         {
-            ReactorsItemsControl.ItemsSource = null;
+            ReactorsListView.ItemsSource = null;
             return;
         }
 
-        if (_activeFilter == "All")
-        {
-            ReactorsItemsControl.ItemsSource = _message.Reactions.ToList();
-        }
-        else
-        {
-            ReactorsItemsControl.ItemsSource = _message.Reactions.Where(r => r.Emoji == _activeFilter).ToList();
-        }
+        ReactorsListView.ItemsSource = _activeFilter == "All"
+            ? _message.Reactions.ToList()
+            : _message.Reactions.Where(r => r.Emoji == _activeFilter).ToList();
     }
 
-    private void ReactorItem_Click(object sender, RoutedEventArgs e)
+    private void ReactorsListView_ItemClick(object sender, ItemClickEventArgs e)
     {
-        if (sender is Button btn && btn.DataContext is MessageReaction reaction)
+        if (e.ClickedItem is MessageReaction reaction)
         {
             ReactionClicked?.Invoke(this, reaction);
         }
-    }
-
-    private static Brush GetSubtleSecondaryBrush()
-    {
-        return Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Brush brush
-            ? brush
-            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-    }
-
-    private static Brush GetTransparentBrush()
-    {
-        return new SolidColorBrush(Microsoft.UI.Colors.Transparent);
     }
 }

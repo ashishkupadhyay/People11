@@ -16,6 +16,7 @@ using Microsoft.UI.Xaml.Navigation;
 using People.Core.Interfaces;
 using People.Core.Models;
 using People.ViewModels;
+using People.Views.Dialogs;
 
 namespace People.Views;
 
@@ -465,31 +466,25 @@ public sealed partial class ConversationPage : Page
             }
         }
 
-        double width = MessagesListView.ActualWidth;
-        if (width <= 0) return;
-
-        var transform = MessagesListView.TransformToVisual(null);
-        if (transform == null) return;
-
-        for (double y = 90; y <= 180; y += 30)
+        if (MessagesListView.ItemsPanelRoot is ItemsStackPanel itemsPanel)
         {
-            var hostPoint = transform.TransformPoint(new Windows.Foundation.Point(width / 2, y));
-            var hitElements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(hostPoint, MessagesListView);
-            bool found = false;
-            foreach (var elem in hitElements)
+            int idx = itemsPanel.FirstVisibleIndex;
+            if (idx >= 0 && idx < ViewModel.Messages.Count)
             {
-                var container = elem as ListViewItem ?? FindParent<ListViewItem>(elem);
-                if (container != null)
+                if (idx + 1 < ViewModel.Messages.Count &&
+                    MessagesListView.ContainerFromIndex(idx) is FrameworkElement container)
                 {
-                    if (MessagesListView.ItemFromContainer(container) is Message msg)
+                    double headerBottom = (ConversationHeaderBorder?.ActualHeight > 0 ? ConversationHeaderBorder.ActualHeight : 73) + 12;
+                    var bottomPt = container.TransformToVisual(MessagesListView)
+                        .TransformPoint(new Windows.Foundation.Point(0, container.ActualHeight));
+                    if (bottomPt.Y < headerBottom)
                     {
-                        ViewModel.CurrentChatDateString = ConversationViewModel.FormatChatDate(msg.Timestamp);
-                        found = true;
-                        break;
+                        idx++;
                     }
                 }
+
+                ViewModel.CurrentChatDateString = ConversationViewModel.FormatChatDate(ViewModel.Messages[idx].Timestamp);
             }
-            if (found) break;
         }
     }
 
@@ -952,25 +947,6 @@ public sealed partial class ConversationPage : Page
         }
     }
 
-    private static T? FindDescendantByName<T>(DependencyObject root, string name) where T : FrameworkElement
-    {
-        int count = VisualTreeHelper.GetChildrenCount(root);
-        for (int i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child is T match && match.Name == name)
-            {
-                return match;
-            }
-            var nested = FindDescendantByName<T>(child, name);
-            if (nested != null)
-            {
-                return nested;
-            }
-        }
-        return null;
-    }
-
     private async void MessageDelete_Click(object sender, RoutedEventArgs e)
     {
         var msg = GetMessageFromSender(sender);
@@ -1000,34 +976,13 @@ public sealed partial class ConversationPage : Page
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary
         };
-        ApplyDialogTransparency(dialog);
-
-        if (stackButtons)
+        if (stackButtons &&
+            Application.Current.Resources.TryGetValue("StackedContentDialogStyle", out var stackedObj) &&
+            stackedObj is Style stackedStyle)
         {
-            dialog.Opened += (s, _) =>
-            {
-                if (s is not ContentDialog openedDialog) return;
-                if (FindDescendantByName<Grid>(openedDialog, "CommandSpace") is Grid commandSpace)
-                {
-                    commandSpace.ColumnDefinitions.Clear();
-                    commandSpace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    commandSpace.RowDefinitions.Clear();
-                    commandSpace.RowSpacing = 8;
-
-                    int row = 0;
-                    foreach (var btnName in new[] { "PrimaryButton", "SecondaryButton", "CloseButton" })
-                    {
-                        if (FindDescendantByName<Button>(commandSpace, btnName) is Button btn && btn.Visibility == Visibility.Visible)
-                        {
-                            commandSpace.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                            Grid.SetColumn(btn, 0);
-                            Grid.SetColumnSpan(btn, 1);
-                            Grid.SetRow(btn, row++);
-                        }
-                    }
-                }
-            };
+            dialog.Style = stackedStyle;
         }
+        ApplyDialogTransparency(dialog);
 
         var result = await dialog.ShowAsync();
         if (canDeleteForEveryone)
@@ -1050,89 +1005,11 @@ public sealed partial class ConversationPage : Page
     private async void MessageInfo_Click(object sender, RoutedEventArgs e)
     {
         var msg = GetMessageFromSender(sender);
-        if (msg == null) return;
+        if (msg == null || this.XamlRoot == null) return;
 
-        if (this.XamlRoot == null) return;
-
-        var panel = new StackPanel { Spacing = 10, MinWidth = 280 };
-
-        void AddInfoRow(string label, string value)
+        var dialog = new MessageInfoDialog(msg)
         {
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var lbl = new TextBlock
-            {
-                Text = label,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush,
-                FontSize = 13
-            };
-            Grid.SetColumn(lbl, 0);
-
-            var val = new TextBlock
-            {
-                Text = value,
-                FontSize = 13,
-                TextWrapping = TextWrapping.Wrap
-            };
-            Grid.SetColumn(val, 1);
-
-            row.Children.Add(lbl);
-            row.Children.Add(val);
-            panel.Children.Add(row);
-        }
-
-        string typeStr = msg.Content?.Type.ToString() ?? "Text";
-        AddInfoRow("Type", typeStr);
-
-        string senderStr = msg.IsOutgoing ? "You" : (!string.IsNullOrWhiteSpace(msg.SenderName) ? msg.SenderName : "Contact");
-        AddInfoRow("From", senderStr);
-
-        if (msg.Timestamp != DateTimeOffset.MinValue && msg.Timestamp != DateTimeOffset.UnixEpoch)
-        {
-            AddInfoRow("Date", msg.Timestamp.ToLocalTime().ToString("f"));
-        }
-
-        if (msg.IsOutgoing)
-        {
-            AddInfoRow("Status", msg.Status.ToString());
-        }
-
-        if (msg.IsEdited)
-        {
-            AddInfoRow("Edited", "Yes");
-        }
-
-        if (msg.IsRevoked)
-        {
-            AddInfoRow("Status", "Deleted");
-        }
-
-        if (msg.Content?.IsMedia == true || msg.Content?.IsDocument == true)
-        {
-            if (!string.IsNullOrEmpty(msg.Content.DisplayName))
-                AddInfoRow("File", msg.Content.DisplayName);
-            if (!string.IsNullOrEmpty(msg.Content.FormattedSizeAndType))
-                AddInfoRow("Size / Type", msg.Content.FormattedSizeAndType);
-            if (!string.IsNullOrEmpty(msg.Content.FormattedDuration))
-                AddInfoRow("Duration", msg.Content.FormattedDuration);
-        }
-
-        if (msg.Reactions != null && msg.Reactions.Count > 0)
-        {
-            var reactionsSummary = string.Join("  ", msg.Reactions.Select(r => $"{r.Emoji} {(r.IsFromMe ? "You" : (!string.IsNullOrWhiteSpace(r.SenderName) ? r.SenderName : "User"))}"));
-            AddInfoRow("Reactions", reactionsSummary);
-        }
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = this.XamlRoot,
-            Title = "Message info",
-            Content = panel,
-            CloseButtonText = "Close",
-            DefaultButton = ContentDialogButton.Close
+            XamlRoot = this.XamlRoot
         };
         ApplyDialogTransparency(dialog);
 
@@ -1142,9 +1019,7 @@ public sealed partial class ConversationPage : Page
     private async void MessageForward_Click(object sender, RoutedEventArgs e)
     {
         var msg = GetMessageFromSender(sender);
-        if (msg == null) return;
-
-        if (this.XamlRoot == null) return;
+        if (msg == null || this.XamlRoot == null) return;
 
         var chatListVm = App.Current.Services.GetService<ChatListViewModel>();
         var targetChats = new List<Chat>();
@@ -1192,170 +1067,15 @@ public sealed partial class ConversationPage : Page
             return;
         }
 
-        var filteredChats = new System.Collections.ObjectModel.ObservableCollection<Chat>(targetChats);
         double dlgWidth = (ActualWidth > 0 && ActualWidth < 430) ? Math.Clamp(ActualWidth - 64, 240, 360) : 360;
-
-        // Dialog content layout
-        var contentStack = new StackPanel { Spacing = 12, Width = dlgWidth };
-
-        // Search Box for contacts / chats
-        var searchBox = new AutoSuggestBox
+        var dialog = new ForwardMessageDialog(targetChats, dlgWidth)
         {
-            PlaceholderText = "Search contacts...",
-            QueryIcon = new SymbolIcon(Symbol.Find),
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-
-        // ListView for target selection
-        var listView = new ListView
-        {
-            ItemsSource = filteredChats,
-            SelectionMode = ListViewSelectionMode.Single,
-            MaxHeight = 320,
-            MinHeight = 180,
-            Width = dlgWidth,
-            IsItemClickEnabled = true
-        };
-
-        // Plain and simple contact list: avatar and title only
-        try
-        {
-            var template = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(@"
-<DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation""
-              xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"">
-    <Grid Padding=""4,6"" ColumnSpacing=""12"">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width=""Auto"" />
-            <ColumnDefinition Width=""*"" />
-        </Grid.ColumnDefinitions>
-        <PersonPicture Grid.Column=""0"" Width=""38"" Height=""38"" VerticalAlignment=""Center""
-                       DisplayName=""{Binding Title}"" />
-        <TextBlock Grid.Column=""1"" Text=""{Binding Title}"" FontWeight=""Medium"" FontSize=""14"" VerticalAlignment=""Center"" TextTrimming=""CharacterEllipsis"" />
-    </Grid>
-</DataTemplate>");
-            listView.ItemTemplate = template;
-        }
-        catch { }
-
-        listView.ContainerContentChanging += (lv, args) =>
-        {
-            if (args.Item is Chat c && args.ItemContainer?.ContentTemplateRoot is Grid grid)
-            {
-                if (grid.Children.Count > 0 && grid.Children[0] is PersonPicture pp)
-                {
-                    pp.DisplayName = c.Title;
-                    if (!string.IsNullOrEmpty(c.PictureUrl))
-                    {
-                        try
-                        {
-                            pp.ProfilePicture = new BitmapImage(new Uri(c.PictureUrl));
-                        }
-                        catch { }
-                    }
-                    else
-                    {
-                        pp.ProfilePicture = null;
-                    }
-                }
-            }
-        };
-
-        var emptyText = new TextBlock
-        {
-            Text = "No contacts found",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Foreground = Application.Current.Resources["TextFillColorSecondaryBrush"] as Brush,
-            Visibility = Visibility.Collapsed,
-            Margin = new Thickness(0, 40, 0, 40)
-        };
-
-        var listContainer = new Grid();
-        listContainer.Children.Add(listView);
-        listContainer.Children.Add(emptyText);
-
-        contentStack.Children.Add(searchBox);
-        contentStack.Children.Add(listContainer);
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = this.XamlRoot,
-            Title = "Forward message",
-            Content = contentStack,
-            PrimaryButtonText = "Forward",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Primary
+            XamlRoot = this.XamlRoot
         };
         ApplyDialogTransparency(dialog);
 
-        if (filteredChats.Count > 0)
-        {
-            listView.SelectedIndex = 0;
-            dialog.IsPrimaryButtonEnabled = true;
-        }
-        else
-        {
-            dialog.IsPrimaryButtonEnabled = false;
-        }
-
-        // Real-time search filtering
-        searchBox.TextChanged += (s, args) =>
-        {
-            var query = searchBox.Text.Trim();
-            filteredChats.Clear();
-            IEnumerable<Chat> matches = targetChats;
-            if (!string.IsNullOrEmpty(query))
-            {
-                matches = targetChats.Where(c =>
-                    c.Title != null && c.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
-            }
-
-            foreach (var m in matches)
-            {
-                filteredChats.Add(m);
-            }
-
-            if (filteredChats.Count > 0)
-            {
-                listView.SelectedIndex = 0;
-                emptyText.Visibility = Visibility.Collapsed;
-                dialog.IsPrimaryButtonEnabled = true;
-            }
-            else
-            {
-                emptyText.Visibility = Visibility.Visible;
-                dialog.IsPrimaryButtonEnabled = false;
-            }
-        };
-
-        // Selection handling
-        listView.SelectionChanged += (s, args) =>
-        {
-            dialog.IsPrimaryButtonEnabled = listView.SelectedItem is Chat;
-        };
-
-        // Click to select
-        listView.ItemClick += (s, args) =>
-        {
-            if (args.ClickedItem is Chat selected)
-            {
-                listView.SelectedItem = selected;
-                dialog.IsPrimaryButtonEnabled = true;
-            }
-        };
-
-        // Double-tap shortcut to forward immediately
-        listView.DoubleTapped += (s, args) =>
-        {
-            if (listView.SelectedItem is Chat target)
-            {
-                dialog.Hide();
-                _ = ViewModel.ForwardMessageAsync(msg, target);
-            }
-        };
-
         var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary && listView.SelectedItem is Chat targetChat)
+        if ((result == ContentDialogResult.Primary || dialog.ConfirmedByDoubleTap) && dialog.SelectedChat is Chat targetChat)
         {
             await ViewModel.ForwardMessageAsync(msg, targetChat);
         }

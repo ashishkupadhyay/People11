@@ -70,6 +70,41 @@
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
+            <VisualStateGroup x:Name="QrLayoutStates">
+                <VisualState x:Name="QrWideState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="660" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="QrNarrowState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="QrCardBorder.Padding" Value="16,20,16,20" />
+                        <Setter Target="QrCardBorder.MaxWidth" Value="440" />
+                        <Setter Target="QrCardBorder.Margin" Value="12,16,12,16" />
+                        <Setter Target="QrCardBorder.VerticalAlignment" Value="Top" />
+                        <Setter Target="QrCardGrid.ColumnSpacing" Value="0" />
+                        <Setter Target="QrCardGrid.RowSpacing" Value="18" />
+                        <Setter Target="QrInstructionsCol.Width" Value="*" />
+                        <Setter Target="QrCodeCol.Width" Value="0" />
+                        <Setter Target="QrInstructionsSection.(Grid.Column)" Value="0" />
+                        <Setter Target="QrInstructionsSection.(Grid.Row)" Value="0" />
+                        <Setter Target="QrCodeContainer.(Grid.Column)" Value="0" />
+                        <Setter Target="QrCodeContainer.(Grid.Row)" Value="1" />
+                        <Setter Target="QrCodeContainer.(Grid.RowSpan)" Value="1" />
+                        <Setter Target="QrImageGrid.Width" Value="200" />
+                        <Setter Target="QrImageGrid.Height" Value="200" />
+                        <Setter Target="QrCodeImage.Width" Value="200" />
+                        <Setter Target="QrCodeImage.Height" Value="200" />
+                        <Setter Target="DemoModeButton.(Grid.Column)" Value="0" />
+                        <Setter Target="DemoModeButton.(Grid.Row)" Value="2" />
+                        <Setter Target="DemoModeButton.HorizontalAlignment" Value="Center" />
+                        <Setter Target="DemoModeButton.Margin" Value="0,4,0,0" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
         <Grid x:Name="MainContentGrid"
@@ -103,7 +138,7 @@
                     </AutoSuggestBox>
                     
                     <!-- New Chat Button -->
-                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AppAccentButtonStyle}" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
+                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,6" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Center" x:Uid="NewChatBtn" AutomationProperties.AutomationId="NewChatBtn">
                         <Button.Flyout>
                             <Flyout x:Name="NewChatFlyout"
                                     Placement="BottomEdgeAlignedRight"
@@ -272,20 +307,11 @@
                                            Foreground="{x:Bind UnreadCount, Mode=OneWay, Converter={StaticResource UnreadToTimestampBrushConverter}}" 
                                            HorizontalAlignment="Right" />
                                 
-                                <Border Background="{ThemeResource AppAccentBrush}" 
-                                        CornerRadius="10" 
-                                        Padding="6,1" 
-                                        MinHeight="18" 
-                                        MinWidth="18" 
-                                        HorizontalAlignment="Right"
-                                        Visibility="{x:Bind UnreadCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}">
-                                    <TextBlock Text="{x:Bind UnreadCount, Mode=OneWay}" 
-                                               FontSize="11" 
-                                               FontWeight="SemiBold" 
-                                               Foreground="{ThemeResource AppAccentForegroundBrush}" 
-                                               HorizontalAlignment="Center" 
-                                               VerticalAlignment="Center" />
-                                </Border>
+                                <InfoBadge Value="{x:Bind UnreadCount, Mode=OneWay}"
+                                           Background="{ThemeResource AppAccentBrush}"
+                                           Foreground="{ThemeResource AppAccentForegroundBrush}"
+                                           HorizontalAlignment="Right"
+                                           Visibility="{x:Bind UnreadCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}" />
                             </StackPanel>
                         </Grid>
                     </DataTemplate>
@@ -353,7 +379,7 @@
 
                     <!-- "Get started" button following WhatsApp selected accent settings -->
                     <Button Content="Get started"
-                            Style="{ThemeResource AppAccentButtonStyle}"
+                            Style="{ThemeResource AccentButtonStyle}"
                             Command="{x:Bind ViewModel.StartLinkingCommand}"
                             MinWidth="130"
                             Padding="16,6"
@@ -380,6 +406,7 @@
                             CornerRadius="{ThemeResource OverlayCornerRadius}"
                             BackgroundSizing="InnerBorderEdge"
                             Padding="36,32,36,32"
+                            Margin="24"
                             MaxWidth="780"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">

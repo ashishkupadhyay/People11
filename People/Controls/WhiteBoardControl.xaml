@@ -48,14 +48,22 @@
                                       Click="Undo_Click"
                                       IsEnabled="False"
                                       ToolTipService.ToolTip="Undo (Ctrl+Z)"
-                                      AutomationProperties.Name="Undo" />
+                                      AutomationProperties.Name="Undo">
+                            <AppBarButton.KeyboardAccelerators>
+                                <KeyboardAccelerator x:Name="UndoAccelerator" Key="Z" Modifiers="Control" />
+                            </AppBarButton.KeyboardAccelerators>
+                        </AppBarButton>
                         <AppBarButton x:Name="RedoButton"
                                       Icon="Redo"
                                       Label="Redo"
                                       Click="Redo_Click"
                                       IsEnabled="False"
                                       ToolTipService.ToolTip="Redo (Ctrl+Y)"
-                                      AutomationProperties.Name="Redo" />
+                                      AutomationProperties.Name="Redo">
+                            <AppBarButton.KeyboardAccelerators>
+                                <KeyboardAccelerator x:Name="RedoAccelerator" Key="Y" Modifiers="Control" />
+                            </AppBarButton.KeyboardAccelerators>
+                        </AppBarButton>
                     </CommandBar.PrimaryCommands>
                 </CommandBar>
             </StackPanel>
@@ -88,6 +96,8 @@
                      HorizontalAlignment="Stretch"
                      MaxLength="1024"
                      CornerRadius="4"
+                     GotFocus="CaptionTextBox_GotFocus"
+                     LostFocus="CaptionTextBox_LostFocus"
                      KeyDown="CaptionTextBox_KeyDown"
                      AutomationProperties.Name="Image caption" />
 
@@ -101,7 +111,7 @@
                         Height="34"
                         Padding="14,4" />
                 <Button x:Name="SendButton"
-                        Style="{ThemeResource AppAccentButtonStyle}"
+                        Style="{ThemeResource AccentButtonStyle}"
                         Click="Send_Click"
                         CornerRadius="4"
                         Height="34"

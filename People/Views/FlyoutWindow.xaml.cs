@@ -722,7 +722,7 @@ public sealed partial class FlyoutWindow : Window
         _currentChatListPage?.CloseDetail();
     }
 
-    private void PlatformNameButton_Click(object sender, RoutedEventArgs e)
+    private void PlatformSplitButton_Click(SplitButton sender, SplitButtonClickEventArgs args)
     {
         var mainWindow = App.Current.MainWindow as MainWindow;
         if (mainWindow != null)
